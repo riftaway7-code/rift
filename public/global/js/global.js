@@ -203,7 +203,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const typingText = document.getElementById('typingText');
     const performanceMode = localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true';
 
-    // Quotes to cycle through
     const quotes = [
         "the quiet keeps rifting wider",
         "time keeps moving through what's already rifted",
@@ -239,7 +238,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Start typing effect
     if (typingText) {
         if (performanceMode) {
             typingText.textContent = 'performance mode enabled';
@@ -248,18 +246,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Cursor light effect
     if (!performanceMode) {
         const cursorLight = document.createElement('div');
         cursorLight.className = 'cursor-light';
         document.body.appendChild(cursorLight);
 
-        // Store previous positions for line trail
         let prevX = null;
         let prevY = null;
 
         document.addEventListener('mousemove', function (e) {
-            // Skip cursor effects when game viewer is active
             const viewer = document.getElementById('game-viewer');
             if (viewer && viewer.classList.contains('active')) {
                 cursorLight.style.display = 'none';
@@ -267,22 +262,18 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             cursorLight.style.display = '';
 
-            // Update light position
             cursorLight.style.left = e.clientX + 'px';
             cursorLight.style.top = e.clientY + 'px';
 
-            // Create line trail
             if (prevX !== null && prevY !== null) {
                 const trail = document.createElement('div');
                 trail.className = 'cursor-trail';
 
-                // Calculate distance and angle between points
                 const dx = e.clientX - prevX;
                 const dy = e.clientY - prevY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 const angle = Math.atan2(dy, dx) * 180 / Math.PI;
 
-                // Position and style the line
                 trail.style.left = prevX + 'px';
                 trail.style.top = prevY + 'px';
                 trail.style.width = distance + 'px';
@@ -291,7 +282,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 document.body.appendChild(trail);
 
-                // Remove trail after animation
                 setTimeout(() => {
                     trail.remove();
                 }, 500);
@@ -302,7 +292,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Nav toggle
     const nav = document.querySelector('.bottom-nav');
     if (nav) {
         const toggle = document.createElement('button');
@@ -316,7 +305,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Apply saved nav position on all pages
 document.addEventListener('DOMContentLoaded', () => {
     const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
     document.body.classList.add('nav-pos-' + savedPosition);
@@ -324,7 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
-// Global auth/save helper for Rift pages.
 (function () {
     const SETTINGS_KEYS = [
         'rift__nav-position',
@@ -408,7 +395,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 })();
 
-// Global floating mini music player (left corner).
 (function () {
     const STORAGE_KEY = 'rift__mini_player_v1';
     const UPDATE_EVENT = 'rift-mini-player-update';
@@ -635,3 +621,4 @@ document.addEventListener('DOMContentLoaded', () => {
         notify();
     });
 })();
+

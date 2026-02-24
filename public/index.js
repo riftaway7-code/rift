@@ -9,7 +9,6 @@ const frame = document.getElementById("sj-frame");
 
 let proxyMode = "scramjet";
 
-// BareMux wiring for network transport
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
 async function ensureTransport() {
@@ -42,7 +41,6 @@ async function testWispSocket(timeoutMs = 1500) {
             try {
                 socket.close();
             } catch {
-                // no-op
             }
             resolve(ok);
         };
@@ -167,10 +165,10 @@ document.getElementById("home-btn")?.addEventListener("click", () => {
     address.value = "";
 });
 
-// Support deep links (?url=...)
 const urlParams = new URLSearchParams(window.location.search);
 const initialUrl = urlParams.get("url");
 if (initialUrl) {
     address.value = initialUrl;
     form.dispatchEvent(new Event("submit"));
 }
+

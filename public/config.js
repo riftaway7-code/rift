@@ -12,13 +12,11 @@ window._CONFIG = window._CONFIG || {};
         "rift.theprojectplateau.space": "5601948"
     };
 
-    // Any subdomain under rift.polden.com falls back to the main zone.
     let zoneId = zoneByHost[host];
     if (!zoneId && host.endsWith(".rift.polden.com")) {
         zoneId = "5602000";
     }
 
-    // Final fallback so ads still load on unknown hosts.
     if (!zoneId) zoneId = "5602000";
 
     window._CONFIG.ads = {
@@ -29,3 +27,4 @@ window._CONFIG = window._CONFIG || {};
         ]
     };
 })();
+

@@ -7,8 +7,6 @@ https://github.com/etcherfx/Phosphur/blob/e294e068918d4f0636f93feb9c961e00b7ed7e
 ```
 server.address();
 
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
 	console.log("Listening on:");
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
@@ -33,8 +31,6 @@ https://github.com/maxiz1225/the-simple-unblocker-public/blob/e56157b24a2c6213e9
 ```
 server.address();
 
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
 	console.log("Listening on:");
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
@@ -59,8 +55,6 @@ https://github.com/CLOXKEDMASKED/cloxkedmasked.github.io/blob/2829f6f7e6d3ba92cc
 ```
 server.address();
 
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
 	console.log("Listening on:");
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
@@ -297,27 +291,17 @@ https://github.com/maxiz1225/the-simple-unblocker-public/blob/e56157b24a2c6213e9
  */
 function search(input, template) {
 	try {
-		// input is a valid URL:
-		// eg: https://example.com, https://example.com/test?q=param
 		return new URL(input).toString();
 	} catch (err) {
-		// input was not a valid URL
 	}
 
 	try {
-		// input is a valid URL when http:// is added to the start:
-		// eg: example.com, https://example.com/test?q=param
 		const url = new URL(`http://${input}`);
-		// only if the hostname has a TLD/subdomain
 		if (url.hostname.includes(".")) return url.toString();
 	} catch (err) {
-		// input was not valid URL
 	}
 
-	// input may have been a valid URL, however the hostname was invalid
 
-	// Attempts to convert the input to a fully qualified URL have failed
-	// Treat the input as a search query
 	return template.replace("%s", encodeURIComponent(input));
 }
 ```
@@ -329,8 +313,6 @@ https://github.com/maxiz1225/the-simple-unblocker-public/blob/e56157b24a2c6213e9
 ```
 server.address();
 
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
 	console.log("Listening on:");
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
@@ -355,8 +337,6 @@ https://github.com/CLOXKEDMASKED/cloxkedmasked.github.io/blob/2829f6f7e6d3ba92cc
 ```
 server.address();
 
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
 	console.log("Listening on:");
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
@@ -381,8 +361,6 @@ https://github.com/etcherfx/Phosphur/blob/e294e068918d4f0636f93feb9c961e00b7ed7e
 ```
 server.address();
 
-	// by default we are listening on 0.0.0.0 (every interface)
-	// we just need to list a few
 	console.log("Listening on:");
 	console.log(`\thttp://localhost:${address.port}`);
 	console.log(`\thttp://${hostname()}:${address.port}`);
@@ -399,3 +377,4 @@ process.on("SIGTERM", shutdown);
 function shutdown() {
 	console.log("SIGTERM signal received: closing HTTP server")
 ```
+

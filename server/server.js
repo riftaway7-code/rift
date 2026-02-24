@@ -7,7 +7,6 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Prevent stale HTML/CSS/JS from being served to clients during rapid updates.
 app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
@@ -16,7 +15,6 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '1mb' }));
 
-// Comma-separated IP allowlist. Defaults to current Oracle public IP.
 const VALIDATE_TARGET_IPS = (process.env.VALIDATE_TARGET_IPS || '161.153.8.72')
     .split(',')
     .map((ip) => ip.trim())
@@ -331,7 +329,6 @@ async function writeAuthDb(db) {
 async function updateAuthDb(mutator) {
     authWriteLock = authWriteLock
         .catch(() => {
-            // Reset lock chain after failures so a rejected write doesn't poison future writes.
         })
         .then(async () => {
             const db = await readAuthDb();
@@ -632,7 +629,6 @@ async function hostnamePointsToAllowedIp(hostname) {
     }
 }
 
-// Serve static files from public/, assets/, and components/
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 app.use('/components', express.static(path.join(__dirname, '..', 'components')));
@@ -640,7 +636,6 @@ app.use('/scramjet', express.static(path.join(__dirname, '..', 'node_modules', '
 app.use('/baremux', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'bare-mux', 'dist')));
 app.use('/libcurl', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'libcurl-transport', 'dist')));
 
-// Velara Astra passthrough so proxied pages can call /astra* endpoints from Rift origin.
 app.all(/^\/astra(?:\/(.*))?$/, async (req, res) => {
     const tail = req.params?.[0] || '';
     return proxyVelara(req, res, '/astra', tail);
@@ -1435,12 +1430,7 @@ app.delete('/api/chat/rooms/:roomId', async (req, res) => {
     }
 });
 
-// Fallback for runtime same-origin asset requests emitted from proxied pages
-// (e.g. Unity/WebGL games requesting /media/* or font files).
 app.all('*', async (req, res, next) => {
-    // Some proxied pages emit malformed same-origin requests like:
-    // /cdn.jsdelivr.net/proxy?url=https://truffled.lol/...
-    // Normalize these back into the real /proxy endpoint.
     const hostPrefixedProxy = String(req.path || '').match(/^\/([a-z0-9.-]+\.[a-z]{2,})\/proxy$/i);
     if (hostPrefixedProxy) {
         const nested = String(req.query?.url || '').trim();
@@ -1457,8 +1447,6 @@ app.all('*', async (req, res, next) => {
     const method = (req.method || 'GET').toUpperCase();
     const isBodyMethod = !['GET', 'HEAD'].includes(method);
 
-    // Forward non-GET requests from proxied pages (e.g. form POST /zc.php)
-    // so they don't hit Rift origin and fail with "Cannot POST ...".
     if (isBodyMethod) {
         try {
             const target = new URL(req.url, upstreamRef.origin).href;
@@ -1507,10 +1495,7 @@ app.all('*', async (req, res, next) => {
         }
     }
 
-    // Keep document navigations from proxied pages inside /proxy.
-    // Example: upstream redirects to "/signup/" and browser requests it on Rift origin.
     if (!isLikelyAssetPath(req.path)) {
-        // Never rewrite requests that are already using the proxy endpoint.
         if (req.path === '/proxy') {
             return next();
         }
@@ -1547,7 +1532,6 @@ app.all('*', async (req, res, next) => {
                 const raw = Buffer.from(await upstream.arrayBuffer());
                 return res.status(upstream.status).send(raw);
             } catch {
-                // try next candidate
             }
         }
 
@@ -1557,7 +1541,6 @@ app.all('*', async (req, res, next) => {
     }
 });
 
-// Clean URLs - serve .html files without extension
 app.use((req, res, next) => {
     if (!req.path.includes('.') && req.path !== '/') {
         const file = path.join(__dirname, '..', 'public', req.path + '.html');
@@ -1569,7 +1552,6 @@ app.use((req, res, next) => {
     }
 });
 
-// Proxy endpoint
 app.all('/proxy', async (req, res) => {
     let targetUrl = req.query.url;
 
@@ -1578,7 +1560,6 @@ app.all('/proxy', async (req, res) => {
         for (let i = 0; i < 4; i++) {
             if (!current) break;
             try {
-                // Handle absolute nested proxy URLs (e.g. https://host/proxy?url=...)
                 const parsed = new URL(current);
                 if (parsed.pathname === '/proxy' && parsed.searchParams.get('url')) {
                     current = parsed.searchParams.get('url');
@@ -1586,7 +1567,6 @@ app.all('/proxy', async (req, res) => {
                 }
                 break;
             } catch {
-                // Handle relative nested proxy URLs (e.g. /proxy?url=...)
                 if (current.startsWith('/proxy?url=')) {
                     try {
                         const rel = new URL(current, `http://${req.headers.host || 'localhost'}`);
@@ -1598,8 +1578,6 @@ app.all('/proxy', async (req, res) => {
                     } catch {}
                 }
 
-                // Handle host-prefixed nested proxy values without scheme:
-                // cdn.jsdelivr.net/proxy?url=https://...
                 const hostPrefixed = current.match(/^([a-z0-9.-]+\.[a-z]{2,})\/proxy\?url=(.+)$/i);
                 if (hostPrefixed) {
                     try {
@@ -1618,10 +1596,6 @@ app.all('/proxy', async (req, res) => {
     targetUrl = unwrapNestedProxyTarget(targetUrl);
 
     if (!targetUrl) {
-        // Recover malformed query shapes:
-        // - /proxy?https://example.com
-        // - /proxy?u=https://example.com
-        // - /proxy?cdn.jsdelivr.net/proxy?url=https://...
         const rawQuery = req.url.includes('?') ? req.url.slice(req.url.indexOf('?') + 1) : '';
         if (rawQuery) {
             let decoded = rawQuery;
@@ -1655,8 +1629,6 @@ app.all('/proxy', async (req, res) => {
     }
 
     if (!targetUrl) {
-        // Some proxied pages submit relative GET forms to the current /proxy URL
-        // (e.g. /proxy?name=foo). Recover the upstream target from referer.
         const referer = String(req.get('referer') || '').trim();
         try {
             const refUrl = new URL(referer);
@@ -1671,8 +1643,6 @@ app.all('/proxy', async (req, res) => {
                     }
                     const incomingQuery = new URLSearchParams(req.query || {});
                     incomingQuery.delete('url');
-                    // Myinstants search forms often submit only "?name=...".
-                    // Route these to the site's native search endpoint.
                     if (
                         incomingQuery.has('name') &&
                         /(^|\.)myinstants\.com$/i.test(String(recovered.hostname || '')) &&
@@ -1686,18 +1656,14 @@ app.all('/proxy', async (req, res) => {
                 }
             }
         } catch {
-            // Fall through to default 400 when recover is not possible.
         }
         if ((req.method || 'GET').toUpperCase() === 'GET') {
-            // Suppress noisy empty /proxy GETs from worker/runtime probes.
             return res.status(204).end();
         }
         return res.status(400).send('URL parameter is required');
     }
 
     try {
-        // Truffled games rely on root-relative assets/scripts that break behind proxy.
-        // Force those launches onto Truffled's own iframe loader instead.
         try {
             const parsedTarget = new URL(String(targetUrl));
             if (/(^|\.)truffled\.lol$/i.test(parsedTarget.hostname) &&
@@ -1730,7 +1696,6 @@ app.all('/proxy', async (req, res) => {
             headers[name] = value;
         }
 
-        // Many signup/login flows validate origin/referer for POSTs.
         try {
             const target = new URL(String(targetUrl));
             if (headers.origin) headers.origin = target.origin;
@@ -1767,7 +1732,6 @@ app.all('/proxy', async (req, res) => {
             return res.status(response.status).send(rewrittenManifest);
         }
 
-        // Do not rewrite non-HTML assets. Rewriting JS/CSS text can corrupt syntax.
         if (!isHtml) {
             const raw = Buffer.from(await response.arrayBuffer());
             if (contentType) {
@@ -1836,8 +1800,6 @@ app.all('/proxy', async (req, res) => {
             }
         }
 
-        // Many mirror game builds reference YaGames SDK; when blocked/unavailable,
-        // inline startup scripts crash before the game boots. Provide a no-op shim.
         const yaGamesShim = '<script id="rift-yagames-shim">(function(){if(window.YaGames)return;window.YaGames={init:function(){return Promise.resolve({adv:{showFullscreenAdv:function(){return Promise.resolve();},showRewardedVideo:function(){return Promise.resolve();}},features:{LoadingAPI:{ready:function(){}}}});}};})();</script>';
         if (/<head[^>]*>/i.test(modifiedContent)) {
             modifiedContent = modifiedContent.replace(/<head[^>]*>/i, `$&${yaGamesShim}`);
@@ -1845,8 +1807,6 @@ app.all('/proxy', async (req, res) => {
             modifiedContent = yaGamesShim + modifiedContent;
         }
 
-        // Logged-in cloud sync for proxied game localStorage.
-        // This allows saves to follow the user's Rift account across domains.
         try {
             const auth = await getSessionFromRequest(req);
             if (auth) {
@@ -1865,10 +1825,8 @@ app.all('/proxy', async (req, res) => {
                 }
             }
         } catch {
-            // Ignore sync bootstrap failures and continue serving proxied page.
         }
 
-        // Force Rift cursor inside proxied HTML pages rendered in the browser iframe.
         if (/^\s*</.test(modifiedContent)) {
             const cursorStyle = '<style id="rift-proxy-cursor">*,*::before,*::after{cursor:url("/assets/images/cursor.png") 16 16, auto !important;}.rift-proxy-cursor-light{position:fixed;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.15) 0%,rgba(255,255,255,0) 70%);pointer-events:none;z-index:2147483647;transform:translate(-50%,-50%);mix-blend-mode:screen;}</style>';
             const cursorScript = '<script id="rift-proxy-cursor-script">(function(){if(window.__riftProxyCursorInit)return;window.__riftProxyCursorInit=true;var light=document.createElement("div");light.className="rift-proxy-cursor-light";document.documentElement.appendChild(light);document.addEventListener("mousemove",function(e){light.style.left=e.clientX+"px";light.style.top=e.clientY+"px";});document.addEventListener("mouseleave",function(){light.style.opacity="0";});document.addEventListener("mouseenter",function(){light.style.opacity="1";});})();</script>';
@@ -1879,8 +1837,6 @@ app.all('/proxy', async (req, res) => {
             }
         }
 
-        // Truffled iframe pages use href="javascript:void(0)" for popout, which looks broken.
-        // Keep their click behavior, but expose a real href so hover/status shows a usable URL.
         try {
             if (/(^|\.)truffled\.lol$/i.test(parsedTargetUrl.hostname) && /^\/iframe\.html$/i.test(parsedTargetUrl.pathname)) {
                 const truffledPopoutScript = '<script id="rift-truffled-popout-link">(function(){function sync(){var btn=document.getElementById("aboutblank");var frame=document.getElementById("gameframe");if(!btn||!frame)return;var src=String(frame.src||"").trim();if(!src||/\\/404\\.html(?:$|\\?)/i.test(src))return;btn.setAttribute("href",src);btn.setAttribute("target","_blank");btn.setAttribute("rel","noopener noreferrer");}document.addEventListener("DOMContentLoaded",sync);setInterval(sync,800);})();</script>';
@@ -1901,7 +1857,6 @@ app.all('/proxy', async (req, res) => {
     }
 });
 
-// Build SDXP catalog from local /public/sdxp/html tree.
 app.get('/sdxp-catalog', async (_req, res) => {
     try {
         await fs.access(SDXP_HTML_ROOT);
@@ -1930,7 +1885,6 @@ app.get('/sdxp-catalog', async (_req, res) => {
     }
 });
 
-// Build DuckMath catalog from public g4m3s page.
 app.get('/duckmath-catalog', async (_req, res) => {
     try {
         const response = await fetch(DUCKMATH_GAMES_PAGE);
@@ -1965,7 +1919,6 @@ app.get('/duckmath-catalog', async (_req, res) => {
     }
 });
 
-// Build Truffled catalog from public games page.
 app.get('/truffled-catalog', async (_req, res) => {
     try {
         let payload = null;
@@ -1975,7 +1928,6 @@ app.get('/truffled-catalog', async (_req, res) => {
                 payload = await response.json();
             }
         } catch {
-            // Fall back to local snapshot when remote source is unavailable.
         }
         if (!payload) {
             const localRaw = await fs.readFile(TRUFFLED_LOCAL_JSON, 'utf8');
@@ -2015,7 +1967,6 @@ app.get('/truffled-catalog', async (_req, res) => {
     }
 });
 
-// Build Totally Science catalog from CloudFront homepage cards.
 app.get('/totalscience-catalog', async (_req, res) => {
     try {
         const response = await fetch(TOTALLY_SCIENCE_BASE);
@@ -2062,7 +2013,6 @@ app.get('/totalscience-catalog', async (_req, res) => {
     }
 });
 
-// Build Velara catalog from its public gg.json.
 app.get('/velara-catalog', async (_req, res) => {
     try {
         const response = await fetch(VELARA_GAMES_JSON);
@@ -2099,7 +2049,6 @@ app.get('/velara-catalog', async (_req, res) => {
     }
 });
 
-// Caddy on-demand TLS validation endpoint
 app.get('/validate', async (req, res) => {
     const domain = String(req.query.domain || '').toLowerCase().trim();
 
@@ -2114,3 +2063,4 @@ app.get('/validate', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Rift running on http://localhost:${PORT}`);
 });
+

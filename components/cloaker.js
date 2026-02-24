@@ -53,5 +53,5 @@ const RiftShield = {
      },
 };
 
-// Auto-apply on every page load
 RiftShield.apply();
+

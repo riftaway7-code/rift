@@ -30,6 +30,12 @@ const VAULT_CONFIG = {
                bases: [],
                localCatalogUrl: "/truffled-catalog",
           },
+          totalscience: {
+               key: "totalscience",
+               label: "Totally Science",
+               bases: [],
+               localCatalogUrl: "/totalscience-catalog",
+          },
           velara: {
                key: "velara",
                label: "Velara",
@@ -86,7 +92,6 @@ const RiftVault = {
           try {
                await window.RiftAuth.saveLocalSettings();
           } catch {
-               // user not logged in or save unavailable; ignore silently
           }
      },
 
@@ -185,6 +190,22 @@ const RiftVault = {
           if (!/^https?:\/\//i.test(value)) return `https://${value.replace(/^\/+/, "")}`;
           if (/\.[a-z0-9]+(\?|#|$)/i.test(value) || value.endsWith("/")) return value;
           return `${value}/index.html`;
+     },
+
+     normalizeTruffledLaunchUrl(url) {
+          const value = String(url || "").trim();
+          if (!value) return "";
+          try {
+               const parsed = new URL(value, "https://truffled.lol");
+               if (!/(^|\.)truffled\.lol$/i.test(parsed.hostname)) return value;
+               if (parsed.pathname.toLowerCase().endsWith("/iframe.html")) {
+                    return parsed.href;
+               }
+               const embedded = `${parsed.pathname}${parsed.search}${parsed.hash}` || "/";
+               return `https://truffled.lol/iframe.html?url=${encodeURIComponent(embedded)}`;
+          } catch {
+               return value;
+          }
      },
 
      bind() {
@@ -292,11 +313,12 @@ const RiftVault = {
      sourceRank(source) {
           const rank = {
                truffled: 0,
-               sdxp: 1,
-               velara: 2,
-               "gn-math": 3,
-               petezah: 4,
-               seraph: 5,
+               totalscience: 1,
+               sdxp: 2,
+               velara: 3,
+               "gn-math": 4,
+               petezah: 5,
+               seraph: 6,
           };
           return rank[source] ?? 9;
      },
@@ -586,7 +608,6 @@ const RiftVault = {
                          .replace("{COVER_URL}", `${game.sourceBase}/covers@main`)
                          .replace("{HTML_URL}", `${game.sourceBase}/html@main`);
 
-               // Keep Velara Astra on original origin so its anti-bot token flow can run.
 
                if (url.includes("{prefix}")) {
                     const encodedPrefix = encodeURIComponent(window.location.origin);
@@ -602,6 +623,10 @@ const RiftVault = {
 
                if (game.source === "duckmath" && /^https?:\/\//i.test(url)) {
                     url = `/proxy?url=${encodeURIComponent(url)}`;
+               }
+
+               if (game.source === "truffled" && /^https?:\/\//i.test(url)) {
+                    url = this.normalizeTruffledLaunchUrl(url);
                }
 
                const launchUrl = this.prepareLaunchUrl(url, external);
@@ -622,13 +647,17 @@ const RiftVault = {
           } catch (err) {
                console.error(err);
                const rawFallbackUrl = typeof game?.url === "string" ? game.url : "";
-               const isExternalFallback = rawFallbackUrl.includes("://") || rawFallbackUrl.startsWith("/");
+               const normalizedFallbackUrl =
+                    game?.source === "truffled"
+                         ? this.normalizeTruffledLaunchUrl(rawFallbackUrl)
+                         : rawFallbackUrl;
+               const isExternalFallback = normalizedFallbackUrl.includes("://") || normalizedFallbackUrl.startsWith("/");
                if (isExternalFallback) {
                     try {
-                         const isVelaraAstraFallback = game.source === "velara" && /^https?:\/\/velara\.my\/astra(?:\/|$)/i.test(rawFallbackUrl);
+                         const isVelaraAstraFallback = game.source === "velara" && /^https?:\/\/velara\.my\/astra(?:\/|$)/i.test(normalizedFallbackUrl);
                          const browserUrl = isVelaraAstraFallback
-                              ? `${window.location.origin}/browser?url=${encodeURIComponent(rawFallbackUrl)}`
-                              : `${window.location.origin}/browser?url=${encodeURIComponent(rawFallbackUrl)}&popout=1`;
+                              ? `${window.location.origin}/browser?url=${encodeURIComponent(normalizedFallbackUrl)}`
+                              : `${window.location.origin}/browser?url=${encodeURIComponent(normalizedFallbackUrl)}&popout=1`;
                          if (isVelaraAstraFallback) {
                               window.location.href = browserUrl;
                               return;
@@ -665,7 +694,6 @@ const RiftVault = {
           try {
                await window.RiftAuth.saveGameProgress(game.id, payload);
           } catch {
-               // ignore when user is logged out or API unavailable
           }
      },
 
@@ -738,3 +766,4 @@ document.addEventListener("DOMContentLoaded", () => {
      if (!document.body || !document.body.classList.contains("games-page")) return;
      RiftVault.boot();
 });
+

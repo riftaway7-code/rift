@@ -265,7 +265,6 @@
                     const u = new URL(targetUrl, window.location.origin);
                     const host = (u.hostname || '').toLowerCase();
                     const path = (u.pathname || '').toLowerCase();
-                    // Roblox app 19900 currently works on websitesball mirror for this deployment.
                     if ((host === 'now.gg' || host.endsWith('.now.gg')) && path === '/apps/a/19900/b.html') {
                         u.hostname = 'websitesball.com';
                         return u.toString();
@@ -487,4 +486,5 @@
 
 </body>
 </html>
+
 

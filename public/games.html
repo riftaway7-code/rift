@@ -131,11 +131,9 @@
     <script src="/components/404.js"></script>
     <script src="https://laptopchoose.com/09/96/f1/0996f1fd6e5014f3da662d494fbfe224.js"></script>
 <script>
-    // Apply saved nav position
     const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
     document.body.classList.add('nav-pos-' + savedPosition);
 
-    // Optional standalone games mode (no navbar/nav-toggle).
     const params = new URLSearchParams(location.search);
     if (params.get('view') === 'games-only') {
         const nav = document.querySelector('.bottom-nav');
@@ -147,4 +145,5 @@
 
 </body>
 </html>
+
 

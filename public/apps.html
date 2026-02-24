@@ -82,12 +82,10 @@
     <script src="/components/404.js"></script>
 
     <script>
-    // Apply saved nav position
     const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
     document.body.classList.add('nav-pos-' + savedPosition);
 </script>
     <script>
-    // Keep app-card navigation on the current subdomain/origin.
     document.querySelectorAll('.app-card[data-target-url]').forEach((card) => {
         card.addEventListener('click', (event) => {
             event.preventDefault();
@@ -102,4 +100,5 @@
 
 </body>
 </html>
+
 

@@ -178,25 +178,21 @@
     <script src="https://laptopchoose.com/09/96/f1/0996f1fd6e5014f3da662d494fbfe224.js"></script>
 
     <script>
-    // Apply saved nav position
     const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
     document.body.classList.add('nav-pos-' + savedPosition);
 </script>
 
 <script>
-    // Partner popup
     document.addEventListener('DOMContentLoaded', () => {
         const popup = document.getElementById('partner-popup');
         const closeBtn = document.getElementById('partner-close');
         if (!popup || !closeBtn) return;
         setTimeout(() => popup.classList.add('active'), 350);
         
-        // Close popup
         closeBtn.addEventListener('click', () => {
             popup.classList.remove('active');
         });
         
-        // Close on backdrop click
         popup.addEventListener('click', (e) => {
             if (e.target === popup) {
                 popup.classList.remove('active');
@@ -272,4 +268,5 @@
 
 </body>
 </html>
+
 
