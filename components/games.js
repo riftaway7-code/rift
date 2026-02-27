@@ -58,6 +58,13 @@ const VAULT_CONFIG = {
      blocked: ["chat", "bot", "ai"],
 };
 
+const GN_MATH_BLOCKED_URL_SUFFIXES = [
+     "/114-f.html", // upstream wrapper missing
+     "/265.html", // upstream inline JS syntax error
+     "/303.html", // upstream inline JS syntax error
+     "/469.html", // upstream inline JS syntax error
+];
+
 let catalog = [];
 let launchMode = VAULT_CONFIG.defaults.mode;
 let drag = { active: false, x: 0, y: 0, ox: 0, oy: 0 };
@@ -169,7 +176,14 @@ const RiftVault = {
                     const res = await fetch(url);
                     if (!res.ok) throw new Error(`catalog ${res.status}`);
                     const data = await res.json();
-                    const rows = Array.isArray(data) ? data.slice(1) : [];
+                    let rows = Array.isArray(data) ? data.slice(1) : [];
+                    if (source.key === "gn-math") {
+                         rows = rows.filter((item) => {
+                              const rawUrl = String(item?.url || "").toLowerCase().trim();
+                              if (!rawUrl) return false;
+                              return !GN_MATH_BLOCKED_URL_SUFFIXES.some((suffix) => rawUrl.endsWith(suffix));
+                         });
+                    }
                     return rows.map((item) => ({
                          ...item,
                          source: source.key,

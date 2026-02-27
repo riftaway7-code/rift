@@ -308,10 +308,92 @@ async function ensureAuthDb() {
     }
 }
 
+function extractFirstJsonObject(raw) {
+    const text = String(raw || '');
+    const start = text.indexOf('{');
+    if (start < 0) return null;
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = start; i < text.length; i += 1) {
+        const ch = text[i];
+
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (ch === '\\') {
+                escaped = true;
+                continue;
+            }
+            if (ch === '"') {
+                inString = false;
+            }
+            continue;
+        }
+
+        if (ch === '"') {
+            inString = true;
+            continue;
+        }
+        if (ch === '{') {
+            depth += 1;
+            continue;
+        }
+        if (ch === '}') {
+            depth -= 1;
+            if (depth === 0) {
+                return text.slice(start, i + 1);
+            }
+        }
+    }
+    return null;
+}
+
+async function parseAuthDbWithRecovery(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return { users: [], sessions: [], saves: {} };
+
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        const firstObject = extractFirstJsonObject(text);
+        if (firstObject) {
+            try {
+                return JSON.parse(firstObject);
+            } catch {
+            }
+        }
+        throw error;
+    }
+}
+
 async function readAuthDb() {
     await ensureAuthDb();
-    const raw = await fs.readFile(AUTH_DB_PATH, 'utf8');
-    const db = JSON.parse(raw || '{}');
+    let raw = await fs.readFile(AUTH_DB_PATH, 'utf8');
+    let db;
+    try {
+        db = await parseAuthDbWithRecovery(raw);
+    } catch (error) {
+        // A short retry helps when another process is rewriting the file.
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            raw = await fs.readFile(AUTH_DB_PATH, 'utf8');
+            db = await parseAuthDbWithRecovery(raw);
+        } catch {
+            const backupPath = `${AUTH_DB_PATH}.corrupt-${Date.now()}.json`;
+            try {
+                await fs.writeFile(backupPath, raw, 'utf8');
+            } catch {
+            }
+            db = { users: [], sessions: [], saves: {} };
+            await writeAuthDb(db);
+            console.error(`[auth-db] parse failed; backed up corrupt file to ${backupPath}: ${error.message}`);
+        }
+    }
     db.users = Array.isArray(db.users) ? db.users : [];
     db.sessions = Array.isArray(db.sessions) ? db.sessions : [];
     db.saves = db.saves && typeof db.saves === 'object' ? db.saves : {};
@@ -629,7 +711,7 @@ async function hostnamePointsToAllowedIp(hostname) {
     }
 }
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), { redirect: false }));
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 app.use('/components', express.static(path.join(__dirname, '..', 'components')));
 app.use('/scramjet', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'scramjet', 'dist')));
@@ -1542,8 +1624,17 @@ app.all('*', async (req, res, next) => {
 });
 
 app.use((req, res, next) => {
-    if (!req.path.includes('.') && req.path !== '/') {
-        const file = path.join(__dirname, '..', 'public', req.path + '.html');
+    if (!req.path.includes('.')) {
+        const normalizedPath = req.path.length > 1
+            ? req.path.replace(/\/+$/, '')
+            : req.path;
+
+        if (normalizedPath === '/') {
+            return next();
+        }
+
+        const htmlPath = `${normalizedPath.replace(/^\/+/, '')}.html`;
+        const file = path.join(__dirname, '..', 'public', htmlPath);
         res.sendFile(file, (err) => {
             if (err) next();
         });
@@ -1745,19 +1836,42 @@ app.all('/proxy', async (req, res) => {
         const content = await response.text();
 
         const baseUrl = new URL(targetUrl);
+        let rewriteBaseUrl = baseUrl;
+        try {
+            const baseHrefMatch = content.match(/<base[^>]*href\s*=\s*["']([^"']+)["']/i);
+            const baseHref = String(baseHrefMatch?.[1] || '').trim();
+            if (baseHref) {
+                rewriteBaseUrl = new URL(baseHref, baseUrl);
+            }
+        } catch {
+            rewriteBaseUrl = baseUrl;
+        }
         const rewriteProxyUrl = (rawUrl) => {
             const value = String(rawUrl || '').trim();
             if (!value) return null;
             if (value.startsWith('/proxy?url=')) return null;
             if (/^(?:https?:|\/\/|data:|blob:|javascript:|mailto:|tel:|#)/i.test(value)) return null;
             try {
-                return `/proxy?url=${encodeURIComponent(new URL(value, baseUrl).href)}`;
+                return `/proxy?url=${encodeURIComponent(new URL(value, rewriteBaseUrl).href)}`;
             } catch {
                 return null;
             }
         };
 
-        let modifiedContent = content.replace(
+        // Protect inline scripts from HTML-attribute rewriting.
+        // Some GN-Math pages contain JS strings like iframe[src="..."], and
+        // rewriting inside script text can corrupt syntax.
+        const scriptBlocks = [];
+        const protectedContent = content.replace(
+            /<script\b[\s\S]*?<\/script>/gi,
+            (block) => {
+                const token = `__RIFT_SCRIPT_BLOCK_${scriptBlocks.length}__`;
+                scriptBlocks.push(block);
+                return token;
+            }
+        );
+
+        let modifiedContent = protectedContent.replace(
             /\b(href|src|action)\s*=\s*(["'])(.*?)\2/gi,
             (match, attr, quote, value) => {
                 const rewritten = rewriteProxyUrl(value);
@@ -1786,19 +1900,10 @@ app.all('/proxy', async (req, res) => {
             }
         );
 
-        const buildUrlMatch = modifiedContent.match(/\b(?:var|let|const)\s+buildUrl\s*=\s*["']([^"']+)["']/i);
-        if (buildUrlMatch) {
-            const buildDir = String(buildUrlMatch[1] || '').replace(/^\.?\//, '').replace(/\/+$/, '');
-            if (buildDir) {
-                modifiedContent = modifiedContent.replace(
-                    /buildUrl\s*\+\s*["']\/([^"']+)["']/g,
-                    (match, assetPath) => {
-                        const absolute = new URL(`${buildDir}/${assetPath}`, baseUrl).href;
-                        return `"${`/proxy?url=${encodeURIComponent(absolute)}`}"`;
-                    }
-                );
-            }
-        }
+        modifiedContent = modifiedContent.replace(
+            /__RIFT_SCRIPT_BLOCK_(\d+)__/g,
+            (match, indexText) => scriptBlocks[Number(indexText)] || ''
+        );
 
         const yaGamesShim = '<script id="rift-yagames-shim">(function(){if(window.YaGames)return;window.YaGames={init:function(){return Promise.resolve({adv:{showFullscreenAdv:function(){return Promise.resolve();},showRewardedVideo:function(){return Promise.resolve();}},features:{LoadingAPI:{ready:function(){}}}});}};})();</script>';
         if (/<head[^>]*>/i.test(modifiedContent)) {
@@ -1949,13 +2054,24 @@ app.get('/truffled-catalog', async (_req, res) => {
 
             const normalized = href.replace(/^\/+/, '');
             const normalizedThumb = thumbnail.replace(/^\/+/, '');
-            const localSlug = toTruffledLocalSlug(normalized);
             const mappedFile = String(rootMap[normalized] || '').trim();
-            const mappedUrl = mappedFile ? `/${mappedFile.replace(/^\/+/, '')}` : '';
+            let launchUrl = '';
+            if (mappedFile) {
+                const normalizedFile = mappedFile.replace(/^\/+/, '');
+                try {
+                    await fs.access(path.join(__dirname, '..', 'public', normalizedFile));
+                    launchUrl = `/${normalizedFile}`;
+                } catch {
+                    launchUrl = '';
+                }
+            }
+            if (!launchUrl) {
+                launchUrl = new URL(normalized, TRUFFLED_BASE).href;
+            }
             items.push({
                 id: `truffled-${normalized}`,
                 name,
-                url: mappedUrl || `/truffled-html/${localSlug}.html`,
+                url: launchUrl,
                 cover: normalizedThumb ? new URL(normalizedThumb, TRUFFLED_BASE).href : '',
             });
         }
@@ -2060,7 +2176,11 @@ app.get('/validate', async (req, res) => {
     return res.sendStatus(allowed ? 200 : 403);
 });
 
-app.listen(PORT, () => {
-    console.log(`Rift running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Rift running on http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;
 

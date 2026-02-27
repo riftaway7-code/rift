@@ -12,7 +12,7 @@
     </script><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rift Browser</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="./global/css/global.css">
+    <link rel="stylesheet" href="/global/css/global.css">
 </head>
 <body class="browser-page">
     <div class="container browser-container">
@@ -110,8 +110,8 @@
     </script>
 
     <script src="/config.js"></script>
-    <script src="./global/js/ads.js"></script>
-    <script src="./global/js/global.js"></script>
+    <script src="/global/js/ads.js"></script>
+    <script src="/global/js/global.js"></script>
     <script src="/components/cloaker.js"></script>
     <script src="/components/overlay.js"></script>
     <script src="/components/games.js"></script>
@@ -239,7 +239,10 @@
                 try {
                     const u = new URL(targetUrl, window.location.origin);
                     const host = (u.hostname || '').toLowerCase();
-                    return host === 'websitesball.com' || host.endsWith('.websitesball.com');
+                    const path = (u.pathname || '').toLowerCase();
+                    if (host === 'websitesball.com' || host.endsWith('.websitesball.com')) return true;
+                    if (host === 'cdn.jsdelivr.net' && path.startsWith('/gh/gn-math/')) return true;
+                    return false;
                 } catch {
                     return false;
                 }

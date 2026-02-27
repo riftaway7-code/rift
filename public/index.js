@@ -78,13 +78,26 @@ function encodeTarget(input) {
     }
 }
 
+function shouldForcePlainProxy(target) {
+    try {
+        const u = new URL(target, window.location.origin);
+        const host = String(u.hostname || "").toLowerCase();
+        const path = String(u.pathname || "").toLowerCase();
+        if (host === "websitesball.com" || host.endsWith(".websitesball.com")) return true;
+        if (host === "cdn.jsdelivr.net" && path.startsWith("/gh/gn-math/")) return true;
+        return false;
+    } catch {
+        return false;
+    }
+}
+
 function loadIntoFrame(raw) {
     const target = normalizeTarget(raw);
     if (!target) {
         throw new TypeError("Invalid URL");
     }
 
-    if (proxyMode === "proxy") {
+    if (proxyMode === "proxy" || shouldForcePlainProxy(target)) {
         frame.src = `/proxy?url=${encodeURIComponent(target)}`;
     } else {
         const encoded = encodeTarget(target);
@@ -108,7 +121,7 @@ form.addEventListener("submit", async (event) => {
     if (!raw) return;
 
     try {
-        if (proxyMode === "scramjet") {
+        if (proxyMode === "scramjet" && !shouldForcePlainProxy(normalizeTarget(raw) || "")) {
             await registerSW();
             await ensureTransport();
 
