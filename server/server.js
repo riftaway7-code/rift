@@ -1944,11 +1944,12 @@ app.all('/proxy', async (req, res) => {
 
         try {
             if (/(^|\.)truffled\.lol$/i.test(parsedTargetUrl.hostname) && /^\/iframe\.html$/i.test(parsedTargetUrl.pathname)) {
+                const truffledIframeFixScript = '<script id="rift-truffled-iframe-fix">(function(){try{var truffledOrigin="https://truffled.lol";function toProxy(u){return "/proxy?url="+encodeURIComponent(u);}function rewriteFrame(){var frame=document.getElementById("gameframe");if(!frame)return;var raw=String(frame.getAttribute("src")||frame.src||"").trim();if(!raw)return;if(/^\\/proxy\\?url=/i.test(raw))return;try{if(/^https?:\\/\\//i.test(raw)){var absHttp=new URL(raw);if(/(^|\\.)truffled\\.lol$/i.test(absHttp.hostname)){frame.src=toProxy(absHttp.href);}return;}if(raw.startsWith("/")){frame.src=toProxy(new URL(raw,truffledOrigin).href);return;}if(!/^[a-z][a-z0-9+.-]*:/i.test(raw)){frame.src=toProxy(new URL(raw,truffledOrigin+"/").href);}}catch(_e){}}document.addEventListener("DOMContentLoaded",rewriteFrame);window.addEventListener("load",rewriteFrame);setTimeout(rewriteFrame,0);setTimeout(rewriteFrame,120);}catch(_e){}})();</script>';
                 const truffledPopoutScript = '<script id="rift-truffled-popout-link">(function(){function sync(){var btn=document.getElementById("aboutblank");var frame=document.getElementById("gameframe");if(!btn||!frame)return;var src=String(frame.src||"").trim();if(!src||/\\/404\\.html(?:$|\\?)/i.test(src))return;btn.setAttribute("href",src);btn.setAttribute("target","_blank");btn.setAttribute("rel","noopener noreferrer");}document.addEventListener("DOMContentLoaded",sync);setInterval(sync,800);})();</script>';
                 if (/<\/body>/i.test(modifiedContent)) {
-                    modifiedContent = modifiedContent.replace(/<\/body>/i, `${truffledPopoutScript}</body>`);
+                    modifiedContent = modifiedContent.replace(/<\/body>/i, `${truffledIframeFixScript}${truffledPopoutScript}</body>`);
                 } else {
-                    modifiedContent += truffledPopoutScript;
+                    modifiedContent += `${truffledIframeFixScript}${truffledPopoutScript}`;
                 }
             }
         } catch {}
