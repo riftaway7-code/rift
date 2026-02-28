@@ -1857,9 +1857,11 @@ app.get(/^\/gn\/(.+)$/, async (req, res, next) => {
         new URL(`${tail}${query}`, GN_MATH_BASE).href,
     ];
 
+    const attempts = [];
     for (const target of candidates) {
         try {
             const upstream = await fetch(target);
+            attempts.push(`${upstream.status} ${target}`);
             if (!upstream.ok) continue;
             const contentType = upstream.headers.get('content-type');
             if (contentType) res.setHeader('Content-Type', contentType);
@@ -1867,11 +1869,16 @@ app.get(/^\/gn\/(.+)$/, async (req, res, next) => {
             if (cacheControl) res.setHeader('Cache-Control', cacheControl);
             const raw = Buffer.from(await upstream.arrayBuffer());
             return res.status(upstream.status).send(raw);
-        } catch {
+        } catch (error) {
+            attempts.push(`ERR ${target} :: ${error.message}`);
         }
     }
 
-    return next();
+    return res.status(502).json({
+        error: 'gn upstream unavailable',
+        path: tail,
+        attempts,
+    });
 });
 
 app.get('/:gameSlug', async (req, res, next) => {
