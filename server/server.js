@@ -1757,12 +1757,14 @@ app.all('/proxy', async (req, res) => {
     try {
         try {
             const parsedTarget = new URL(String(targetUrl));
-            if (/(^|\.)truffled\.lol$/i.test(parsedTarget.hostname) &&
-                /^\/games\/.+\/index\.html$/i.test(parsedTarget.pathname) &&
-                !/\/iframe\.html$/i.test(parsedTarget.pathname)) {
-                const embedded = `${parsedTarget.pathname}${parsedTarget.search}${parsedTarget.hash}` || '/';
-                const redirectUrl = `https://truffled.lol/iframe.html?url=${encodeURIComponent(embedded)}`;
-                return res.redirect(302, redirectUrl);
+            if (/(^|\.)truffled\.lol$/i.test(parsedTarget.hostname) && /^\/iframe\.html$/i.test(parsedTarget.pathname)) {
+                const embeddedRaw = String(parsedTarget.searchParams.get('url') || '').trim();
+                if (embeddedRaw) {
+                    const resolved = new URL(embeddedRaw, TRUFFLED_BASE);
+                    if (!/(^|\.)truffled\.lol$/i.test(resolved.hostname) || !/^\/iframe\.html$/i.test(resolved.pathname)) {
+                        return res.redirect(302, `/proxy?url=${encodeURIComponent(resolved.href)}`);
+                    }
+                }
             }
         } catch {}
 
