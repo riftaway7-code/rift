@@ -707,6 +707,11 @@ async function buildDuckMathCatalogData() {
     const pushRaw = (linkRaw, nameRaw = '', coverRaw = '') => {
         const targetUrl = normalizeDuckMathCatalogHref(linkRaw);
         if (!targetUrl) return;
+        try {
+            const parsed = new URL(targetUrl);
+            if (/\.(mp4|webm|png|jpe?g|gif|webp|svg|mp3|wav|ogg)(?:$|\?)/i.test(parsed.pathname)) return;
+        } catch {
+        }
         const targetKey = targetUrl.toLowerCase();
         if (seenTargets.has(targetKey)) return;
         seenTargets.add(targetKey);
@@ -767,7 +772,7 @@ async function buildDuckMathCatalogData() {
             const bundleResponse = await fetch(bundlePath);
             if (bundleResponse.ok) {
                 const bundleText = await bundleResponse.text();
-                const bundleRe = /link:"([^"]+)"[\s\S]{0,1800}?title:"([^"]+)"[\s\S]{0,1200}?icon:"([^"]*)"/g;
+                const bundleRe = /(?:^|[,{])link:"([^"]+)"[\s\S]{0,1800}?title:"([^"]+)"[\s\S]{0,1200}?icon:"([^"]*)"/g;
                 let match;
                 while ((match = bundleRe.exec(bundleText)) !== null) {
                     pushRaw(match[1], match[2], match[3]);
