@@ -472,19 +472,25 @@ function parseSdxpCatalogCards(html) {
     const source = String(html || '');
     const items = [];
     const seen = new Set();
-    const anchorRe = /<a\b[\s\S]*?<\/a>/gi;
+    const entryRe = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
     let block;
-    while ((block = anchorRe.exec(source)) !== null) {
-        const chunk = String(block[0] || '');
-        if (!/\bclass\s*=\s*["'][^"']*\bcard\b[^"']*["']/i.test(chunk)) continue;
+    while ((block = entryRe.exec(source)) !== null) {
+        const attrs = String(block[1] || '');
+        const body = String(block[2] || '');
+        const classMatch = attrs.match(/\bclass\s*=\s*["']([^"']+)["']/i);
+        const classValue = String(classMatch?.[1] || '');
+        if (!/\bcard\b/i.test(classValue)) continue;
 
-        const hrefMatch = chunk.match(/href\s*=\s*["']([^"']+)["']/i);
-        const imgMatch = chunk.match(/<img[^>]*src\s*=\s*["']([^"']+)["']/i);
-        const nameMatch = chunk.match(/<figcaption[^>]*>([^<]+)<\/figcaption>/i);
+        const hrefMatch = attrs.match(/\bhref\s*=\s*["']([^"']+)["']/i);
+        const imgMatch = body.match(/<img[^>]*src\s*=\s*["']([^"']+)["']/i);
+        const nameMatch = body.match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
         if (!hrefMatch || !nameMatch) continue;
 
         const hrefRaw = String(hrefMatch[1] || '').trim();
-        const name = String(nameMatch[1] || '').replace(/\s+/g, ' ').trim();
+        const name = String(nameMatch[1] || '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
         if (!hrefRaw || !name) continue;
         if (/^(?:https?:|\/\/|javascript:|data:|#)/i.test(hrefRaw)) continue;
 
@@ -2043,7 +2049,11 @@ app.get(/^\/sdxp\/(.+)$/, async (req, res, next) => {
 
     try {
         const upstream = await fetch(target);
-        if (!upstream.ok) return next();
+        if (!upstream.ok) {
+            const errBody = await upstream.text();
+            return res.status(upstream.status).send(errBody || `sdxp upstream status ${upstream.status}`);
+        }
+        res.setHeader('X-Rift-SDXP', '1');
         const upstreamType = String(upstream.headers.get('content-type') || '').trim();
         const guessedType = guessContentTypeFromPath(tail);
         if (upstreamType) {
@@ -2055,8 +2065,8 @@ app.get(/^\/sdxp\/(.+)$/, async (req, res, next) => {
         if (cacheControl) res.setHeader('Cache-Control', cacheControl);
         const raw = Buffer.from(await upstream.arrayBuffer());
         return res.status(upstream.status).send(raw);
-    } catch {
-        return next();
+    } catch (error) {
+        return res.status(502).json({ error: `sdxp upstream failed: ${error.message}`, target });
     }
 });
 
