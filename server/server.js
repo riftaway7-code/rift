@@ -47,8 +47,29 @@ const ACTIVE_USER_WINDOW_MS = 1000 * 60 * 10; // 10 minutes
 const PRESENCE_TTL_MS = 1000 * 60; // 60 seconds
 const CHAT_ROOM_INACTIVE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
 const SYSTEM_CHAT_ROOM_IDS = new Set(['lobby', 'links']);
+const RESERVED_TOP_LEVEL_PATHS = new Set([
+    'api',
+    'proxy',
+    'assets',
+    'components',
+    'scramjet',
+    'baremux',
+    'libcurl',
+    'wisp',
+    'validate',
+    'sdxp',
+    'sdxp-catalog',
+    'duckmath-catalog',
+    'truffled-catalog',
+    'totalscience-catalog',
+    'velara-catalog',
+    'astra',
+    'astra-accounts',
+]);
+const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
+let truffledAliasCache = { expiresAt: 0, map: new Map() };
 
 async function readRawBody(req) {
     return await new Promise((resolve, reject) => {
@@ -122,6 +143,92 @@ function toTruffledLocalSlug(input) {
         .replace(/\/+/g, '/')
         .replace(/^-+|-+$/g, '')
         .replace(/\//g, '__');
+}
+
+function deriveTruffledCanonicalSlug(inputHref, mappedFile = '') {
+    const href = String(inputHref || '').trim().replace(/^\/+/, '').replace(/[?#].*$/, '');
+    if (!href) return '';
+
+    const gamesMatch = href.match(/^games\/([^/]+)\/index\.html$/i);
+    if (gamesMatch && gamesMatch[1]) return String(gamesMatch[1]).toLowerCase();
+
+    const gamefileMatch = href.match(/^gamefile\/(.+)\.html$/i);
+    if (gamefileMatch && gamefileMatch[1]) {
+        const segments = String(gamefileMatch[1]).split('/').filter(Boolean);
+        const last = segments.length ? segments[segments.length - 1] : '';
+        if (last) return last.toLowerCase();
+    }
+
+    const fileSlug = String(mappedFile || '').trim().replace(/\.html?$/i, '').toLowerCase();
+    if (fileSlug) return fileSlug;
+
+    return toTruffledLocalSlug(href).toLowerCase();
+}
+
+function deriveTruffledSlugCandidates(inputHref, mappedFile = '') {
+    const out = new Set();
+    const canonical = deriveTruffledCanonicalSlug(inputHref, mappedFile);
+    if (canonical) out.add(canonical);
+
+    const href = String(inputHref || '').trim().replace(/^\/+/, '').replace(/[?#].*$/, '');
+    if (href) out.add(toTruffledLocalSlug(href).toLowerCase());
+
+    const fileSlug = String(mappedFile || '').trim().replace(/\.html?$/i, '').toLowerCase();
+    if (fileSlug) out.add(fileSlug);
+    return out;
+}
+
+async function buildTruffledAliasMap() {
+    let payload = null;
+    try {
+        const localRaw = await fs.readFile(TRUFFLED_LOCAL_JSON, 'utf8');
+        payload = JSON.parse(localRaw);
+    } catch {}
+
+    if (!payload) {
+        try {
+            const response = await fetch(TRUFFLED_GAMES_JSON);
+            if (response.ok) payload = await response.json();
+        } catch {}
+    }
+
+    const rootMap = await readTruffledRootMap();
+    const rows = Array.isArray(payload?.games) ? payload.games : [];
+    const aliases = new Map();
+
+    for (const row of rows) {
+        const href = String(row?.url || '').trim();
+        if (!(href.startsWith('/games/') || href.startsWith('/gamefile/'))) continue;
+
+        const normalized = href.replace(/^\/+/, '');
+        const mappedFile = String(rootMap[normalized] || '').trim();
+        const targetUrl = new URL(normalized, TRUFFLED_BASE).href;
+        const entry = { localFile: mappedFile, targetUrl };
+
+        for (const slug of deriveTruffledSlugCandidates(normalized, mappedFile)) {
+            if (!slug) continue;
+            const existing = aliases.get(slug);
+            if (!existing || (!existing.localFile && entry.localFile)) {
+                aliases.set(slug, entry);
+            }
+        }
+    }
+
+    return aliases;
+}
+
+async function getTruffledAliasMap() {
+    const now = Date.now();
+    if (truffledAliasCache.map.size > 0 && now < truffledAliasCache.expiresAt) {
+        return truffledAliasCache.map;
+    }
+
+    const built = await buildTruffledAliasMap();
+    truffledAliasCache = {
+        map: built,
+        expiresAt: now + TRUFFLED_ALIAS_CACHE_TTL_MS,
+    };
+    return truffledAliasCache.map;
 }
 
 async function readTruffledRootMap() {
@@ -1623,6 +1730,35 @@ app.all('*', async (req, res, next) => {
     }
 });
 
+app.get('/:gameSlug', async (req, res, next) => {
+    const slugRaw = String(req.params?.gameSlug || '').trim();
+    if (!slugRaw || slugRaw.includes('.')) return next();
+
+    const slug = slugRaw.toLowerCase();
+    if (slug === 'favicon' || RESERVED_TOP_LEVEL_PATHS.has(slug)) return next();
+
+    try {
+        const aliasMap = await getTruffledAliasMap();
+        const entry = aliasMap.get(slug);
+        if (!entry) return next();
+
+        if (entry.localFile) {
+            const file = path.join(__dirname, '..', 'public', entry.localFile);
+            return res.sendFile(file, (err) => {
+                if (err) next();
+            });
+        }
+
+        const launchUrl = `/proxy?url=${encodeURIComponent(entry.targetUrl)}`;
+        const title = humanizeFolderName(slug);
+        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}iframe{border:0;width:100vw;height:100vh;display:block}</style></head><body><iframe src="${launchUrl}" allowfullscreen referrerpolicy="no-referrer"></iframe></body></html>`;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(html);
+    } catch {
+        return next();
+    }
+});
+
 app.use((req, res, next) => {
     if (!req.path.includes('.')) {
         const normalizedPath = req.path.length > 1
@@ -2058,19 +2194,8 @@ app.get('/truffled-catalog', async (_req, res) => {
             const normalized = href.replace(/^\/+/, '');
             const normalizedThumb = thumbnail.replace(/^\/+/, '');
             const mappedFile = String(rootMap[normalized] || '').trim();
-            let launchUrl = '';
-            if (mappedFile) {
-                const normalizedFile = mappedFile.replace(/^\/+/, '');
-                try {
-                    await fs.access(path.join(__dirname, '..', 'public', normalizedFile));
-                    launchUrl = `/${normalizedFile}`;
-                } catch {
-                    launchUrl = '';
-                }
-            }
-            if (!launchUrl) {
-                launchUrl = new URL(normalized, TRUFFLED_BASE).href;
-            }
+            const canonicalSlug = deriveTruffledCanonicalSlug(normalized, mappedFile);
+            const launchUrl = canonicalSlug ? `/${canonicalSlug}` : new URL(normalized, TRUFFLED_BASE).href;
             items.push({
                 id: `truffled-${normalized}`,
                 name,
