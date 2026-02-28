@@ -55,6 +55,18 @@ const VAULT_CONFIG = {
                bases: [],
                localCatalogUrl: "/rdn-catalog",
           },
+          fyinx: {
+               key: "fyinx",
+               label: "fyinx",
+               bases: [],
+               localCatalogUrl: "/fyinx-catalog",
+          },
+          elite: {
+               key: "elite",
+               label: "elite",
+               bases: [],
+               localCatalogUrl: "/eltgmz-catalog",
+          },
           truffled: {
                key: "truffled",
                label: "Truffled",
@@ -409,13 +421,15 @@ const RiftVault = {
                ugs: 4,
                selenite: 5,
                radon: 6,
-               sdxp: 7,
-               velara: 8,
-               "gn-math": 9,
-               petezah: 10,
-               seraph: 11,
+               fyinx: 7,
+               elite: 8,
+               sdxp: 9,
+               velara: 10,
+               "gn-math": 11,
+               petezah: 12,
+               seraph: 13,
           };
-          return rank[source] ?? 12;
+          return rank[source] ?? 14;
      },
 
      dedupeGames(items, source) {

@@ -38,6 +38,10 @@ const SELENITE_TREE_API = 'https://api.github.com/repos/selenite-cc/selenite-old
 const SELENITE_RAW_BASE = 'https://raw.githubusercontent.com/selenite-cc/selenite-old/main/';
 const RADON_TREE_API = 'https://api.github.com/repos/Radon-Games/Radon-Games-Assets/git/trees/main?recursive=1';
 const RADON_RAW_BASE = 'https://raw.githubusercontent.com/Radon-Games/Radon-Games-Assets/main/';
+const FYINX_TREE_API = 'https://api.github.com/repos/aukak/fyinx/git/trees/main?recursive=1';
+const FYINX_RAW_BASE = 'https://raw.githubusercontent.com/aukak/fyinx/main/';
+const ELITE_TREE_API = 'https://api.github.com/repos/elite-gamez/Elite_gamez_games/git/trees/main?recursive=1';
+const ELITE_RAW_BASE = 'https://raw.githubusercontent.com/elite-gamez/Elite_gamez_games/main/';
 const CCPORTED_TITLE_SUFFIX_RE = /\s*(?:\||-)?\s*Unblocked on CCPorted\s*$/i;
 const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
 const TRUFFLED_LOCAL_JSON = path.join(__dirname, '..', 'truffled.g.json');
@@ -85,11 +89,15 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'ugs-catalog',
     'slnte-catalog',
     'rdn-catalog',
+    'fyinx-catalog',
+    'eltgmz-catalog',
     'dkmath',
     'ccptd',
     'ugs',
     'slnte',
     'rdn',
+    'fyinx',
+    'eltgmz',
     'truffled-catalog',
     'pzlite',
     'pzlite-catalog',
@@ -110,6 +118,8 @@ const CCPORTED_CACHE_TTL_MS = 5 * 60 * 1000;
 const UGS_CACHE_TTL_MS = 5 * 60 * 1000;
 const SELENITE_CACHE_TTL_MS = 5 * 60 * 1000;
 const RADON_CACHE_TTL_MS = 5 * 60 * 1000;
+const FYINX_CACHE_TTL_MS = 5 * 60 * 1000;
+const ELITE_CACHE_TTL_MS = 5 * 60 * 1000;
 const PETEZAH_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_RESOLVED_TTL_MS = 30 * 60 * 1000;
@@ -125,6 +135,8 @@ const ccportedNameCache = new Map();
 let ugsCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let seleniteCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let radonCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+let fyinxCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+let eliteCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let velaraCatalogCache = { expiresAt: 0, items: [], map: new Map() };
@@ -1629,6 +1641,243 @@ async function getRadonCatalogData() {
         return radonCatalogCache;
     } catch (error) {
         if (radonCatalogCache.map.size > 0) return radonCatalogCache;
+        throw error;
+    }
+}
+
+function pickFyinxCover(fileMap, dirPath) {
+    const files = fileMap.get(dirPath);
+    if (!files) return '';
+
+    const preferredOrder = [
+        'splash.png', 'splash.webp', 'splash.jpg', 'splash.jpeg',
+        'cover.png', 'cover.webp', 'cover.jpg', 'cover.jpeg',
+        'thumbnail.png', 'thumbnail.webp', 'thumbnail.jpg', 'thumbnail.jpeg',
+        'thumb.png', 'thumb.webp', 'thumb.jpg', 'thumb.jpeg',
+        'icon.png', 'icon.webp', 'icon.jpg', 'icon.jpeg',
+        'logo.png', 'logo.webp', 'logo.jpg', 'logo.jpeg',
+    ];
+
+    for (const name of preferredOrder) {
+        const matchedPath = files.get(name);
+        if (matchedPath) {
+            return new URL(matchedPath, FYINX_RAW_BASE).href;
+        }
+    }
+
+    for (const [name, matchedPath] of files.entries()) {
+        if (/\.(png|jpe?g|webp|gif|ico)$/i.test(name)) {
+            return new URL(matchedPath, FYINX_RAW_BASE).href;
+        }
+    }
+
+    return '';
+}
+
+async function buildFyinxCatalogData() {
+    const response = await fetch(FYINX_TREE_API, {
+        headers: {
+            'accept': 'application/vnd.github+json',
+            'user-agent': 'rift-fyinx-catalog',
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`fyinx fetch failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.tree) ? payload.tree : [];
+
+    const fileMap = new Map();
+    for (const row of rows) {
+        if (!row || row.type !== 'blob') continue;
+        const filePath = String(row.path || '').replace(/^\/+/, '').trim();
+        if (!filePath || filePath.includes('..')) continue;
+        const dirPath = path.posix.dirname(filePath);
+        const fileName = path.posix.basename(filePath).toLowerCase();
+        if (!fileMap.has(dirPath)) fileMap.set(dirPath, new Map());
+        fileMap.get(dirPath).set(fileName, filePath);
+    }
+
+    const preferredEntries = new Map();
+    for (const row of rows) {
+        if (!row || row.type !== 'blob') continue;
+        const filePath = String(row.path || '').replace(/^\/+/, '').trim();
+        if (!filePath || filePath.includes('..')) continue;
+        const lower = filePath.toLowerCase();
+
+        const topLevelGameMatch = lower.match(/^g\/([^/]+)\/game\.html$/i);
+        if (topLevelGameMatch && topLevelGameMatch[1]) {
+            const folderName = topLevelGameMatch[1];
+            preferredEntries.set(folderName, {
+                entryPath: filePath,
+                dirPath: `g/${folderName}`,
+                source: 'game',
+            });
+            continue;
+        }
+
+        const topLevelIndexMatch = lower.match(/^g\/([^/]+)\/index\.html$/i);
+        if (topLevelIndexMatch && topLevelIndexMatch[1]) {
+            const folderName = topLevelIndexMatch[1];
+            if (!preferredEntries.has(folderName)) {
+                preferredEntries.set(folderName, {
+                    entryPath: filePath,
+                    dirPath: `g/${folderName}`,
+                    source: 'index',
+                });
+            }
+        }
+    }
+
+    const items = [];
+    const map = new Map();
+    const usedSlugs = new Set();
+
+    for (const entry of preferredEntries.values()) {
+        const dirName = path.posix.basename(entry.dirPath || '') || entry.dirPath;
+        const name = humanizeFolderName(String(dirName || '').replace(/\.[a-z0-9]+$/i, ''));
+        const baseSlug = toLaunchSlug(name, toLaunchSlug(dirName, 'game'));
+        let slug = baseSlug;
+        let suffix = 2;
+        while (usedSlugs.has(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedSlugs.add(slug);
+
+        const cover = pickFyinxCover(fileMap, entry.dirPath);
+        const mappedEntry = {
+            entryPath: entry.entryPath,
+            dirPath: entry.dirPath,
+            source: entry.source,
+            name,
+            cover,
+        };
+        items.push({
+            id: `fyinx-${slug}`,
+            name,
+            url: `/fyinx/${encodeURIComponent(slug)}.html`,
+            cover,
+        });
+        map.set(slug, mappedEntry);
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getFyinxCatalogData() {
+    const now = Date.now();
+    if (fyinxCatalogCache.map.size > 0 && now < fyinxCatalogCache.expiresAt) {
+        return fyinxCatalogCache;
+    }
+
+    try {
+        const built = await buildFyinxCatalogData();
+        fyinxCatalogCache = {
+            expiresAt: now + FYINX_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return fyinxCatalogCache;
+    } catch (error) {
+        if (fyinxCatalogCache.map.size > 0) return fyinxCatalogCache;
+        throw error;
+    }
+}
+
+function asEliteHtml(raw) {
+    const source = String(raw || '');
+    const cdataMatch = source.match(/<content\b[^>]*>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/content>/i);
+    let html = cdataMatch && cdataMatch[1] ? String(cdataMatch[1]).trim() : source.trim();
+
+    const hasHtmlTag = /<html\b/i.test(html);
+    if (!hasHtmlTag) {
+        html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><pre>${html.replace(/[<&>]/g, (m) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m] || m))}</pre></body></html>`;
+    }
+
+    if (/<head\b[^>]*>/i.test(html)) {
+        const baseTag = `<base href="${ELITE_RAW_BASE}">`;
+        html = html.replace(/<head\b[^>]*>/i, (match) => `${match}${baseTag}`);
+    } else if (/<html\b[^>]*>/i.test(html)) {
+        html = html.replace(/<html\b[^>]*>/i, (match) => `${match}<head><base href="${ELITE_RAW_BASE}"></head>`);
+    }
+
+    return html;
+}
+
+async function buildEliteCatalogData() {
+    const response = await fetch(ELITE_TREE_API, {
+        headers: {
+            'accept': 'application/vnd.github+json',
+            'user-agent': 'rift-elite-catalog',
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`elite fetch failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.tree) ? payload.tree : [];
+
+    const items = [];
+    const map = new Map();
+    const usedSlugs = new Set();
+
+    for (const row of rows) {
+        if (!row || row.type !== 'blob') continue;
+        const filePath = String(row.path || '').replace(/^\/+/, '').trim();
+        if (!filePath || filePath.includes('/') || filePath.includes('..')) continue;
+        const isXml = /\.xml$/i.test(filePath);
+        const isNoExt = !/\.[a-z0-9]+$/i.test(filePath);
+        if (!isXml && !isNoExt) continue;
+
+        const rawName = String(filePath).replace(/\.xml$/i, '').replace(/\s+/g, ' ').trim();
+        const name = rawName || `Game ${items.length + 1}`;
+        const baseSlug = toLaunchSlug(rawName, `game-${items.length + 1}`);
+        let slug = baseSlug;
+        let suffix = 2;
+        while (usedSlugs.has(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedSlugs.add(slug);
+
+        const mappedEntry = {
+            entryPath: filePath,
+            name,
+            cover: '',
+        };
+        items.push({
+            id: `elite-${slug}`,
+            name,
+            url: `/eltgmz/${encodeURIComponent(slug)}.html`,
+            cover: '',
+        });
+        map.set(slug, mappedEntry);
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getEliteCatalogData() {
+    const now = Date.now();
+    if (eliteCatalogCache.map.size > 0 && now < eliteCatalogCache.expiresAt) {
+        return eliteCatalogCache;
+    }
+
+    try {
+        const built = await buildEliteCatalogData();
+        eliteCatalogCache = {
+            expiresAt: now + ELITE_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return eliteCatalogCache;
+    } catch (error) {
+        if (eliteCatalogCache.map.size > 0) return eliteCatalogCache;
         throw error;
     }
 }
@@ -4193,6 +4442,183 @@ app.get(/^\/rdn\/([^/]+)\/(.+)$/i, async (req, res, next) => {
     }
 });
 
+app.get(/^\/fyinx\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid fyinx slug');
+
+    try {
+        const data = await getFyinxCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+        const frameTarget = `/fyinx/${encodeURIComponent(slug)}/game.html`;
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Fyinx')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="fyinx-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('fyinx-frame').src=${safeJsonForInlineScript(frameTarget)};</script></body></html>`;
+        res.setHeader('X-Rift-Fyinx', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `fyinx launch failed: ${error.message}` });
+    }
+});
+
+app.get(/^\/fyinx\/([^/]+)\/(.+)$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    let tail = String(req.params?.[1] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    try {
+        tail = decodeURIComponent(tail);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    tail = tail.replace(/^\/+/, '').replace(/\\/g, '/');
+
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid fyinx slug');
+    if (!tail || tail.includes('..')) return res.status(400).send('invalid fyinx path');
+
+    try {
+        const data = await getFyinxCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const buildTarget = (value) => {
+            const safePath = String(value || '')
+                .split('/')
+                .filter(Boolean)
+                .map((segment) => encodeURIComponent(segment))
+                .join('/');
+            const dirPrefix = entry.dirPath ? `${entry.dirPath.replace(/^\/+/, '')}/` : '';
+            return new URL(`${dirPrefix}${safePath}${query}`, FYINX_RAW_BASE).href;
+        };
+
+        let target = buildTarget(tail);
+        let upstream = await fetch(target);
+        if ((!upstream.ok || upstream.status === 404) && /^game\.html$/i.test(tail) && entry.entryPath) {
+            const fallbackTarget = new URL(`${String(entry.entryPath).replace(/^\/+/, '')}${query}`, FYINX_RAW_BASE).href;
+            const fallback = await fetch(fallbackTarget);
+            if (fallback.ok) {
+                upstream = fallback;
+                target = fallbackTarget;
+            }
+        }
+
+        if (!upstream.ok) {
+            return res.status(upstream.status).send(`fyinx upstream status ${upstream.status}`);
+        }
+
+        const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+        const guessedType = guessContentTypeFromPath(tail);
+        if (guessedType) {
+            res.setHeader('Content-Type', guessedType);
+        } else if (upstreamType) {
+            res.setHeader('Content-Type', upstreamType);
+        }
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+        res.setHeader('X-Rift-Fyinx-Asset', '1');
+        const raw = Buffer.from(await upstream.arrayBuffer());
+        return res.status(upstream.status).send(raw);
+    } catch (error) {
+        return res.status(502).json({ error: `fyinx asset failed: ${error.message}` });
+    }
+});
+
+app.get(/^\/eltgmz\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid eltgmz slug');
+
+    try {
+        const data = await getEliteCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+        const frameTarget = `/eltgmz/${encodeURIComponent(slug)}/game.html`;
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Elite')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="eltgmz-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('eltgmz-frame').src=${safeJsonForInlineScript(frameTarget)};</script></body></html>`;
+        res.setHeader('X-Rift-Eltgmz', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `eltgmz launch failed: ${error.message}` });
+    }
+});
+
+app.get(/^\/eltgmz\/([^/]+)\/(.+)$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    let tail = String(req.params?.[1] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    try {
+        tail = decodeURIComponent(tail);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    tail = tail.replace(/^\/+/, '').replace(/\\/g, '/');
+
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid eltgmz slug');
+    if (!tail || tail.includes('..')) return res.status(400).send('invalid eltgmz path');
+
+    try {
+        const data = await getEliteCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        if (/^game\.html$/i.test(tail) && entry.entryPath) {
+            const target = new URL(`${String(entry.entryPath).replace(/^\/+/, '')}${query}`, ELITE_RAW_BASE).href;
+            const upstream = await fetch(target);
+            if (!upstream.ok) {
+                return res.status(upstream.status).send(`eltgmz upstream status ${upstream.status}`);
+            }
+            const sourceText = await upstream.text();
+            const html = asEliteHtml(sourceText);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('X-Rift-Eltgmz-Asset', '1');
+            return res.status(200).send(html);
+        }
+
+        const safePath = String(tail || '')
+            .split('/')
+            .filter(Boolean)
+            .map((segment) => encodeURIComponent(segment))
+            .join('/');
+        const target = new URL(`${safePath}${query}`, ELITE_RAW_BASE).href;
+        const upstream = await fetch(target);
+        if (!upstream.ok) {
+            return res.status(upstream.status).send(`eltgmz upstream status ${upstream.status}`);
+        }
+
+        const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+        const guessedType = guessContentTypeFromPath(tail);
+        if (guessedType) {
+            res.setHeader('Content-Type', guessedType);
+        } else if (upstreamType) {
+            res.setHeader('Content-Type', upstreamType);
+        }
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+        res.setHeader('X-Rift-Eltgmz-Asset', '1');
+        const raw = Buffer.from(await upstream.arrayBuffer());
+        return res.status(upstream.status).send(raw);
+    } catch (error) {
+        return res.status(502).json({ error: `eltgmz asset failed: ${error.message}` });
+    }
+});
+
 app.get(/^\/pzlite\/([^/]+)\.html$/i, async (req, res, next) => {
     let slug = String(req.params?.[0] || '').trim();
     try {
@@ -4829,6 +5255,24 @@ app.get('/rdn-catalog', async (_req, res) => {
         return res.json(data.items);
     } catch (error) {
         return res.status(500).json({ error: `failed to build radon catalog: ${error.message}` });
+    }
+});
+
+app.get('/fyinx-catalog', async (_req, res) => {
+    try {
+        const data = await getFyinxCatalogData();
+        return res.json(data.items);
+    } catch (error) {
+        return res.status(500).json({ error: `failed to build fyinx catalog: ${error.message}` });
+    }
+});
+
+app.get('/eltgmz-catalog', async (_req, res) => {
+    try {
+        const data = await getEliteCatalogData();
+        return res.json(data.items);
+    } catch (error) {
+        return res.status(500).json({ error: `failed to build elite catalog: ${error.message}` });
     }
 });
 
