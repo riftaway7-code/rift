@@ -28,8 +28,8 @@ const GN_MATH_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/';
 const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_BASE).href;
 const GN_MATH_COVER_BASE = new URL('covers@main/', GN_MATH_BASE).href;
 const SDXP_FALLBACK_BASE = 'https://strongdog.com/';
-const DUCKMATH_GAMES_PAGE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/g4m3s.html';
-const DUCKMATH_BASE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/';
+const DUCKMATH_GAMES_PAGE = 'https://duckmath.org/g4m3s.html';
+const DUCKMATH_BASE = 'https://duckmath.org/';
 const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
 const TRUFFLED_LOCAL_JSON = path.join(__dirname, '..', 'truffled.g.json');
 const TRUFFLED_BASE = 'https://truffled.lol/';
@@ -72,6 +72,7 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'sdxp',
     'sdxp-catalog',
     'duckmath-catalog',
+    'dkmath',
     'truffled-catalog',
     'pzlite',
     'pzlite-catalog',
@@ -86,6 +87,8 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'astra-accounts',
 ]);
 const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
+const DUCKMATH_CACHE_TTL_MS = 5 * 60 * 1000;
+const DUCKMATH_RESOLVED_TTL_MS = 30 * 60 * 1000;
 const PETEZAH_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_RESOLVED_TTL_MS = 30 * 60 * 1000;
@@ -95,12 +98,14 @@ const SERAPH_CACHE_TTL_MS = 5 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
+let duckMathCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let velaraCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let seraphCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 const totallyScienceResolvedLaunchCache = new Map();
 const velaraResolvedLaunchCache = new Map();
+const duckMathResolvedLaunchCache = new Map();
 
 const GN_MATH_BLOCKED_HTML_FILES = new Set([
     '114-f.html',
@@ -603,6 +608,203 @@ async function getPetezahCatalogData() {
         return petezahCatalogCache;
     } catch (error) {
         if (petezahCatalogCache.map.size > 0) return petezahCatalogCache;
+        throw error;
+    }
+}
+
+function normalizeDuckMathCatalogHref(value) {
+    const href = String(value || '').trim();
+    if (!href || /^javascript:/i.test(href) || /^data:/i.test(href)) return '';
+
+    try {
+        const parsed = new URL(href, DUCKMATH_BASE);
+        if (!/^https?:$/i.test(parsed.protocol)) return '';
+        return parsed.href;
+    } catch {
+        return '';
+    }
+}
+
+function extractDuckMathBundlePath(html) {
+    const source = String(html || '');
+    const match = source.match(/<script[^>]*\bsrc\s*=\s*["']([^"']*\/assets\/index-[^"']+\.js)["'][^>]*>/i);
+    if (!match || !match[1]) return '';
+    try {
+        return new URL(match[1], DUCKMATH_BASE).href;
+    } catch {
+        return '';
+    }
+}
+
+function extractDuckMathEmbeddedGameUrl(html, pageUrl) {
+    const iframeSrc = extractEmbeddedGameUrl(html, pageUrl);
+    if (iframeSrc) return iframeSrc;
+
+    const source = String(html || '');
+    const patterns = [
+        /<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"';]+)[^"']*["']/i,
+        /\b(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i,
+        /\b(?:game|embed|iframe)(?:Url|URL|Src|SRC)\b[^:=]*[:=]\s*["']([^"']+)["']/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = source.match(pattern);
+        const candidate = String(match?.[1] || '').trim();
+        if (!candidate || /^javascript:/i.test(candidate) || /^data:/i.test(candidate)) continue;
+        try {
+            const resolved = new URL(candidate, pageUrl).href;
+            if (/^https?:\/\//i.test(resolved)) return resolved;
+        } catch {
+        }
+    }
+
+    return '';
+}
+
+async function resolveDuckMathLaunchTarget(pageUrl) {
+    const targetPage = String(pageUrl || '').trim();
+    if (!targetPage) return '';
+
+    const now = Date.now();
+    const cached = duckMathResolvedLaunchCache.get(targetPage);
+    if (cached && now < Number(cached.expiresAt || 0)) {
+        return String(cached.url || targetPage);
+    }
+
+    let resolved = targetPage;
+    for (let i = 0; i < 2; i += 1) {
+        try {
+            const response = await fetch(resolved);
+            if (!response.ok) break;
+            const html = await response.text();
+            const embedded = extractDuckMathEmbeddedGameUrl(html, resolved);
+            if (!embedded || embedded === resolved) break;
+            resolved = embedded;
+        } catch {
+            break;
+        }
+    }
+
+    duckMathResolvedLaunchCache.set(targetPage, {
+        url: resolved,
+        expiresAt: now + DUCKMATH_RESOLVED_TTL_MS,
+    });
+    return resolved;
+}
+
+async function buildDuckMathCatalogData() {
+    const response = await fetch(DUCKMATH_GAMES_PAGE);
+    if (!response.ok) {
+        throw new Error(`duckmath fetch failed: ${response.status}`);
+    }
+
+    const html = await response.text();
+    const items = [];
+    const map = new Map();
+    const seenTargets = new Set();
+    const usedSlugs = new Set();
+
+    const pushRaw = (linkRaw, nameRaw = '', coverRaw = '') => {
+        const targetUrl = normalizeDuckMathCatalogHref(linkRaw);
+        if (!targetUrl) return;
+        const targetKey = targetUrl.toLowerCase();
+        if (seenTargets.has(targetKey)) return;
+        seenTargets.add(targetKey);
+
+        let name = String(nameRaw || '').trim().replace(/\s+/g, ' ');
+        if (!name) {
+            try {
+                const parsed = new URL(targetUrl);
+                const last = parsed.pathname.split('/').filter(Boolean).pop() || parsed.hostname;
+                name = humanizeFolderName(last.replace(/\.html?$/i, ''));
+            } catch {
+                name = 'DuckMath Game';
+            }
+        }
+
+        let cover = '';
+        const rawCover = String(coverRaw || '').trim();
+        if (rawCover && !/^data:/i.test(rawCover)) {
+            try {
+                cover = new URL(rawCover, DUCKMATH_BASE).href;
+            } catch {
+                cover = '';
+            }
+        }
+
+        let slugSeed = name;
+        try {
+            const parsed = new URL(targetUrl);
+            slugSeed = `${parsed.hostname}${parsed.pathname}`;
+        } catch {
+        }
+
+        const baseSlug = toLaunchSlug(slugSeed, toLaunchSlug(name, 'game'));
+        let slug = baseSlug;
+        let suffix = 2;
+        while (usedSlugs.has(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedSlugs.add(slug);
+
+        items.push({
+            id: `duckmath-${slug}`,
+            name,
+            url: `/dkmath/${encodeURIComponent(slug)}.html`,
+            cover,
+        });
+        map.set(slug, {
+            targetUrl,
+            name,
+            cover,
+        });
+    };
+
+    const bundlePath = extractDuckMathBundlePath(html);
+    if (bundlePath) {
+        try {
+            const bundleResponse = await fetch(bundlePath);
+            if (bundleResponse.ok) {
+                const bundleText = await bundleResponse.text();
+                const bundleRe = /link:"([^"]+)"[\s\S]{0,1800}?title:"([^"]+)"[\s\S]{0,1200}?icon:"([^"]*)"/g;
+                let match;
+                while ((match = bundleRe.exec(bundleText)) !== null) {
+                    pushRaw(match[1], match[2], match[3]);
+                }
+            }
+        } catch {
+        }
+    }
+
+    if (!items.length) {
+        const htmlRe = /<a[^>]*href\s*=\s*["']([^"']+)["'][^>]*>[\s\S]*?<figcaption[^>]*>([^<]+)<\/figcaption>/gi;
+        let match;
+        while ((match = htmlRe.exec(html)) !== null) {
+            pushRaw(match[1], match[2], '');
+        }
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getDuckMathCatalogData() {
+    const now = Date.now();
+    if (duckMathCatalogCache.map.size > 0 && now < duckMathCatalogCache.expiresAt) {
+        return duckMathCatalogCache;
+    }
+
+    try {
+        const built = await buildDuckMathCatalogData();
+        duckMathCatalogCache = {
+            expiresAt: now + DUCKMATH_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return duckMathCatalogCache;
+    } catch (error) {
+        if (duckMathCatalogCache.map.size > 0) return duckMathCatalogCache;
         throw error;
     }
 }
@@ -2786,6 +2988,31 @@ app.get(/^\/truf\/([^/]+)\.html$/i, async (req, res, next) => {
     }
 });
 
+app.get(/^\/dkmath\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid dkmath slug');
+
+    try {
+        const data = await getDuckMathCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+        const launchTarget = await resolveDuckMathLaunchTarget(entry.targetUrl);
+        const frameTarget = launchTarget || entry.targetUrl;
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'DuckMath')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="dkmath-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('dkmath-frame').src=${safeJsonForInlineScript(frameTarget)};</script></body></html>`;
+        res.setHeader('X-Rift-DkMath', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `dkmath launch failed: ${error.message}` });
+    }
+});
+
 app.get(/^\/pzlite\/([^/]+)\.html$/i, async (req, res, next) => {
     let slug = String(req.params?.[0] || '').trim();
     try {
@@ -3382,33 +3609,8 @@ app.get('/sdxp-catalog', async (_req, res) => {
 
 app.get('/duckmath-catalog', async (_req, res) => {
     try {
-        const response = await fetch(DUCKMATH_GAMES_PAGE);
-        if (!response.ok) {
-            return res.status(502).json({ error: `duckmath fetch failed: ${response.status}` });
-        }
-
-        const html = await response.text();
-        const re = /<a[^>]*href\s*=\s*["'](g4m3s\/[^"']+)["'][^>]*>[\s\S]*?<figcaption>([^<]+)<\/figcaption>/gi;
-        const items = [];
-        const seen = new Set();
-        let m;
-
-        while ((m = re.exec(html)) !== null) {
-            const rel = m[1].trim();
-            const name = m[2].trim();
-            if (!rel || !name || seen.has(rel)) continue;
-            seen.add(rel);
-
-            items.push({
-                id: `duckmath-${rel}`,
-                name,
-                url: new URL(rel, DUCKMATH_BASE).href,
-                cover: '',
-            });
-        }
-
-        items.sort((a, b) => a.name.localeCompare(b.name));
-        return res.json(items);
+        const data = await getDuckMathCatalogData();
+        return res.json(data.items);
     } catch (error) {
         return res.status(500).json({ error: `failed to build duckmath catalog: ${error.message}` });
     }

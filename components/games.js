@@ -25,6 +25,12 @@ const VAULT_CONFIG = {
                bases: [],
                localCatalogUrl: "/sdxp-catalog",
           },
+          duckmath: {
+               key: "duckmath",
+               label: "DuckMath",
+               bases: [],
+               localCatalogUrl: "/duckmath-catalog",
+          },
           truffled: {
                key: "truffled",
                label: "Truffled",
@@ -374,11 +380,12 @@ const RiftVault = {
           const rank = {
                truffled: 0,
                totalscience: 1,
-               sdxp: 2,
-               velara: 3,
-               "gn-math": 4,
-               petezah: 5,
-               seraph: 6,
+               duckmath: 2,
+               sdxp: 3,
+               velara: 4,
+               "gn-math": 5,
+               petezah: 6,
+               seraph: 7,
           };
           return rank[source] ?? 9;
      },
@@ -679,10 +686,6 @@ const RiftVault = {
                     const inRiftUrl = `${window.location.origin}/browser?url=${encodeURIComponent(url)}`;
                     window.location.href = inRiftUrl;
                     return;
-               }
-
-               if (game.source === "duckmath" && /^https?:\/\//i.test(url)) {
-                    url = `/proxy?url=${encodeURIComponent(url)}`;
                }
 
                if (game.source === "truffled") {
