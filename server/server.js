@@ -912,35 +912,37 @@ async function buildCcportedCatalogData() {
         fileMap.get(dirPath).set(fileName, filePath);
     }
 
-    const gameEntries = [];
+    const preferredEntries = new Map();
     for (const row of rows) {
         if (!row || row.type !== 'blob') continue;
         const filePath = String(row.path || '').replace(/^\/+/, '').trim();
         if (!filePath || filePath.includes('..')) continue;
         const lower = filePath.toLowerCase();
-        if (lower.endsWith('/game.html')) {
-            gameEntries.push({
+        const topLevelGameMatch = lower.match(/^([^/]+)\/game\.html$/i);
+        if (topLevelGameMatch && topLevelGameMatch[1]) {
+            const dirPath = topLevelGameMatch[1];
+            preferredEntries.set(dirPath, {
                 entryPath: filePath,
-                dirPath: path.posix.dirname(filePath),
+                dirPath,
                 source: 'game',
             });
+            continue;
         }
-    }
 
-    if (!gameEntries.length) {
-        for (const row of rows) {
-            if (!row || row.type !== 'blob') continue;
-            const filePath = String(row.path || '').replace(/^\/+/, '').trim();
-            if (!filePath || filePath.includes('..')) continue;
-            if (filePath.toLowerCase().endsWith('/index.html')) {
-                gameEntries.push({
+        const topLevelIndexMatch = lower.match(/^([^/]+)\/index\.html$/i);
+        if (topLevelIndexMatch && topLevelIndexMatch[1]) {
+            const dirPath = topLevelIndexMatch[1];
+            if (!preferredEntries.has(dirPath)) {
+                preferredEntries.set(dirPath, {
                     entryPath: filePath,
-                    dirPath: path.posix.dirname(filePath),
+                    dirPath,
                     source: 'index',
                 });
             }
         }
     }
+
+    const gameEntries = Array.from(preferredEntries.values());
 
     const items = [];
     const map = new Map();
