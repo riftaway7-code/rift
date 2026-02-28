@@ -83,11 +83,13 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
 const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PETEZAH_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_CACHE_TTL_MS = 5 * 60 * 1000;
+const TOTALLY_SCIENCE_RESOLVED_TTL_MS = 30 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+const totallyScienceResolvedLaunchCache = new Map();
 
 const GN_MATH_BLOCKED_HTML_FILES = new Set([
     '114-f.html',
@@ -603,6 +605,63 @@ function normalizeTotallyScienceSourceSlug(value) {
         .replace(/\\/g, '/');
 }
 
+function extractTotallyScienceEmbeddedGameUrl(html, pageUrl) {
+    const source = String(html || '');
+    const tags = source.match(/<iframe\b[^>]*>/gi) || [];
+    let fallbackSrc = '';
+
+    for (const tag of tags) {
+        const srcMatch = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+        if (!srcMatch || !srcMatch[1]) continue;
+        const srcRaw = String(srcMatch[1]).trim();
+        if (!srcRaw || /^javascript:/i.test(srcRaw) || /^data:/i.test(srcRaw)) continue;
+
+        const idMatch = tag.match(/\bid\s*=\s*["']([^"']+)["']/i);
+        const idValue = String(idMatch?.[1] || '').trim().toLowerCase();
+        if (!fallbackSrc) fallbackSrc = srcRaw;
+        if (idValue === 'gameframe') {
+            fallbackSrc = srcRaw;
+            break;
+        }
+    }
+
+    if (!fallbackSrc) return '';
+    try {
+        const resolved = new URL(fallbackSrc, pageUrl).href;
+        return /^https?:\/\//i.test(resolved) ? resolved : '';
+    } catch {
+        return '';
+    }
+}
+
+async function resolveTotallyScienceLaunchTarget(pageUrl) {
+    const targetPage = String(pageUrl || '').trim();
+    if (!targetPage) return '';
+
+    const now = Date.now();
+    const cached = totallyScienceResolvedLaunchCache.get(targetPage);
+    if (cached && now < Number(cached.expiresAt || 0)) {
+        return String(cached.url || targetPage);
+    }
+
+    let resolved = targetPage;
+    try {
+        const response = await fetch(targetPage);
+        if (response.ok) {
+            const html = await response.text();
+            const embedded = extractTotallyScienceEmbeddedGameUrl(html, targetPage);
+            if (embedded) resolved = embedded;
+        }
+    } catch {
+    }
+
+    totallyScienceResolvedLaunchCache.set(targetPage, {
+        url: resolved,
+        expiresAt: now + TOTALLY_SCIENCE_RESOLVED_TTL_MS,
+    });
+    return resolved;
+}
+
 async function buildTotallyScienceCatalogData() {
     const response = await fetch(TOTALLY_SCIENCE_BASE);
     if (!response.ok) {
@@ -610,7 +669,6 @@ async function buildTotallyScienceCatalogData() {
     }
 
     const html = await response.text();
-    const rawRows = [];
     const seenSources = new Set();
     const usedLaunchSlugs = new Set();
     const items = [];
@@ -2555,8 +2613,10 @@ app.get(/^\/tllysc\/([^/]+)\.html$/i, async (req, res, next) => {
         const data = await getTotallyScienceCatalogData();
         const entry = data.map.get(slug);
         if (!entry) return next();
+        const launchTarget = await resolveTotallyScienceLaunchTarget(entry.targetUrl);
+        const frameTarget = launchTarget || entry.targetUrl;
 
-        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Totally Science')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="tllysc-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('tllysc-frame').src=${safeJsonForInlineScript(entry.targetUrl)};</script></body></html>`;
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Totally Science')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="tllysc-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('tllysc-frame').src=${safeJsonForInlineScript(frameTarget)};</script></body></html>`;
         res.setHeader('X-Rift-Tllysc', '1');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.status(200).send(shell);
