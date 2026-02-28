@@ -32,6 +32,7 @@ const DUCKMATH_GAMES_PAGE = 'https://duckmath.org/g4m3s.html';
 const DUCKMATH_BASE = 'https://duckmath.org/';
 const CCPORTED_TREE_API = 'https://api.github.com/repos/ccported/games/git/trees/main?recursive=1';
 const CCPORTED_RAW_BASE = 'https://raw.githubusercontent.com/ccported/games/main/';
+const CCPORTED_TITLE_SUFFIX_RE = /\s*(?:\||-)?\s*Unblocked on CCPorted\s*$/i;
 const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
 const TRUFFLED_LOCAL_JSON = path.join(__dirname, '..', 'truffled.g.json');
 const TRUFFLED_BASE = 'https://truffled.lol/';
@@ -105,6 +106,7 @@ const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
 let duckMathCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let ccportedCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+const ccportedNameCache = new Map();
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let velaraCatalogCache = { expiresAt: 0, items: [], map: new Map() };
@@ -887,6 +889,162 @@ function pickCcportedCover(fileMap, dirPath) {
     return '';
 }
 
+function decodeBasicHtmlEntities(value) {
+    return String(value || '')
+        .replace(/&amp;/gi, '&')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&#(\d+);/g, (_m, dec) => {
+            const codePoint = Number.parseInt(dec, 10);
+            if (!Number.isFinite(codePoint)) return '';
+            try {
+                return String.fromCodePoint(codePoint);
+            } catch {
+                return '';
+            }
+        })
+        .replace(/&#x([0-9a-f]+);/gi, (_m, hex) => {
+            const codePoint = Number.parseInt(hex, 16);
+            if (!Number.isFinite(codePoint)) return '';
+            try {
+                return String.fromCodePoint(codePoint);
+            } catch {
+                return '';
+            }
+        });
+}
+
+function normalizeCcportedGameName(value) {
+    let name = decodeBasicHtmlEntities(value).replace(/\s+/g, ' ').trim();
+    if (!name) return '';
+    name = name.replace(CCPORTED_TITLE_SUFFIX_RE, '').trim();
+    name = name.replace(/^play\s+/i, '').trim();
+    name = name.replace(/\s*\|\s*CCPorted\s*$/i, '').trim();
+    if (!name) return '';
+    if (/^(index|home|ccported)$/i.test(name)) return '';
+    if (/^game[-_\s0-9a-f]+$/i.test(name)) return '';
+    return name;
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) return [];
+
+    const safeConcurrency = Math.max(1, Math.min(Number(concurrency) || 1, list.length));
+    const output = new Array(list.length);
+    let cursor = 0;
+
+    const workers = Array.from({ length: safeConcurrency }, async () => {
+        while (true) {
+            const index = cursor;
+            cursor += 1;
+            if (index >= list.length) return;
+            output[index] = await mapper(list[index], index);
+        }
+    });
+    await Promise.all(workers);
+    return output;
+}
+
+async function fetchCcportedMetadataName(fileMap, dirPath) {
+    const files = fileMap.get(dirPath);
+    const metadataPath = files?.get('ccported_game_data.json');
+    if (!metadataPath) return '';
+
+    try {
+        const response = await fetch(new URL(metadataPath, CCPORTED_RAW_BASE), {
+            headers: {
+                'accept': 'application/json',
+                'user-agent': 'rift-ccported-catalog',
+            },
+        });
+        if (!response.ok) return '';
+        const payload = await response.json();
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return '';
+
+        const candidate = payload.name || payload.title || payload.displayName || payload.game || '';
+        return normalizeCcportedGameName(candidate);
+    } catch {
+        return '';
+    }
+}
+
+async function fetchCcportedHtmlTitle(entryPath) {
+    try {
+        const response = await fetch(new URL(entryPath, CCPORTED_RAW_BASE), {
+            headers: {
+                'accept': 'text/html,application/xhtml+xml',
+                'range': 'bytes=0-262143',
+                'user-agent': 'rift-ccported-catalog',
+            },
+        });
+        if (!response.ok) return '';
+        const html = await response.text();
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        if (!titleMatch || !titleMatch[1]) return '';
+        const rawTitle = String(titleMatch[1]).replace(/<[^>]+>/g, ' ');
+        return normalizeCcportedGameName(rawTitle);
+    } catch {
+        return '';
+    }
+}
+
+async function fetchCcportedManifestName(fileMap, dirPath) {
+    const files = fileMap.get(dirPath);
+    if (!files) return '';
+
+    const manifestNames = ['appmanifest.json', 'manifest.json', 'site.webmanifest'];
+    for (const manifestName of manifestNames) {
+        const manifestPath = files.get(manifestName);
+        if (!manifestPath) continue;
+
+        try {
+            const response = await fetch(new URL(manifestPath, CCPORTED_RAW_BASE), {
+                headers: {
+                    'accept': 'application/json',
+                    'user-agent': 'rift-ccported-catalog',
+                },
+            });
+            if (!response.ok) continue;
+            const payload = await response.json();
+            if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue;
+
+            const candidate = payload.name || payload.short_name || payload.title || payload.displayName || '';
+            const normalized = normalizeCcportedGameName(candidate);
+            if (normalized) return normalized;
+        } catch {
+            continue;
+        }
+    }
+
+    return '';
+}
+
+async function resolveCcportedDisplayName(entry, fileMap) {
+    const entryPath = String(entry?.entryPath || '').trim();
+    const cacheKey = entryPath.toLowerCase();
+    if (cacheKey && ccportedNameCache.has(cacheKey)) {
+        return ccportedNameCache.get(cacheKey);
+    }
+
+    let name = await fetchCcportedMetadataName(fileMap, entry?.dirPath);
+    if (!name) {
+        name = await fetchCcportedHtmlTitle(entryPath);
+    }
+    if (!name) {
+        name = await fetchCcportedManifestName(fileMap, entry?.dirPath);
+    }
+    if (!name) {
+        const dirName = path.posix.basename(entry?.dirPath || '') || String(entry?.dirPath || '');
+        name = humanizeFolderName(String(dirName || '').replace(/^game_[0-9a-f]{4}_/i, ''));
+    }
+
+    if (cacheKey) ccportedNameCache.set(cacheKey, name);
+    return name;
+}
+
 async function buildCcportedCatalogData() {
     const response = await fetch(CCPORTED_TREE_API, {
         headers: {
@@ -943,19 +1101,26 @@ async function buildCcportedCatalogData() {
     }
 
     const gameEntries = Array.from(preferredEntries.values());
+    const resolvedNames = await mapWithConcurrency(
+        gameEntries,
+        10,
+        async (entry) => await resolveCcportedDisplayName(entry, fileMap)
+    );
 
     const items = [];
     const map = new Map();
     const usedSlugs = new Set();
     const seenEntryPaths = new Set();
 
-    for (const entry of gameEntries) {
+    for (let index = 0; index < gameEntries.length; index += 1) {
+        const entry = gameEntries[index];
         const entryKey = String(entry.entryPath || '').toLowerCase();
         if (!entryKey || seenEntryPaths.has(entryKey)) continue;
         seenEntryPaths.add(entryKey);
 
         const dirName = path.posix.basename(entry.dirPath || '') || entry.dirPath;
-        const name = humanizeFolderName(String(dirName || '').replace(/\.[a-z0-9]+$/i, ''));
+        const fallbackName = humanizeFolderName(String(dirName || '').replace(/\.[a-z0-9]+$/i, ''));
+        const name = normalizeCcportedGameName(resolvedNames[index]) || fallbackName;
         const baseSlug = toLaunchSlug(dirName, toLaunchSlug(name, 'game'));
         let slug = baseSlug;
         let suffix = 2;
