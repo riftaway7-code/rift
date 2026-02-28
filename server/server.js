@@ -24,9 +24,9 @@ const validateCache = new Map();
 const VALIDATE_TTL_MS = 60 * 1000;
 const SDXP_HTML_ROOT = path.join(__dirname, '..', 'public', 'sdxp', 'html');
 const GN_MATH_ZONES_JSON = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/zones.json';
-const GN_MATH_ASSET_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/';
-const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_ASSET_BASE).href;
-const GN_MATH_COVER_BASE = new URL('covers@main/', GN_MATH_ASSET_BASE).href;
+const GN_MATH_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/';
+const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_BASE).href;
+const GN_MATH_COVER_BASE = new URL('covers@main/', GN_MATH_BASE).href;
 const DUCKMATH_GAMES_PAGE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/g4m3s.html';
 const DUCKMATH_BASE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/';
 const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
@@ -168,7 +168,7 @@ function normalizeGnMathHtmlPath(value) {
         htmlPath = placeholder[1];
     } else {
         try {
-            const parsed = new URL(raw, GN_MATH_ASSET_BASE);
+            const parsed = new URL(raw, GN_MATH_BASE);
             if (/^\/?html@main\//i.test(parsed.pathname)) {
                 htmlPath = parsed.pathname.replace(/^\/?html@main\//i, '');
             }
@@ -1854,7 +1854,7 @@ app.get(/^\/gn\/(.+)$/, async (req, res, next) => {
     const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     const candidates = [
         new URL(`${tail}${query}`, GN_MATH_HTML_BASE).href,
-        new URL(`${tail}${query}`, GN_MATH_ASSET_BASE).href,
+        new URL(`${tail}${query}`, GN_MATH_BASE).href,
     ];
 
     for (const target of candidates) {
