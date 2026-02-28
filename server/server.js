@@ -500,12 +500,13 @@ async function buildPetezahCatalogData() {
 
     for (let index = 0; index < rows.length; index += 1) {
         const row = rows[index];
-        const targetUrl = normalizePetezahSourceUrl(row?.url);
+        const sourceUrl = String(row?.url || '').trim();
+        const targetUrl = normalizePetezahSourceUrl(sourceUrl);
         if (!targetUrl) continue;
 
         const name = String(row?.label || '').trim() || `game ${index + 1}`;
         const cover = normalizePetezahCoverUrl(row?.imageUrl);
-        const baseSlug = derivePetezahSlug(targetUrl, name, index);
+        const baseSlug = derivePetezahSlug(sourceUrl || targetUrl, name, index);
         let slug = baseSlug;
         let suffix = 2;
         while (usedSlugs.has(slug)) {
