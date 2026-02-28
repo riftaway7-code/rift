@@ -1748,12 +1748,7 @@ app.get('/:gameSlug', async (req, res, next) => {
                 if (err) next();
             });
         }
-
-        const launchUrl = `/proxy?url=${encodeURIComponent(entry.targetUrl)}`;
-        const title = humanizeFolderName(slug);
-        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}iframe{border:0;width:100vw;height:100vh;display:block}</style></head><body><iframe src="${launchUrl}" allowfullscreen referrerpolicy="no-referrer"></iframe></body></html>`;
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(200).send(html);
+        return next();
     } catch {
         return next();
     }
@@ -2167,15 +2162,18 @@ app.get('/truffled-catalog', async (_req, res) => {
     try {
         let payload = null;
         try {
-            const response = await fetch(TRUFFLED_GAMES_JSON);
-            if (response.ok) {
-                payload = await response.json();
-            }
+            const localRaw = await fs.readFile(TRUFFLED_LOCAL_JSON, 'utf8');
+            payload = JSON.parse(localRaw);
         } catch {
         }
         if (!payload) {
-            const localRaw = await fs.readFile(TRUFFLED_LOCAL_JSON, 'utf8');
-            payload = JSON.parse(localRaw);
+            try {
+                const response = await fetch(TRUFFLED_GAMES_JSON);
+                if (response.ok) {
+                    payload = await response.json();
+                }
+            } catch {
+            }
         }
 
         const rootMap = await readTruffledRootMap();
@@ -2193,9 +2191,14 @@ app.get('/truffled-catalog', async (_req, res) => {
 
             const normalized = href.replace(/^\/+/, '');
             const normalizedThumb = thumbnail.replace(/^\/+/, '');
-            const mappedFile = String(rootMap[normalized] || '').trim();
-            const canonicalSlug = deriveTruffledCanonicalSlug(normalized, mappedFile);
-            const launchUrl = canonicalSlug ? `/${canonicalSlug}` : new URL(normalized, TRUFFLED_BASE).href;
+            const mappedFile = String(rootMap[normalized] || '').trim().replace(/^\/+/, '');
+            if (!mappedFile) continue;
+            try {
+                await fs.access(path.join(__dirname, '..', 'public', mappedFile));
+            } catch {
+                continue;
+            }
+            const launchUrl = `/${mappedFile}`;
             items.push({
                 id: `truffled-${normalized}`,
                 name,
