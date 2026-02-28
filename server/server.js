@@ -34,8 +34,9 @@ const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
 const TRUFFLED_LOCAL_JSON = path.join(__dirname, '..', 'truffled.g.json');
 const TRUFFLED_BASE = 'https://truffled.lol/';
 const TRUFFLED_ROOT_MANIFEST = path.join(__dirname, '..', 'data', 'truffled-root-manifest.json');
-const PETEZAH_GAMES_JSON = 'https://cdn.jsdelivr.net/gh/PeteZah-Games/PeteZahLite@main/search.json';
-const PETEZAH_BASE = 'https://cdn.jsdelivr.net/gh/PeteZah-Games/PeteZahLite@main/';
+const PETEZAH_GAMES_JSON = 'https://petezahgames.com/storage/data/collection.json';
+const PETEZAH_LEGACY_GAMES_JSON = 'https://cdn.jsdelivr.net/gh/PeteZah-G/singlefile-json@main/search.json';
+const PETEZAH_BASE = 'https://petezahgames.com/';
 const TOTALLY_SCIENCE_BASE = 'https://d11jzht7mj96rr.cloudfront.net/';
 const VELARA_GAMES_JSON = 'https://velara.my/data/games.json';
 const VELARA_BASE = 'https://velara.my/';
@@ -432,13 +433,22 @@ function normalizePetezahSourceUrl(value) {
         } else if (host === 'petezahgames.com' || host.endsWith('.petezahgames.com')) {
             if (/^\/storage\/ag\/.+/i.test(pathname)) {
                 gamePath = pathname;
+            } else if (/^\/iframe\.html$/i.test(pathname)) {
+                const inner = String(parsed.searchParams.get('url') || '').trim();
+                if (inner) {
+                    try {
+                        const innerUrl = new URL(inner, PETEZAH_BASE);
+                        if (/^https?:$/i.test(innerUrl.protocol)) {
+                            return innerUrl.href;
+                        }
+                    } catch {
+                    }
+                }
             }
         }
 
         if (gamePath) {
-            const launch = new URL('https://petezahgames.com/iframe.html');
-            launch.searchParams.set('url', gamePath);
-            return launch.href;
+            return new URL(gamePath, PETEZAH_BASE).href;
         }
 
         return parsed.href;
@@ -469,10 +479,26 @@ function derivePetezahSlug(targetUrl, label, index) {
     let candidate = '';
     try {
         const parsed = new URL(targetUrl);
+        if (/^\/iframe\.html$/i.test(String(parsed.pathname || ''))) {
+            const inner = String(parsed.searchParams.get('url') || '').trim();
+            if (inner) {
+                try {
+                    const innerParsed = new URL(inner, PETEZAH_BASE);
+                    const innerSegments = String(innerParsed.pathname || '').replace(/\/+$/, '').split('/').filter(Boolean);
+                    const innerLast = innerSegments.length ? innerSegments[innerSegments.length - 1] : '';
+                    if (innerLast) {
+                        candidate = /^index\.html?$/i.test(innerLast) && innerSegments.length > 1
+                            ? String(innerSegments[innerSegments.length - 2] || '')
+                            : String(innerLast).replace(/\.html?$/i, '');
+                    }
+                } catch {
+                }
+            }
+        }
         const normalizedPath = String(parsed.pathname || '').replace(/\/+$/, '');
         const segments = normalizedPath.split('/').filter(Boolean);
         const last = segments.length ? segments[segments.length - 1] : '';
-        if (last) {
+        if (!candidate && last) {
             if (/^index\.html?$/i.test(last) && segments.length > 1) {
                 candidate = segments[segments.length - 2] || '';
             } else {
@@ -487,12 +513,24 @@ function derivePetezahSlug(targetUrl, label, index) {
 }
 
 async function buildPetezahCatalogData() {
-    const response = await fetch(PETEZAH_GAMES_JSON);
-    if (!response.ok) {
-        throw new Error(`petezah fetch failed: ${response.status}`);
+    let payload = null;
+    let lastError = null;
+    for (const sourceUrl of [PETEZAH_GAMES_JSON, PETEZAH_LEGACY_GAMES_JSON]) {
+        try {
+            const response = await fetch(sourceUrl);
+            if (!response.ok) {
+                lastError = new Error(`petezah fetch failed: ${response.status} @ ${sourceUrl}`);
+                continue;
+            }
+            payload = await response.json();
+            break;
+        } catch (error) {
+            lastError = error;
+        }
     }
-
-    const payload = await response.json();
+    if (!payload) {
+        throw lastError || new Error('petezah fetch failed');
+    }
     const rows = Array.isArray(payload?.games) ? payload.games : [];
     const items = [];
     const map = new Map();
