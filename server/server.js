@@ -42,7 +42,7 @@ const VELARA_GAMES_JSON = 'https://velara.my/data/games.json';
 const VELARA_BASE = 'https://velara.my/';
 const VELARA_ORIGIN = 'https://velara.my';
 const SERAPH_GAMES_API = 'https://api.github.com/repos/a456pur/seraph/contents/games';
-const SERAPH_BASE = 'https://rawcdn.githack.com/a456pur/seraph/main/';
+const SERAPH_BASE = 'https://raw.githubusercontent.com/a456pur/seraph/main/';
 const AUDIUS_API_BASE = 'https://discoveryprovider.audius.co';
 const JAMENDO_API_BASE = 'https://api.jamendo.com/v3.0';
 const JAMENDO_CLIENT_ID = String(process.env.JAMENDO_CLIENT_ID || '').trim();
@@ -917,8 +917,6 @@ async function buildSeraphCatalogData() {
         }
         usedSlugs.add(slug);
 
-        const targetUrl = new URL(`games/${encodeURIComponent(dirName)}/game.html`, SERAPH_BASE).href;
-
         items.push({
             id: `seraph-${slug}`,
             name: label || `Game ${items.length + 1}`,
@@ -926,8 +924,8 @@ async function buildSeraphCatalogData() {
             cover: '',
         });
         map.set(slug, {
-            targetUrl,
             name: label,
+            dirName,
         });
     }
 
@@ -2874,13 +2872,78 @@ app.get(/^\/sph\/([^/]+)\.html$/i, async (req, res, next) => {
         const data = await getSeraphCatalogData();
         const entry = data.map.get(slug);
         if (!entry) return next();
+        const frameTarget = `/sph/${encodeURIComponent(slug)}/game.html`;
 
-        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Seraph')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="sph-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('sph-frame').src=${safeJsonForInlineScript(entry.targetUrl)};</script></body></html>`;
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Seraph')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="sph-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('sph-frame').src=${safeJsonForInlineScript(frameTarget)};</script></body></html>`;
         res.setHeader('X-Rift-Sph', '1');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.status(200).send(shell);
     } catch (error) {
         return res.status(502).json({ error: `sph launch failed: ${error.message}` });
+    }
+});
+
+app.get(/^\/sph\/([^/]+)\/(.+)$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    let tail = String(req.params?.[1] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    try {
+        tail = decodeURIComponent(tail);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    tail = tail.replace(/^\/+/, '').replace(/\\/g, '/');
+
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid sph slug');
+    if (!tail || tail.includes('..')) return res.status(400).send('invalid sph path');
+
+    try {
+        const data = await getSeraphCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const buildTarget = (value) => {
+            const safePath = String(value || '')
+                .split('/')
+                .filter(Boolean)
+                .map((segment) => encodeURIComponent(segment))
+                .join('/');
+            return new URL(`games/${encodeURIComponent(entry.dirName)}/${safePath}${query}`, SERAPH_BASE).href;
+        };
+
+        let target = buildTarget(tail);
+        let upstream = await fetch(target);
+        if ((!upstream.ok || upstream.status === 404) && /^game\.html$/i.test(tail)) {
+            const fallbackTarget = buildTarget('index.html');
+            const fallback = await fetch(fallbackTarget);
+            if (fallback.ok) {
+                upstream = fallback;
+                target = fallbackTarget;
+            }
+        }
+
+        if (!upstream.ok) {
+            return res.status(upstream.status).send(`sph upstream status ${upstream.status}`);
+        }
+
+        const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+        const guessedType = guessContentTypeFromPath(target);
+        if (upstreamType) {
+            res.setHeader('Content-Type', upstreamType);
+        } else if (guessedType) {
+            res.setHeader('Content-Type', guessedType);
+        }
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+        res.setHeader('X-Rift-Sph-Asset', '1');
+        const raw = Buffer.from(await upstream.arrayBuffer());
+        return res.status(upstream.status).send(raw);
+    } catch (error) {
+        return res.status(502).json({ error: `sph asset failed: ${error.message}` });
     }
 });
 
