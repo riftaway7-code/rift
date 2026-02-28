@@ -41,6 +41,8 @@ const TOTALLY_SCIENCE_BASE = 'https://d11jzht7mj96rr.cloudfront.net/';
 const VELARA_GAMES_JSON = 'https://velara.my/data/games.json';
 const VELARA_BASE = 'https://velara.my/';
 const VELARA_ORIGIN = 'https://velara.my';
+const SERAPH_GAMES_API = 'https://api.github.com/repos/a456pur/seraph/contents/games';
+const SERAPH_BASE = 'https://cdn.jsdelivr.net/gh/a456pur/seraph@main/';
 const AUDIUS_API_BASE = 'https://discoveryprovider.audius.co';
 const JAMENDO_API_BASE = 'https://api.jamendo.com/v3.0';
 const JAMENDO_CLIENT_ID = String(process.env.JAMENDO_CLIENT_ID || '').trim();
@@ -76,8 +78,10 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'truf',
     'tllysc',
     'vlra',
+    'sph',
     'totalscience-catalog',
     'velara-catalog',
+    'seraph-catalog',
     'astra',
     'astra-accounts',
 ]);
@@ -87,12 +91,14 @@ const TOTALLY_SCIENCE_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_RESOLVED_TTL_MS = 30 * 60 * 1000;
 const VELARA_CACHE_TTL_MS = 5 * 60 * 1000;
 const VELARA_RESOLVED_TTL_MS = 30 * 60 * 1000;
+const SERAPH_CACHE_TTL_MS = 5 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let velaraCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+let seraphCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 const totallyScienceResolvedLaunchCache = new Map();
 const velaraResolvedLaunchCache = new Map();
 
@@ -875,6 +881,76 @@ async function getVelaraCatalogData() {
         return velaraCatalogCache;
     } catch (error) {
         if (velaraCatalogCache.map.size > 0) return velaraCatalogCache;
+        throw error;
+    }
+}
+
+async function buildSeraphCatalogData() {
+    const response = await fetch(SERAPH_GAMES_API, {
+        headers: {
+            'accept': 'application/vnd.github+json',
+            'user-agent': 'rift-seraph-catalog',
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`seraph fetch failed: ${response.status}`);
+    }
+
+    const rows = await response.json();
+    const items = [];
+    const map = new Map();
+    const usedSlugs = new Set();
+
+    for (const row of (Array.isArray(rows) ? rows : [])) {
+        if (!row || row.type !== 'dir') continue;
+
+        const dirName = String(row.name || '').trim();
+        if (!dirName || dirName.startsWith('.')) continue;
+
+        const label = humanizeFolderName(dirName);
+        const baseSlug = toLaunchSlug(dirName, toLaunchSlug(label, 'game'));
+        let slug = baseSlug;
+        let suffix = 2;
+        while (usedSlugs.has(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedSlugs.add(slug);
+
+        const targetUrl = new URL(`games/${encodeURIComponent(dirName)}/game.html`, SERAPH_BASE).href;
+
+        items.push({
+            id: `seraph-${slug}`,
+            name: label || `Game ${items.length + 1}`,
+            url: `/sph/${encodeURIComponent(slug)}.html`,
+            cover: '',
+        });
+        map.set(slug, {
+            targetUrl,
+            name: label,
+        });
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getSeraphCatalogData() {
+    const now = Date.now();
+    if (seraphCatalogCache.map.size > 0 && now < seraphCatalogCache.expiresAt) {
+        return seraphCatalogCache;
+    }
+
+    try {
+        const built = await buildSeraphCatalogData();
+        seraphCatalogCache = {
+            expiresAt: now + SERAPH_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return seraphCatalogCache;
+    } catch (error) {
+        if (seraphCatalogCache.map.size > 0) return seraphCatalogCache;
         throw error;
     }
 }
@@ -2785,6 +2861,29 @@ app.get(/^\/vlra\/([^/]+)\.html$/i, async (req, res, next) => {
     }
 });
 
+app.get(/^\/sph\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid sph slug');
+
+    try {
+        const data = await getSeraphCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Seraph')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="sph-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('sph-frame').src=${safeJsonForInlineScript(entry.targetUrl)};</script></body></html>`;
+        res.setHeader('X-Rift-Sph', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `sph launch failed: ${error.message}` });
+    }
+});
+
 app.get('/:gameSlug', async (req, res, next) => {
     const slugRaw = String(req.params?.gameSlug || '').trim();
     if (!slugRaw || slugRaw.includes('.')) return next();
@@ -3347,6 +3446,15 @@ app.get('/velara-catalog', async (_req, res) => {
         return res.json(data.items);
     } catch (error) {
         return res.status(500).json({ error: `failed to build velara catalog: ${error.message}` });
+    }
+});
+
+app.get('/seraph-catalog', async (_req, res) => {
+    try {
+        const data = await getSeraphCatalogData();
+        return res.json(data.items);
+    } catch (error) {
+        return res.status(500).json({ error: `failed to build seraph catalog: ${error.message}` });
     }
 });
 
