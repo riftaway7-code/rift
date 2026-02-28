@@ -468,6 +468,74 @@ async function findSdxpBackupIndexFile() {
     return '';
 }
 
+function normalizeSdxpTail(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^[./\\]+/, '')
+        .replace(/^\/+/, '')
+        .replace(/\\/g, '/');
+}
+
+function buildSdxpTailCandidates(rawTail) {
+    const normalized = normalizeSdxpTail(rawTail);
+    if (!normalized || normalized.includes('..')) return [];
+
+    const out = [];
+    const seen = new Set();
+    const add = (tail) => {
+        const next = normalizeSdxpTail(tail);
+        if (!next || next.includes('..')) return;
+        const key = next.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(next);
+    };
+
+    const flatHtmlMatch = normalized.match(/^html\/([^/]+)\.html$/i);
+    if (flatHtmlMatch?.[1]) {
+        const slug = String(flatHtmlMatch[1]).trim();
+        add(`html/${slug}/game/index.html`);
+        add(`html/${slug}/index.html`);
+        add(normalized);
+        return out;
+    }
+
+    const folderRootMatch = normalized.match(/^html\/([^/]+)\/?$/i);
+    if (folderRootMatch?.[1]) {
+        const slug = String(folderRootMatch[1]).trim();
+        add(`html/${slug}/game/index.html`);
+        add(`html/${slug}/index.html`);
+        add(normalized);
+        return out;
+    }
+
+    const folderIndexMatch = normalized.match(/^html\/([^/]+)\/index\.html$/i);
+    if (folderIndexMatch?.[1]) {
+        const slug = String(folderIndexMatch[1]).trim();
+        add(`html/${slug}/game/index.html`);
+        add(normalized);
+        return out;
+    }
+
+    const directGameMatch = normalized.match(/^html\/([^/]+)\/game\/index\.html$/i);
+    if (directGameMatch?.[1]) {
+        const slug = String(directGameMatch[1]).trim();
+        add(normalized);
+        add(`html/${slug}/index.html`);
+        return out;
+    }
+
+    add(normalized);
+    return out;
+}
+
+function sdxpCatalogUrlForTail(rawTail) {
+    const tails = buildSdxpTailCandidates(rawTail);
+    const launchTail = tails[0] || normalizeSdxpTail(rawTail);
+    if (!launchTail) return '';
+    return `/sdxp/${encodePathForUrl(launchTail)}`;
+}
+
 function parseSdxpCatalogCards(html) {
     const source = String(html || '');
     const items = [];
@@ -499,7 +567,9 @@ function parseSdxpCatalogCards(html) {
             .replace(/^\/+/, '')
             .replace(/\\/g, '/');
         if (!rel || rel.includes('..')) continue;
-        const key = rel.toLowerCase();
+        const launchUrl = sdxpCatalogUrlForTail(rel);
+        if (!launchUrl) continue;
+        const key = launchUrl.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
 
@@ -515,7 +585,7 @@ function parseSdxpCatalogCards(html) {
         items.push({
             id: `sdxp-fallback-${key.replace(/[^a-z0-9/_-]+/gi, '-')}`,
             name,
-            url: `/sdxp/${encodePathForUrl(rel)}`,
+            url: launchUrl,
             cover,
         });
     }
@@ -2034,40 +2104,59 @@ app.get(/^\/sdxp\/(.+)$/, async (req, res, next) => {
     const rawTail = String(req.params?.[0] || '').trim();
     if (!rawTail) return next();
 
-    let tail = rawTail;
+    let decodedTail = rawTail;
     try {
-        tail = decodeURIComponent(rawTail);
+        decodedTail = decodeURIComponent(rawTail);
     } catch {
     }
-    tail = tail.replace(/^\/+/, '').replace(/\\/g, '/');
-    if (!tail || tail.includes('..')) {
+    const tailCandidates = buildSdxpTailCandidates(decodedTail);
+    if (!tailCandidates.length) {
         return res.status(400).send('invalid sdxp path');
     }
 
     const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    const target = new URL(`${tail}${query}`, SDXP_FALLBACK_BASE).href;
+    const attempts = [];
+    let firstFailure = null;
 
-    try {
-        const upstream = await fetch(target);
-        if (!upstream.ok) {
-            const errBody = await upstream.text();
-            return res.status(upstream.status).send(errBody || `sdxp upstream status ${upstream.status}`);
+    for (const tail of tailCandidates) {
+        const target = new URL(`${tail}${query}`, SDXP_FALLBACK_BASE).href;
+        try {
+            const upstream = await fetch(target);
+            attempts.push(`${upstream.status} ${target}`);
+            if (!upstream.ok) {
+                if (!firstFailure) {
+                    firstFailure = {
+                        status: upstream.status,
+                        target,
+                    };
+                }
+                continue;
+            }
+            res.setHeader('X-Rift-SDXP', '1');
+            const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+            const guessedType = guessContentTypeFromPath(tail);
+            if (upstreamType) {
+                res.setHeader('Content-Type', upstreamType);
+            } else if (guessedType) {
+                res.setHeader('Content-Type', guessedType);
+            }
+            const cacheControl = upstream.headers.get('cache-control');
+            if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+            const raw = Buffer.from(await upstream.arrayBuffer());
+            return res.status(upstream.status).send(raw);
+        } catch (error) {
+            attempts.push(`ERR ${target} :: ${error.message}`);
         }
-        res.setHeader('X-Rift-SDXP', '1');
-        const upstreamType = String(upstream.headers.get('content-type') || '').trim();
-        const guessedType = guessContentTypeFromPath(tail);
-        if (upstreamType) {
-            res.setHeader('Content-Type', upstreamType);
-        } else if (guessedType) {
-            res.setHeader('Content-Type', guessedType);
-        }
-        const cacheControl = upstream.headers.get('cache-control');
-        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
-        const raw = Buffer.from(await upstream.arrayBuffer());
-        return res.status(upstream.status).send(raw);
-    } catch (error) {
-        return res.status(502).json({ error: `sdxp upstream failed: ${error.message}`, target });
     }
+
+    if (firstFailure) {
+        return res.status(firstFailure.status).send(`sdxp upstream status ${firstFailure.status}`);
+    }
+    return res.status(502).json({
+        error: 'sdxp upstream unavailable',
+        path: normalizeSdxpTail(decodedTail),
+        attempts,
+    });
 });
 
 app.get('/:gameSlug', async (req, res, next) => {
@@ -2485,7 +2574,7 @@ app.get('/sdxp-catalog', async (_req, res) => {
                 return {
                     id: `sdxp-${rel}`,
                     name: humanizeFolderName(gameFolder),
-                    url: `/sdxp/${rel}`,
+                    url: sdxpCatalogUrlForTail(rel),
                     cover,
                 };
             }));
