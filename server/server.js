@@ -1121,29 +1121,34 @@ async function buildCcportedCatalogData() {
         const dirName = path.posix.basename(entry.dirPath || '') || entry.dirPath;
         const fallbackName = humanizeFolderName(String(dirName || '').replace(/\.[a-z0-9]+$/i, ''));
         const name = normalizeCcportedGameName(resolvedNames[index]) || fallbackName;
-        const baseSlug = toLaunchSlug(dirName, toLaunchSlug(name, 'game'));
-        let slug = baseSlug;
+        const preferredBaseSlug = toLaunchSlug(name, toLaunchSlug(dirName, 'game'));
+        const legacyBaseSlug = toLaunchSlug(dirName, preferredBaseSlug);
+        let slug = preferredBaseSlug;
         let suffix = 2;
         while (usedSlugs.has(slug)) {
-            slug = `${baseSlug}-${suffix}`;
+            slug = `${preferredBaseSlug}-${suffix}`;
             suffix += 1;
         }
         usedSlugs.add(slug);
 
         const cover = pickCcportedCover(fileMap, entry.dirPath);
+        const mappedEntry = {
+            entryPath: entry.entryPath,
+            dirPath: entry.dirPath,
+            source: entry.source,
+            name,
+            cover,
+        };
         items.push({
             id: `ccported-${slug}`,
             name,
             url: `/ccptd/${encodeURIComponent(slug)}.html`,
             cover,
         });
-        map.set(slug, {
-            entryPath: entry.entryPath,
-            dirPath: entry.dirPath,
-            source: entry.source,
-            name,
-            cover,
-        });
+        map.set(slug, mappedEntry);
+        if (legacyBaseSlug && legacyBaseSlug !== slug && !map.has(legacyBaseSlug)) {
+            map.set(legacyBaseSlug, mappedEntry);
+        }
     }
 
     items.sort((a, b) => a.name.localeCompare(b.name));
