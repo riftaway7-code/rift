@@ -419,6 +419,28 @@ function normalizePetezahSourceUrl(value) {
     try {
         const parsed = new URL(raw, PETEZAH_BASE);
         if (!/^https?:$/i.test(parsed.protocol)) return '';
+
+        const host = String(parsed.hostname || '').toLowerCase();
+        const pathname = String(parsed.pathname || '');
+
+        let gamePath = '';
+        if (host === 'cdn.jsdelivr.net') {
+            const match = pathname.match(/^\/gh\/PeteZah-Games\/PeteZahGames@[^/]+\/public\/(storage\/ag\/.+)$/i);
+            if (match && match[1]) {
+                gamePath = `/${match[1]}`;
+            }
+        } else if (host === 'petezahgames.com' || host.endsWith('.petezahgames.com')) {
+            if (/^\/storage\/ag\/.+/i.test(pathname)) {
+                gamePath = pathname;
+            }
+        }
+
+        if (gamePath) {
+            const launch = new URL('https://petezahgames.com/iframe.html');
+            launch.searchParams.set('url', gamePath);
+            return launch.href;
+        }
+
         return parsed.href;
     } catch {
         return '';
