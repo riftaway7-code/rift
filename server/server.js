@@ -625,6 +625,51 @@ function normalizeDuckMathCatalogHref(value) {
     }
 }
 
+function deriveDuckMathSlugSeed(targetUrl, name = '') {
+    const fallback = toLaunchSlug(name, 'game');
+
+    try {
+        const parsed = new URL(String(targetUrl || '').trim());
+        const segments = String(parsed.pathname || '')
+            .split('/')
+            .filter(Boolean)
+            .map((segment) => {
+                try {
+                    return decodeURIComponent(segment);
+                } catch {
+                    return segment;
+                }
+            });
+        if (!segments.length) return fallback;
+
+        const clean = (value) => String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/\.[a-z0-9]+$/i, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        const lastRaw = segments[segments.length - 1] || '';
+        const prevRaw = segments.length > 1 ? segments[segments.length - 2] : '';
+        const last = clean(lastRaw);
+        const prev = clean(prevRaw);
+        const hasExt = /\.[a-z0-9]+$/i.test(lastRaw);
+
+        if (hasExt) {
+            if (last === 'index' && prev) return `${prev}-index`;
+            if (last && ['pre', 'embed', 'play', 'game'].includes(last) && prev) return `${prev}-${last}`;
+            if (last) return last;
+        } else {
+            if (last && ['pre', 'embed', 'play', 'game'].includes(last) && prev) return `${prev}-${last}`;
+            if (last && !['class', 'g4m3s'].includes(last)) return last;
+            if (prev) return prev;
+        }
+    } catch {
+    }
+
+    return fallback;
+}
+
 function extractDuckMathBundlePath(html) {
     const source = String(html || '');
     const match = source.match(/<script[^>]*\bsrc\s*=\s*["']([^"']*\/assets\/index-[^"']+\.js)["'][^>]*>/i);
@@ -737,13 +782,7 @@ async function buildDuckMathCatalogData() {
             }
         }
 
-        let slugSeed = name;
-        try {
-            const parsed = new URL(targetUrl);
-            slugSeed = `${parsed.hostname}${parsed.pathname}`;
-        } catch {
-        }
-
+        const slugSeed = deriveDuckMathSlugSeed(targetUrl, name);
         const baseSlug = toLaunchSlug(slugSeed, toLaunchSlug(name, 'game'));
         let slug = baseSlug;
         let suffix = 2;
