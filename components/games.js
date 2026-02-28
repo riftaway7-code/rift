@@ -16,7 +16,8 @@ const VAULT_CONFIG = {
           gnMath: {
                key: "gn-math",
                label: "GN-Math",
-               bases: ["https://cdn.jsdelivr.net/gh/gn-math"],
+               bases: [],
+               localCatalogUrl: "/gn-catalog",
           },
           sdxp: {
                key: "sdxp",

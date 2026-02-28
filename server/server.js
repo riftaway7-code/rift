@@ -23,6 +23,10 @@ const VALIDATE_TARGET_IPS = (process.env.VALIDATE_TARGET_IPS || '161.153.8.72')
 const validateCache = new Map();
 const VALIDATE_TTL_MS = 60 * 1000;
 const SDXP_HTML_ROOT = path.join(__dirname, '..', 'public', 'sdxp', 'html');
+const GN_MATH_ZONES_JSON = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/zones.json';
+const GN_MATH_ASSET_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/';
+const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_ASSET_BASE).href;
+const GN_MATH_COVER_BASE = new URL('covers@main/', GN_MATH_ASSET_BASE).href;
 const DUCKMATH_GAMES_PAGE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/g4m3s.html';
 const DUCKMATH_BASE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/';
 const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
@@ -49,6 +53,8 @@ const CHAT_ROOM_INACTIVE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
 const SYSTEM_CHAT_ROOM_IDS = new Set(['lobby', 'links']);
 const RESERVED_TOP_LEVEL_PATHS = new Set([
     'api',
+    'gn',
+    'gn-catalog',
     'proxy',
     'assets',
     'components',
@@ -70,6 +76,13 @@ const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
+
+const GN_MATH_BLOCKED_HTML_FILES = new Set([
+    '114-f.html',
+    '265.html',
+    '303.html',
+    '469.html',
+]);
 
 async function readRawBody(req) {
     return await new Promise((resolve, reject) => {
@@ -143,6 +156,57 @@ function toTruffledLocalSlug(input) {
         .replace(/\/+/g, '/')
         .replace(/^-+|-+$/g, '')
         .replace(/\//g, '__');
+}
+
+function normalizeGnMathHtmlPath(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    let htmlPath = '';
+    const placeholder = raw.match(/\{HTML_URL\}\/(.+?\.html?)(?:[?#].*)?$/i);
+    if (placeholder && placeholder[1]) {
+        htmlPath = placeholder[1];
+    } else {
+        try {
+            const parsed = new URL(raw, GN_MATH_ASSET_BASE);
+            if (/^\/?html@main\//i.test(parsed.pathname)) {
+                htmlPath = parsed.pathname.replace(/^\/?html@main\//i, '');
+            }
+        } catch {
+            return '';
+        }
+    }
+
+    const cleaned = htmlPath
+        .replace(/^\/+/, '')
+        .replace(/[?#].*$/, '')
+        .replace(/\\/g, '/');
+    if (!cleaned || cleaned.includes('..')) return '';
+    if (!/\.html?$/i.test(cleaned)) return '';
+    const file = cleaned.split('/').pop() || '';
+    if (GN_MATH_BLOCKED_HTML_FILES.has(file.toLowerCase())) return '';
+    return cleaned;
+}
+
+function buildGnMathCoverUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (raw.includes('{COVER_URL}')) {
+        return raw.replace(/\{COVER_URL\}/g, GN_MATH_COVER_BASE.replace(/\/+$/, ''));
+    }
+    try {
+        return new URL(raw, GN_MATH_COVER_BASE).href;
+    } catch {
+        return '';
+    }
+}
+
+function encodePathForUrl(pathValue) {
+    return String(pathValue || '')
+        .split('/')
+        .filter(Boolean)
+        .map((segment) => encodeURIComponent(segment))
+        .join('/');
 }
 
 function normalizeTruffledCatalogHref(value) {
@@ -1773,6 +1837,43 @@ app.all('*', async (req, res, next) => {
     }
 });
 
+app.get(/^\/gn\/(.+)$/, async (req, res, next) => {
+    const rawTail = String(req.params?.[0] || '').trim();
+    if (!rawTail) return next();
+
+    let tail = rawTail;
+    try {
+        tail = decodeURIComponent(rawTail);
+    } catch {
+    }
+    tail = tail.replace(/^\/+/, '').replace(/\\/g, '/');
+    if (!tail || tail.includes('..')) {
+        return res.status(400).send('invalid gn path');
+    }
+
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const candidates = [
+        new URL(`${tail}${query}`, GN_MATH_HTML_BASE).href,
+        new URL(`${tail}${query}`, GN_MATH_ASSET_BASE).href,
+    ];
+
+    for (const target of candidates) {
+        try {
+            const upstream = await fetch(target);
+            if (!upstream.ok) continue;
+            const contentType = upstream.headers.get('content-type');
+            if (contentType) res.setHeader('Content-Type', contentType);
+            const cacheControl = upstream.headers.get('cache-control');
+            if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+            const raw = Buffer.from(await upstream.arrayBuffer());
+            return res.status(upstream.status).send(raw);
+        } catch {
+        }
+    }
+
+    return next();
+});
+
 app.get('/:gameSlug', async (req, res, next) => {
     const slugRaw = String(req.params?.gameSlug || '').trim();
     if (!slugRaw || slugRaw.includes('.')) return next();
@@ -1814,6 +1915,42 @@ app.use((req, res, next) => {
         });
     } else {
         next();
+    }
+});
+
+app.get('/gn-catalog', async (_req, res) => {
+    try {
+        const response = await fetch(GN_MATH_ZONES_JSON);
+        if (!response.ok) {
+            return res.status(502).json({ error: `gn-math fetch failed: ${response.status}` });
+        }
+
+        const rows = await response.json();
+        const items = [];
+        const seen = new Set();
+        for (const row of (Array.isArray(rows) ? rows.slice(1) : [])) {
+            const htmlPath = normalizeGnMathHtmlPath(row?.url);
+            if (!htmlPath) continue;
+            const key = htmlPath.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            const name = String(row?.name || '').trim();
+            if (!name) continue;
+            const launchPath = `/gn/${encodePathForUrl(htmlPath)}`;
+            const cover = buildGnMathCoverUrl(row?.cover);
+            items.push({
+                id: `gn-math-${key}`,
+                name,
+                url: launchPath,
+                cover,
+            });
+        }
+
+        items.sort((a, b) => a.name.localeCompare(b.name));
+        return res.json(items);
+    } catch (error) {
+        return res.status(500).json({ error: `failed to build gn-math catalog: ${error.message}` });
     }
 });
 
