@@ -536,6 +536,13 @@ function sdxpCatalogUrlForTail(rawTail) {
     return `/sdxp/${encodePathForUrl(launchTail)}`;
 }
 
+function stripSdxpTopRedirect(html) {
+    return String(html || '').replace(
+        /<script[^>]*>\s*if\s*\(\s*window\.top\s*={2,3}\s*window\.self\s*\)\s*\{\s*window\.location(?:\.href)?\s*=\s*['"][^'"]+['"]\s*;?\s*\}\s*<\/script>/gi,
+        ''
+    );
+}
+
 function parseSdxpCatalogCards(html) {
     const source = String(html || '');
     const items = [];
@@ -2142,6 +2149,13 @@ app.get(/^\/sdxp\/(.+)$/, async (req, res, next) => {
             }
             const cacheControl = upstream.headers.get('cache-control');
             if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+            const shouldTreatAsHtml =
+                /text\/html/i.test(upstreamType) ||
+                /\.html?$/i.test(tail);
+            if (shouldTreatAsHtml) {
+                const html = await upstream.text();
+                return res.status(upstream.status).send(stripSdxpTopRedirect(html));
+            }
             const raw = Buffer.from(await upstream.arrayBuffer());
             return res.status(upstream.status).send(raw);
         } catch (error) {
