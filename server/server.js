@@ -32,6 +32,8 @@ const DUCKMATH_GAMES_PAGE = 'https://duckmath.org/g4m3s.html';
 const DUCKMATH_BASE = 'https://duckmath.org/';
 const CCPORTED_TREE_API = 'https://api.github.com/repos/ccported/games/git/trees/main?recursive=1';
 const CCPORTED_RAW_BASE = 'https://raw.githubusercontent.com/ccported/games/main/';
+const UGS_TREE_API = 'https://api.github.com/repos/bubbls/UGS-Assets/git/trees/main?recursive=1';
+const UGS_RAW_BASE = 'https://raw.githubusercontent.com/bubbls/UGS-Assets/main/';
 const CCPORTED_TITLE_SUFFIX_RE = /\s*(?:\||-)?\s*Unblocked on CCPorted\s*$/i;
 const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
 const TRUFFLED_LOCAL_JSON = path.join(__dirname, '..', 'truffled.g.json');
@@ -76,8 +78,10 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'sdxp-catalog',
     'duckmath-catalog',
     'ccported-catalog',
+    'ugs-catalog',
     'dkmath',
     'ccptd',
+    'ugs',
     'truffled-catalog',
     'pzlite',
     'pzlite-catalog',
@@ -95,6 +99,7 @@ const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
 const DUCKMATH_CACHE_TTL_MS = 5 * 60 * 1000;
 const DUCKMATH_RESOLVED_TTL_MS = 30 * 60 * 1000;
 const CCPORTED_CACHE_TTL_MS = 5 * 60 * 1000;
+const UGS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PETEZAH_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_RESOLVED_TTL_MS = 30 * 60 * 1000;
@@ -107,6 +112,7 @@ let truffledAliasCache = { expiresAt: 0, map: new Map() };
 let duckMathCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let ccportedCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 const ccportedNameCache = new Map();
+let ugsCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let velaraCatalogCache = { expiresAt: 0, items: [], map: new Map() };
@@ -1171,6 +1177,147 @@ async function getCcportedCatalogData() {
         return ccportedCatalogCache;
     } catch (error) {
         if (ccportedCatalogCache.map.size > 0) return ccportedCatalogCache;
+        throw error;
+    }
+}
+
+function pickUgsCover(fileMap, dirPath) {
+    const files = fileMap.get(dirPath);
+    if (!files) return '';
+
+    const preferredOrder = [
+        'splash.png', 'splash.webp', 'splash.jpg', 'splash.jpeg',
+        'cover.png', 'cover.webp', 'cover.jpg', 'cover.jpeg',
+        'thumbnail.png', 'thumbnail.webp', 'thumbnail.jpg', 'thumbnail.jpeg',
+        'thumb.png', 'thumb.webp', 'thumb.jpg', 'thumb.jpeg',
+        'icon.png', 'icon.webp', 'icon.jpg', 'icon.jpeg',
+        'logo.png', 'logo.webp', 'logo.jpg', 'logo.jpeg',
+    ];
+
+    for (const name of preferredOrder) {
+        const matchedPath = files.get(name);
+        if (matchedPath) {
+            return new URL(matchedPath, UGS_RAW_BASE).href;
+        }
+    }
+
+    for (const [name, matchedPath] of files.entries()) {
+        if (/\.(png|jpe?g|webp|gif|ico)$/i.test(name)) {
+            return new URL(matchedPath, UGS_RAW_BASE).href;
+        }
+    }
+
+    return '';
+}
+
+async function buildUgsCatalogData() {
+    const response = await fetch(UGS_TREE_API, {
+        headers: {
+            'accept': 'application/vnd.github+json',
+            'user-agent': 'rift-ugs-catalog',
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`ugs fetch failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.tree) ? payload.tree : [];
+
+    const fileMap = new Map();
+    for (const row of rows) {
+        if (!row || row.type !== 'blob') continue;
+        const filePath = String(row.path || '').replace(/^\/+/, '').trim();
+        if (!filePath || filePath.includes('..')) continue;
+        const dirPath = path.posix.dirname(filePath);
+        const fileName = path.posix.basename(filePath).toLowerCase();
+        if (!fileMap.has(dirPath)) fileMap.set(dirPath, new Map());
+        fileMap.get(dirPath).set(fileName, filePath);
+    }
+
+    const preferredEntries = new Map();
+    for (const row of rows) {
+        if (!row || row.type !== 'blob') continue;
+        const filePath = String(row.path || '').replace(/^\/+/, '').trim();
+        if (!filePath || filePath.includes('..')) continue;
+        const lower = filePath.toLowerCase();
+        const topLevelGameMatch = lower.match(/^([^/]+)\/game\.html$/i);
+        if (topLevelGameMatch && topLevelGameMatch[1]) {
+            const dirPath = topLevelGameMatch[1];
+            preferredEntries.set(dirPath, {
+                entryPath: filePath,
+                dirPath,
+                source: 'game',
+            });
+            continue;
+        }
+
+        const topLevelIndexMatch = lower.match(/^([^/]+)\/index\.html$/i);
+        if (topLevelIndexMatch && topLevelIndexMatch[1]) {
+            const dirPath = topLevelIndexMatch[1];
+            if (!preferredEntries.has(dirPath)) {
+                preferredEntries.set(dirPath, {
+                    entryPath: filePath,
+                    dirPath,
+                    source: 'index',
+                });
+            }
+        }
+    }
+
+    const items = [];
+    const map = new Map();
+    const usedSlugs = new Set();
+
+    for (const entry of preferredEntries.values()) {
+        const dirName = path.posix.basename(entry.dirPath || '') || entry.dirPath;
+        const name = humanizeFolderName(String(dirName || '').replace(/\.[a-z0-9]+$/i, ''));
+        const baseSlug = toLaunchSlug(name, toLaunchSlug(dirName, 'game'));
+        let slug = baseSlug;
+        let suffix = 2;
+        while (usedSlugs.has(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedSlugs.add(slug);
+
+        const cover = pickUgsCover(fileMap, entry.dirPath);
+        const mappedEntry = {
+            entryPath: entry.entryPath,
+            dirPath: entry.dirPath,
+            source: entry.source,
+            name,
+            cover,
+        };
+        items.push({
+            id: `ugs-${slug}`,
+            name,
+            url: `/ugs/${encodeURIComponent(slug)}.html`,
+            cover,
+        });
+        map.set(slug, mappedEntry);
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getUgsCatalogData() {
+    const now = Date.now();
+    if (ugsCatalogCache.map.size > 0 && now < ugsCatalogCache.expiresAt) {
+        return ugsCatalogCache;
+    }
+
+    try {
+        const built = await buildUgsCatalogData();
+        ugsCatalogCache = {
+            expiresAt: now + UGS_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return ugsCatalogCache;
+    } catch (error) {
+        if (ugsCatalogCache.map.size > 0) return ugsCatalogCache;
         throw error;
     }
 }
@@ -3468,6 +3615,95 @@ app.get(/^\/ccptd\/([^/]+)\/(.+)$/i, async (req, res, next) => {
     }
 });
 
+app.get(/^\/ugs\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid ugs slug');
+
+    try {
+        const data = await getUgsCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+        const frameTarget = `/ugs/${encodeURIComponent(slug)}/game.html`;
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'UGS')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="ugs-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('ugs-frame').src=${safeJsonForInlineScript(frameTarget)};</script></body></html>`;
+        res.setHeader('X-Rift-Ugs', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `ugs launch failed: ${error.message}` });
+    }
+});
+
+app.get(/^\/ugs\/([^/]+)\/(.+)$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    let tail = String(req.params?.[1] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    try {
+        tail = decodeURIComponent(tail);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    tail = tail.replace(/^\/+/, '').replace(/\\/g, '/');
+
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid ugs slug');
+    if (!tail || tail.includes('..')) return res.status(400).send('invalid ugs path');
+
+    try {
+        const data = await getUgsCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const buildTarget = (value) => {
+            const safePath = String(value || '')
+                .split('/')
+                .filter(Boolean)
+                .map((segment) => encodeURIComponent(segment))
+                .join('/');
+            const dirPrefix = entry.dirPath ? `${entry.dirPath.replace(/^\/+/, '')}/` : '';
+            return new URL(`${dirPrefix}${safePath}${query}`, UGS_RAW_BASE).href;
+        };
+
+        let target = buildTarget(tail);
+        let upstream = await fetch(target);
+        if ((!upstream.ok || upstream.status === 404) && /^game\.html$/i.test(tail) && entry.entryPath) {
+            const fallbackTarget = new URL(`${String(entry.entryPath).replace(/^\/+/, '')}${query}`, UGS_RAW_BASE).href;
+            const fallback = await fetch(fallbackTarget);
+            if (fallback.ok) {
+                upstream = fallback;
+                target = fallbackTarget;
+            }
+        }
+
+        if (!upstream.ok) {
+            return res.status(upstream.status).send(`ugs upstream status ${upstream.status}`);
+        }
+
+        const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+        const guessedType = guessContentTypeFromPath(tail);
+        if (guessedType) {
+            res.setHeader('Content-Type', guessedType);
+        } else if (upstreamType) {
+            res.setHeader('Content-Type', upstreamType);
+        }
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+        res.setHeader('X-Rift-Ugs-Asset', '1');
+        const raw = Buffer.from(await upstream.arrayBuffer());
+        return res.status(upstream.status).send(raw);
+    } catch (error) {
+        return res.status(502).json({ error: `ugs asset failed: ${error.message}` });
+    }
+});
+
 app.get(/^\/pzlite\/([^/]+)\.html$/i, async (req, res, next) => {
     let slug = String(req.params?.[0] || '').trim();
     try {
@@ -4077,6 +4313,15 @@ app.get('/ccported-catalog', async (_req, res) => {
         return res.json(data.items);
     } catch (error) {
         return res.status(500).json({ error: `failed to build ccported catalog: ${error.message}` });
+    }
+});
+
+app.get('/ugs-catalog', async (_req, res) => {
+    try {
+        const data = await getUgsCatalogData();
+        return res.json(data.items);
+    } catch (error) {
+        return res.status(500).json({ error: `failed to build ugs catalog: ${error.message}` });
     }
 });
 
