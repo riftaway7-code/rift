@@ -75,6 +75,7 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'pzlite-catalog',
     'truf',
     'tllysc',
+    'vlra',
     'totalscience-catalog',
     'velara-catalog',
     'astra',
@@ -84,12 +85,16 @@ const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PETEZAH_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_CACHE_TTL_MS = 5 * 60 * 1000;
 const TOTALLY_SCIENCE_RESOLVED_TTL_MS = 30 * 60 * 1000;
+const VELARA_CACHE_TTL_MS = 5 * 60 * 1000;
+const VELARA_RESOLVED_TTL_MS = 30 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+let velaraCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 const totallyScienceResolvedLaunchCache = new Map();
+const velaraResolvedLaunchCache = new Map();
 
 const GN_MATH_BLOCKED_HTML_FILES = new Set([
     '114-f.html',
@@ -605,7 +610,7 @@ function normalizeTotallyScienceSourceSlug(value) {
         .replace(/\\/g, '/');
 }
 
-function extractTotallyScienceEmbeddedGameUrl(html, pageUrl) {
+function extractEmbeddedGameUrl(html, pageUrl) {
     const source = String(html || '');
     const tags = source.match(/<iframe\b[^>]*>/gi) || [];
     let fallbackSrc = '';
@@ -634,6 +639,35 @@ function extractTotallyScienceEmbeddedGameUrl(html, pageUrl) {
     }
 }
 
+function extractTotallyScienceEmbeddedGameUrl(html, pageUrl) {
+    return extractEmbeddedGameUrl(html, pageUrl);
+}
+
+function extractVelaraEmbeddedGameUrl(html, pageUrl) {
+    const iframeSrc = extractEmbeddedGameUrl(html, pageUrl);
+    if (iframeSrc) return iframeSrc;
+
+    const source = String(html || '');
+    const patterns = [
+        /\bdata-game-url\s*=\s*["']([^"']+)["']/i,
+        /\bgame(?:Url|URL)\b[^:=]*[:=]\s*["']([^"']+)["']/i,
+        /\bsource(?:Url|URL)\b[^:=]*[:=]\s*["']([^"']+)["']/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = source.match(pattern);
+        const candidate = String(match?.[1] || '').trim();
+        if (!candidate || /^javascript:/i.test(candidate) || /^data:/i.test(candidate)) continue;
+        try {
+            const resolved = new URL(candidate, pageUrl).href;
+            if (/^https?:\/\//i.test(resolved)) return resolved;
+        } catch {
+        }
+    }
+
+    return '';
+}
+
 async function resolveTotallyScienceLaunchTarget(pageUrl) {
     const targetPage = String(pageUrl || '').trim();
     if (!targetPage) return '';
@@ -658,6 +692,34 @@ async function resolveTotallyScienceLaunchTarget(pageUrl) {
     totallyScienceResolvedLaunchCache.set(targetPage, {
         url: resolved,
         expiresAt: now + TOTALLY_SCIENCE_RESOLVED_TTL_MS,
+    });
+    return resolved;
+}
+
+async function resolveVelaraLaunchTarget(pageUrl) {
+    const targetPage = String(pageUrl || '').trim();
+    if (!targetPage) return '';
+
+    const now = Date.now();
+    const cached = velaraResolvedLaunchCache.get(targetPage);
+    if (cached && now < Number(cached.expiresAt || 0)) {
+        return String(cached.url || targetPage);
+    }
+
+    let resolved = targetPage;
+    try {
+        const response = await fetch(targetPage);
+        if (response.ok) {
+            const html = await response.text();
+            const embedded = extractVelaraEmbeddedGameUrl(html, targetPage);
+            if (embedded) resolved = embedded;
+        }
+    } catch {
+    }
+
+    velaraResolvedLaunchCache.set(targetPage, {
+        url: resolved,
+        expiresAt: now + VELARA_RESOLVED_TTL_MS,
     });
     return resolved;
 }
@@ -740,6 +802,79 @@ async function getTotallyScienceCatalogData() {
         return totallyScienceCatalogCache;
     } catch (error) {
         if (totallyScienceCatalogCache.map.size > 0) return totallyScienceCatalogCache;
+        throw error;
+    }
+}
+
+async function buildVelaraCatalogData() {
+    const response = await fetch(VELARA_GAMES_JSON);
+    if (!response.ok) {
+        throw new Error(`velara fetch failed: ${response.status}`);
+    }
+
+    const rows = await response.json();
+    const items = [];
+    const map = new Map();
+    const seenTargetUrls = new Set();
+    const usedSlugs = new Set();
+
+    for (const row of (Array.isArray(rows) ? rows : [])) {
+        const name = String(row?.title || row?.name || '').trim();
+        const link = String(row?.location || row?.link || '').trim();
+        const img = String(row?.image || row?.imgpath || '').trim();
+        if (!name || !link) continue;
+
+        const normalizedLink = link.startsWith('/') ? link : `/${link}`;
+        const targetUrl = new URL(normalizedLink, VELARA_BASE).href;
+        const targetKey = targetUrl.toLowerCase();
+        if (seenTargetUrls.has(targetKey)) continue;
+        seenTargetUrls.add(targetKey);
+
+        const normalizedImg = img.startsWith('/') ? img : `/${img}`;
+        const cover = img ? new URL(normalizedImg, VELARA_BASE).href : '';
+
+        const baseSlug = toLaunchSlug(normalizedLink, toLaunchSlug(name, 'game'));
+        let slug = baseSlug;
+        let suffix = 2;
+        while (usedSlugs.has(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedSlugs.add(slug);
+
+        items.push({
+            id: `velara-${slug}`,
+            name,
+            url: `/vlra/${encodeURIComponent(slug)}.html`,
+            cover,
+        });
+        map.set(slug, {
+            targetUrl,
+            name,
+            cover,
+        });
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getVelaraCatalogData() {
+    const now = Date.now();
+    if (velaraCatalogCache.map.size > 0 && now < velaraCatalogCache.expiresAt) {
+        return velaraCatalogCache;
+    }
+
+    try {
+        const built = await buildVelaraCatalogData();
+        velaraCatalogCache = {
+            expiresAt: now + VELARA_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return velaraCatalogCache;
+    } catch (error) {
+        if (velaraCatalogCache.map.size > 0) return velaraCatalogCache;
         throw error;
     }
 }
@@ -2625,6 +2760,31 @@ app.get(/^\/tllysc\/([^/]+)\.html$/i, async (req, res, next) => {
     }
 });
 
+app.get(/^\/vlra\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid vlra slug');
+
+    try {
+        const data = await getVelaraCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+        const launchTarget = await resolveVelaraLaunchTarget(entry.targetUrl);
+        const frameTarget = launchTarget || entry.targetUrl;
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Velara')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="vlra-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('vlra-frame').src=${safeJsonForInlineScript(frameTarget)};</script></body></html>`;
+        res.setHeader('X-Rift-Vlra', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `vlra launch failed: ${error.message}` });
+    }
+});
+
 app.get('/:gameSlug', async (req, res, next) => {
     const slugRaw = String(req.params?.gameSlug || '').trim();
     if (!slugRaw || slugRaw.includes('.')) return next();
@@ -3183,35 +3343,8 @@ app.get('/totalscience-catalog', async (_req, res) => {
 
 app.get('/velara-catalog', async (_req, res) => {
     try {
-        const response = await fetch(VELARA_GAMES_JSON);
-        if (!response.ok) {
-            return res.status(502).json({ error: `velara fetch failed: ${response.status}` });
-        }
-
-        const rows = await response.json();
-        const items = [];
-        const seen = new Set();
-        for (const row of (Array.isArray(rows) ? rows : [])) {
-            const name = String(row?.title || row?.name || '').trim();
-            const link = String(row?.location || row?.link || '').trim();
-            const img = String(row?.image || row?.imgpath || '').trim();
-            if (!name || !link) continue;
-            const key = `${name.toLowerCase()}|${link}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            const normalizedLink = link.startsWith('/') ? link : `/${link}`;
-            const normalizedImg = img.startsWith('/') ? img : `/${img}`;
-            items.push({
-                id: `velara-${normalizedLink.replace(/^\/+/, '')}`,
-                name,
-                url: new URL(normalizedLink, VELARA_BASE).href,
-                cover: img ? new URL(normalizedImg, VELARA_BASE).href : '',
-            });
-        }
-
-        items.sort((a, b) => a.name.localeCompare(b.name));
-        return res.json(items);
+        const data = await getVelaraCatalogData();
+        return res.json(data.items);
     } catch (error) {
         return res.status(500).json({ error: `failed to build velara catalog: ${error.message}` });
     }
