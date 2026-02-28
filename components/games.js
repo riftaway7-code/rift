@@ -43,6 +43,12 @@ const VAULT_CONFIG = {
                bases: [],
                localCatalogUrl: "/ugs-catalog",
           },
+          selenite: {
+               key: "selenite",
+               label: "selenite",
+               bases: [],
+               localCatalogUrl: "/slnte-catalog",
+          },
           truffled: {
                key: "truffled",
                label: "Truffled",
@@ -395,13 +401,14 @@ const RiftVault = {
                duckmath: 2,
                ccported: 3,
                ugs: 4,
-               sdxp: 5,
-               velara: 6,
-               "gn-math": 7,
-               petezah: 8,
-               seraph: 9,
+               selenite: 5,
+               sdxp: 6,
+               velara: 7,
+               "gn-math": 8,
+               petezah: 9,
+               seraph: 10,
           };
-          return rank[source] ?? 10;
+          return rank[source] ?? 11;
      },
 
      dedupeGames(items, source) {
