@@ -1902,9 +1902,12 @@ app.get(/^\/gn\/(.+)$/, async (req, res, next) => {
             const upstream = await fetch(target);
             attempts.push(`${upstream.status} ${target}`);
             if (!upstream.ok) continue;
+            res.setHeader('X-Rift-GN', '1');
             const upstreamType = String(upstream.headers.get('content-type') || '').trim();
             const guessedType = guessContentTypeFromPath(tail);
-            if (guessedType && (!upstreamType || /^text\/plain\b/i.test(upstreamType))) {
+            if (/\.html?$/i.test(tail)) {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            } else if (guessedType && (!upstreamType || /^text\/plain\b/i.test(upstreamType))) {
                 res.setHeader('Content-Type', guessedType);
             } else if (upstreamType) {
                 res.setHeader('Content-Type', upstreamType);
