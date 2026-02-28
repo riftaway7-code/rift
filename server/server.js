@@ -196,12 +196,18 @@ async function buildTruffledAliasMap() {
     const rows = Array.isArray(payload?.games) ? payload.games : [];
     const aliases = new Map();
 
-    for (const row of rows) {
-        const href = String(row?.url || '').trim();
-        if (!(href.startsWith('/games/') || href.startsWith('/gamefile/'))) continue;
+    const normalizeRowHref = (value) => {
+        const href = String(value || '').trim();
+        if (!(href.startsWith('/games/') || href.startsWith('/gamefile/'))) return '';
+        return href.replace(/^\/+/, '');
+    };
 
-        const normalized = href.replace(/^\/+/, '');
-        const mappedFile = String(rootMap[normalized] || '').trim();
+    const sourceHrefs = rows.length
+        ? rows.map((row) => normalizeRowHref(row?.url)).filter(Boolean)
+        : Object.keys(rootMap).map((href) => normalizeRowHref(href)).filter(Boolean);
+
+    for (const normalized of sourceHrefs) {
+        const mappedFile = String(rootMap[normalized] || '').trim().replace(/^\/+/, '');
         const targetUrl = new URL(normalized, TRUFFLED_BASE).href;
         const entry = { localFile: mappedFile, targetUrl };
 
@@ -2180,16 +2186,25 @@ app.get('/truffled-catalog', async (_req, res) => {
         const rows = Array.isArray(payload?.games) ? payload.games : [];
         const items = [];
         const seen = new Set();
-        for (const row of rows) {
-            const href = String(row?.url || '').trim();
-            const name = String(row?.name || '').trim();
-            const thumbnail = String(row?.thumbnail || '').trim();
-            if (!href || !name) continue;
-            if (!(href.startsWith('/games/') || href.startsWith('/gamefile/'))) continue;
-            if (seen.has(href)) continue;
-            seen.add(href);
 
+        const catalogRows = rows.length
+            ? rows
+            : Object.entries(rootMap).map(([href, mappedFile]) => ({
+                url: `/${String(href).replace(/^\/+/, '')}`,
+                name: humanizeFolderName(String(mappedFile || '').replace(/\.html?$/i, '')),
+                thumbnail: '',
+            }));
+
+        for (const row of catalogRows) {
+            const href = String(row?.url || '').trim();
             const normalized = href.replace(/^\/+/, '');
+            if (!normalized) continue;
+            if (!(normalized.startsWith('games/') || normalized.startsWith('gamefile/'))) continue;
+            if (seen.has(normalized)) continue;
+            seen.add(normalized);
+
+            const name = String(row?.name || '').trim() || humanizeFolderName(normalized.split('/').slice(-2, -1)[0] || normalized);
+            const thumbnail = String(row?.thumbnail || '').trim();
             const normalizedThumb = thumbnail.replace(/^\/+/, '');
             const mappedFile = String(rootMap[normalized] || '').trim().replace(/^\/+/, '');
             if (!mappedFile) continue;
