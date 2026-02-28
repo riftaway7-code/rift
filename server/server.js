@@ -209,6 +209,45 @@ function encodePathForUrl(pathValue) {
         .join('/');
 }
 
+function guessContentTypeFromPath(pathValue) {
+    const ext = path.extname(String(pathValue || '').toLowerCase());
+    switch (ext) {
+        case '.html':
+        case '.htm':
+            return 'text/html; charset=utf-8';
+        case '.js':
+        case '.mjs':
+            return 'application/javascript; charset=utf-8';
+        case '.css':
+            return 'text/css; charset=utf-8';
+        case '.json':
+            return 'application/json; charset=utf-8';
+        case '.wasm':
+            return 'application/wasm';
+        case '.svg':
+            return 'image/svg+xml';
+        case '.png':
+            return 'image/png';
+        case '.jpg':
+        case '.jpeg':
+            return 'image/jpeg';
+        case '.gif':
+            return 'image/gif';
+        case '.webp':
+            return 'image/webp';
+        case '.ico':
+            return 'image/x-icon';
+        case '.mp3':
+            return 'audio/mpeg';
+        case '.ogg':
+            return 'audio/ogg';
+        case '.wav':
+            return 'audio/wav';
+        default:
+            return '';
+    }
+}
+
 function normalizeTruffledCatalogHref(value) {
     const href = String(value || '').trim();
     if (!href) return '';
@@ -1863,8 +1902,13 @@ app.get(/^\/gn\/(.+)$/, async (req, res, next) => {
             const upstream = await fetch(target);
             attempts.push(`${upstream.status} ${target}`);
             if (!upstream.ok) continue;
-            const contentType = upstream.headers.get('content-type');
-            if (contentType) res.setHeader('Content-Type', contentType);
+            const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+            const guessedType = guessContentTypeFromPath(tail);
+            if (guessedType && (!upstreamType || /^text\/plain\b/i.test(upstreamType))) {
+                res.setHeader('Content-Type', guessedType);
+            } else if (upstreamType) {
+                res.setHeader('Content-Type', upstreamType);
+            }
             const cacheControl = upstream.headers.get('cache-control');
             if (cacheControl) res.setHeader('Cache-Control', cacheControl);
             const raw = Buffer.from(await upstream.arrayBuffer());
