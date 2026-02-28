@@ -2931,11 +2931,11 @@ app.get(/^\/sph\/([^/]+)\/(.+)$/i, async (req, res, next) => {
         }
 
         const upstreamType = String(upstream.headers.get('content-type') || '').trim();
-        const guessedType = guessContentTypeFromPath(target);
-        if (upstreamType) {
-            res.setHeader('Content-Type', upstreamType);
-        } else if (guessedType) {
+        const guessedType = guessContentTypeFromPath(tail);
+        if (guessedType) {
             res.setHeader('Content-Type', guessedType);
+        } else if (upstreamType) {
+            res.setHeader('Content-Type', upstreamType);
         }
         const cacheControl = upstream.headers.get('cache-control');
         if (cacheControl) res.setHeader('Cache-Control', cacheControl);
