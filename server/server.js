@@ -145,6 +145,49 @@ function toTruffledLocalSlug(input) {
         .replace(/\//g, '__');
 }
 
+function normalizeTruffledCatalogHref(value) {
+    const href = String(value || '').trim();
+    if (!href) return '';
+
+    let pathValue = href;
+    if (/^(?:https?:)?\/\//i.test(pathValue)) {
+        try {
+            const parsed = new URL(pathValue.startsWith('//') ? `https:${pathValue}` : pathValue);
+            if (!/(^|\.)truffled\.lol$/i.test(parsed.hostname)) return '';
+            pathValue = String(parsed.pathname || '');
+        } catch {
+            return '';
+        }
+    }
+
+    pathValue = pathValue.replace(/[?#].*$/, '').replace(/^\/+/, '');
+    if (!pathValue) return '';
+
+    try {
+        pathValue = decodeURIComponent(pathValue);
+    } catch {
+    }
+
+    if (!(pathValue.startsWith('games/') || pathValue.startsWith('gamefile/'))) return '';
+    return pathValue;
+}
+
+function resolveTruffledMappedFile(rootMap, normalizedHref) {
+    const direct = String(rootMap?.[normalizedHref] || '').trim().replace(/^\/+/, '');
+    if (direct) return direct;
+
+    const target = String(normalizedHref || '').replace(/[?#].*$/, '');
+    if (!target) return '';
+
+    for (const [rawKey, rawValue] of Object.entries(rootMap || {})) {
+        const candidate = String(rawKey || '').replace(/[?#].*$/, '');
+        if (candidate !== target) continue;
+        const mapped = String(rawValue || '').trim().replace(/^\/+/, '');
+        if (mapped) return mapped;
+    }
+    return '';
+}
+
 function deriveTruffledCanonicalSlug(inputHref, mappedFile = '') {
     const href = String(inputHref || '').trim().replace(/^\/+/, '').replace(/[?#].*$/, '');
     if (!href) return '';
@@ -196,18 +239,12 @@ async function buildTruffledAliasMap() {
     const rows = Array.isArray(payload?.games) ? payload.games : [];
     const aliases = new Map();
 
-    const normalizeRowHref = (value) => {
-        const href = String(value || '').trim();
-        if (!(href.startsWith('/games/') || href.startsWith('/gamefile/'))) return '';
-        return href.replace(/^\/+/, '');
-    };
-
     const sourceHrefs = rows.length
-        ? rows.map((row) => normalizeRowHref(row?.url)).filter(Boolean)
-        : Object.keys(rootMap).map((href) => normalizeRowHref(href)).filter(Boolean);
+        ? rows.map((row) => normalizeTruffledCatalogHref(row?.url)).filter(Boolean)
+        : Object.keys(rootMap).map((href) => normalizeTruffledCatalogHref(href)).filter(Boolean);
 
     for (const normalized of sourceHrefs) {
-        const mappedFile = String(rootMap[normalized] || '').trim().replace(/^\/+/, '');
+        const mappedFile = resolveTruffledMappedFile(rootMap, normalized);
         const targetUrl = new URL(normalized, TRUFFLED_BASE).href;
         const entry = { localFile: mappedFile, targetUrl };
 
@@ -2196,17 +2233,15 @@ app.get('/truffled-catalog', async (_req, res) => {
             }));
 
         for (const row of catalogRows) {
-            const href = String(row?.url || '').trim();
-            const normalized = href.replace(/^\/+/, '');
+            const normalized = normalizeTruffledCatalogHref(row?.url);
             if (!normalized) continue;
-            if (!(normalized.startsWith('games/') || normalized.startsWith('gamefile/'))) continue;
             if (seen.has(normalized)) continue;
             seen.add(normalized);
 
             const name = String(row?.name || '').trim() || humanizeFolderName(normalized.split('/').slice(-2, -1)[0] || normalized);
             const thumbnail = String(row?.thumbnail || '').trim();
             const normalizedThumb = thumbnail.replace(/^\/+/, '');
-            const mappedFile = String(rootMap[normalized] || '').trim().replace(/^\/+/, '');
+            const mappedFile = resolveTruffledMappedFile(rootMap, normalized);
             if (!mappedFile) continue;
             try {
                 await fs.access(path.join(__dirname, '..', 'public', mappedFile));

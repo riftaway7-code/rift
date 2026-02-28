@@ -206,20 +206,83 @@ const RiftVault = {
           return `${value}/index.html`;
      },
 
-     normalizeTruffledLaunchUrl(url) {
-          const value = String(url || "").trim();
-          if (!value) return "";
-          try {
-               const parsed = new URL(value, "https://truffled.lol");
-               if (!/(^|\.)truffled\.lol$/i.test(parsed.hostname)) return value;
-               if (parsed.pathname.toLowerCase().endsWith("/iframe.html")) {
-                    return parsed.href;
+     deriveTruffledAlias(value) {
+          const raw = String(value || "").trim();
+          if (!raw) return "";
+
+          const cleanSlug = (slug) =>
+               String(slug || "")
+                    .trim()
+                    .replace(/\.html?$/i, "")
+                    .replace(/[^a-z0-9_-]+/gi, "-")
+                    .replace(/^-+|-+$/g, "")
+                    .toLowerCase();
+
+          const fromPath = (pathname) => {
+               const normalizedPath = String(pathname || "")
+                    .trim()
+                    .replace(/[?#].*$/, "")
+                    .replace(/^https?:\/\/[^/]+/i, "")
+                    .replace(/^\/+/, "");
+               if (!normalizedPath) return "";
+
+               const gamesMatch = normalizedPath.match(/^games\/([^/]+)\/index\.html$/i);
+               if (gamesMatch && gamesMatch[1]) return cleanSlug(gamesMatch[1]);
+
+               const gamefileMatch = normalizedPath.match(/^gamefile\/(.+)\.html$/i);
+               if (gamefileMatch && gamefileMatch[1]) {
+                    const parts = String(gamefileMatch[1]).split("/").filter(Boolean);
+                    return cleanSlug(parts[parts.length - 1] || "");
                }
-               const embedded = `${parsed.pathname}${parsed.search}${parsed.hash}` || "/";
-               return `https://truffled.lol/iframe.html?url=${encodeURIComponent(embedded)}`;
+
+               const htmlMatch = normalizedPath.match(/([^/]+)\.html?$/i);
+               if (htmlMatch && htmlMatch[1]) return cleanSlug(htmlMatch[1]);
+
+               const fallbackPart = normalizedPath.split("/").filter(Boolean).pop();
+               return cleanSlug(fallbackPart || "");
+          };
+
+          try {
+               if (/^\/proxy\?url=/i.test(raw)) {
+                    const parsedProxy = new URL(raw, window.location.origin);
+                    const inner = parsedProxy.searchParams.get("url");
+                    if (inner) return this.deriveTruffledAlias(inner);
+               }
           } catch {
-               return value;
           }
+
+          try {
+               const parsed = new URL(raw, window.location.origin);
+               if (!/(^|\.)truffled\.lol$/i.test(parsed.hostname) && parsed.origin !== window.location.origin) {
+                    return "";
+               }
+               if (/^\/iframe\.html$/i.test(parsed.pathname)) {
+                    const embedded = parsed.searchParams.get("url");
+                    if (embedded) return this.deriveTruffledAlias(embedded);
+               }
+               return fromPath(parsed.pathname);
+          } catch {
+               return fromPath(raw);
+          }
+     },
+
+     resolveTruffledLocalLaunchUrl(game, rawUrl) {
+          const direct = String(rawUrl || "").trim();
+          if (!direct) return "";
+          if (direct.startsWith("/") && /\.html?(?:[?#]|$)/i.test(direct)) return direct;
+
+          const candidates = [direct];
+          const gameId = String(game?.id || "");
+          if (gameId.startsWith("truffled-")) {
+               candidates.push(gameId.slice("truffled-".length));
+          }
+
+          for (const candidate of candidates) {
+               const alias = this.deriveTruffledAlias(candidate);
+               if (alias) return `/${alias}`;
+          }
+
+          return direct;
      },
 
      bind() {
@@ -639,8 +702,8 @@ const RiftVault = {
                     url = `/proxy?url=${encodeURIComponent(url)}`;
                }
 
-               if (game.source === "truffled" && /^https?:\/\//i.test(url)) {
-                    url = this.normalizeTruffledLaunchUrl(url);
+               if (game.source === "truffled") {
+                    url = this.resolveTruffledLocalLaunchUrl(game, url);
                }
 
                const launchUrl = this.prepareLaunchUrl(url, external);
@@ -663,11 +726,16 @@ const RiftVault = {
                const rawFallbackUrl = typeof game?.url === "string" ? game.url : "";
                const normalizedFallbackUrl =
                     game?.source === "truffled"
-                         ? this.normalizeTruffledLaunchUrl(rawFallbackUrl)
+                         ? this.resolveTruffledLocalLaunchUrl(game, rawFallbackUrl)
                          : rawFallbackUrl;
                const isExternalFallback = normalizedFallbackUrl.includes("://") || normalizedFallbackUrl.startsWith("/");
                if (isExternalFallback) {
                     try {
+                         if (game?.source === "truffled" && normalizedFallbackUrl.startsWith("/")) {
+                              const target = `${window.location.origin}${normalizedFallbackUrl}`;
+                              const win = window.open(target, "_blank");
+                              if (win) return;
+                         }
                          const isVelaraAstraFallback = game.source === "velara" && /^https?:\/\/velara\.my\/astra(?:\/|$)/i.test(normalizedFallbackUrl);
                          const browserUrl = isVelaraAstraFallback
                               ? `${window.location.origin}/browser?url=${encodeURIComponent(normalizedFallbackUrl)}`
