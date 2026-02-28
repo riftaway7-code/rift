@@ -47,7 +47,7 @@ const VAULT_CONFIG = {
                key: "petezah",
                label: "PeteZah Lite",
                bases: [],
-               catalogUrl: "https://cdn.jsdelivr.net/gh/PeteZah-Games/PeteZahLite@main/search.json",
+               localCatalogUrl: "/pzlite-catalog",
           },
           seraph: {
                key: "seraph",
@@ -280,7 +280,7 @@ const RiftVault = {
 
           for (const candidate of candidates) {
                const alias = this.deriveTruffledAlias(candidate);
-               if (alias) return `/${alias}`;
+               if (alias) return `/truf/${encodeURIComponent(alias)}.html`;
           }
 
           return direct;

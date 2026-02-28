@@ -34,6 +34,8 @@ const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
 const TRUFFLED_LOCAL_JSON = path.join(__dirname, '..', 'truffled.g.json');
 const TRUFFLED_BASE = 'https://truffled.lol/';
 const TRUFFLED_ROOT_MANIFEST = path.join(__dirname, '..', 'data', 'truffled-root-manifest.json');
+const PETEZAH_GAMES_JSON = 'https://cdn.jsdelivr.net/gh/PeteZah-Games/PeteZahLite@main/search.json';
+const PETEZAH_BASE = 'https://cdn.jsdelivr.net/gh/PeteZah-Games/PeteZahLite@main/';
 const TOTALLY_SCIENCE_BASE = 'https://d11jzht7mj96rr.cloudfront.net/';
 const VELARA_GAMES_JSON = 'https://velara.my/data/games.json';
 const VELARA_BASE = 'https://velara.my/';
@@ -68,15 +70,20 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'sdxp-catalog',
     'duckmath-catalog',
     'truffled-catalog',
+    'pzlite',
+    'pzlite-catalog',
+    'truf',
     'totalscience-catalog',
     'velara-catalog',
     'astra',
     'astra-accounts',
 ]);
 const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
+const PETEZAH_CACHE_TTL_MS = 5 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
+let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 
 const GN_MATH_BLOCKED_HTML_FILES = new Set([
     '114-f.html',
@@ -352,11 +359,13 @@ async function buildTruffledAliasMap() {
         const targetUrl = new URL(normalized, TRUFFLED_BASE).href;
         const entry = { localFile: mappedFile, targetUrl };
 
-        for (const slug of deriveTruffledSlugCandidates(normalized, mappedFile)) {
-            if (!slug) continue;
-            const existing = aliases.get(slug);
-            if (!existing || (!existing.localFile && entry.localFile)) {
-                aliases.set(slug, entry);
+        for (const rawSlug of deriveTruffledSlugCandidates(normalized, mappedFile)) {
+            for (const slug of new Set([rawSlug, toLaunchSlug(rawSlug, '')])) {
+                if (!slug) continue;
+                const existing = aliases.get(slug);
+                if (!existing || (!existing.localFile && entry.localFile)) {
+                    aliases.set(slug, entry);
+                }
             }
         }
     }
@@ -386,6 +395,138 @@ async function readTruffledRootMap() {
         return map;
     } catch {
         return {};
+    }
+}
+
+function toLaunchSlug(input, fallback = 'game') {
+    const slug = String(input || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\.html?$/i, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug || fallback;
+}
+
+function normalizePetezahSourceUrl(value) {
+    let raw = String(value || '').trim();
+    if (!raw) return '';
+
+    if (!/^https?:\/\//i.test(raw) && /^[a-z0-9.-]+\.[a-z]{2,}(?:\/|$)/i.test(raw)) {
+        raw = `https://${raw}`;
+    }
+
+    try {
+        const parsed = new URL(raw, PETEZAH_BASE);
+        if (!/^https?:$/i.test(parsed.protocol)) return '';
+        return parsed.href;
+    } catch {
+        return '';
+    }
+}
+
+function normalizePetezahCoverUrl(value) {
+    let raw = String(value || '').trim();
+    if (!raw) return '';
+
+    if (/^\/\//.test(raw)) raw = `https:${raw}`;
+    if (!/^https?:\/\//i.test(raw) && /^[a-z0-9.-]+\.[a-z]{2,}(?:\/|$)/i.test(raw)) {
+        raw = `https://${raw}`;
+    }
+
+    try {
+        const parsed = new URL(raw, PETEZAH_BASE);
+        if (!/^https?:$/i.test(parsed.protocol)) return '';
+        return parsed.href;
+    } catch {
+        return '';
+    }
+}
+
+function derivePetezahSlug(targetUrl, label, index) {
+    let candidate = '';
+    try {
+        const parsed = new URL(targetUrl);
+        const normalizedPath = String(parsed.pathname || '').replace(/\/+$/, '');
+        const segments = normalizedPath.split('/').filter(Boolean);
+        const last = segments.length ? segments[segments.length - 1] : '';
+        if (last) {
+            if (/^index\.html?$/i.test(last) && segments.length > 1) {
+                candidate = segments[segments.length - 2] || '';
+            } else {
+                candidate = String(last).replace(/\.html?$/i, '');
+            }
+        }
+    } catch {
+    }
+
+    if (!candidate) candidate = String(label || '').trim();
+    return toLaunchSlug(candidate, `game-${index + 1}`);
+}
+
+async function buildPetezahCatalogData() {
+    const response = await fetch(PETEZAH_GAMES_JSON);
+    if (!response.ok) {
+        throw new Error(`petezah fetch failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.games) ? payload.games : [];
+    const items = [];
+    const map = new Map();
+    const usedSlugs = new Set();
+
+    for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const targetUrl = normalizePetezahSourceUrl(row?.url);
+        if (!targetUrl) continue;
+
+        const name = String(row?.label || '').trim() || `game ${index + 1}`;
+        const cover = normalizePetezahCoverUrl(row?.imageUrl);
+        const baseSlug = derivePetezahSlug(targetUrl, name, index);
+        let slug = baseSlug;
+        let suffix = 2;
+        while (usedSlugs.has(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedSlugs.add(slug);
+
+        const item = {
+            id: `petezah-${slug}`,
+            name,
+            url: `/pzlite/${encodeURIComponent(slug)}.html`,
+            cover,
+        };
+        items.push(item);
+        map.set(slug, {
+            targetUrl,
+            name,
+            cover,
+        });
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getPetezahCatalogData() {
+    const now = Date.now();
+    if (petezahCatalogCache.map.size > 0 && now < petezahCatalogCache.expiresAt) {
+        return petezahCatalogCache;
+    }
+
+    try {
+        const built = await buildPetezahCatalogData();
+        petezahCatalogCache = {
+            expiresAt: now + PETEZAH_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return petezahCatalogCache;
+    } catch (error) {
+        if (petezahCatalogCache.map.size > 0) return petezahCatalogCache;
+        throw error;
     }
 }
 
@@ -2173,6 +2314,78 @@ app.get(/^\/sdxp\/(.+)$/, async (req, res, next) => {
     });
 });
 
+app.get(/^\/truf\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid truf slug');
+
+    try {
+        const aliasMap = await getTruffledAliasMap();
+        const entry = aliasMap.get(slug);
+        if (!entry) return next();
+
+        if (entry.localFile) {
+            const file = path.join(__dirname, '..', 'public', entry.localFile);
+            return res.sendFile(file, (err) => {
+                if (err) next();
+            });
+        }
+
+        if (!entry.targetUrl) return next();
+
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const target = String(entry.targetUrl).includes('?')
+            ? `${entry.targetUrl}${query ? `&${query.slice(1)}` : ''}`
+            : `${entry.targetUrl}${query}`;
+        const upstream = await fetch(target);
+        if (!upstream.ok) {
+            return res.status(upstream.status).send(`truf upstream status ${upstream.status}`);
+        }
+
+        const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+        const guessedType = guessContentTypeFromPath(target);
+        res.setHeader('X-Rift-Truf', '1');
+        if (upstreamType) {
+            res.setHeader('Content-Type', upstreamType);
+        } else if (guessedType) {
+            res.setHeader('Content-Type', guessedType);
+        }
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+        const raw = Buffer.from(await upstream.arrayBuffer());
+        return res.status(upstream.status).send(raw);
+    } catch (error) {
+        return res.status(502).json({ error: `truf launch failed: ${error.message}` });
+    }
+});
+
+app.get(/^\/pzlite\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid pzlite slug');
+
+    try {
+        const data = await getPetezahCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'PeteZah Lite')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="pzlite-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('pzlite-frame').src=${safeJsonForInlineScript(entry.targetUrl)};</script></body></html>`;
+        res.setHeader('X-Rift-PZLite', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `pzlite launch failed: ${error.message}` });
+    }
+});
+
 app.get('/:gameSlug', async (req, res, next) => {
     const slugRaw = String(req.params?.gameSlug || '').trim();
     if (!slugRaw || slugRaw.includes('.')) return next();
@@ -2640,6 +2853,15 @@ app.get('/duckmath-catalog', async (_req, res) => {
     }
 });
 
+app.get('/pzlite-catalog', async (_req, res) => {
+    try {
+        const data = await getPetezahCatalogData();
+        return res.json(data.items);
+    } catch (error) {
+        return res.status(500).json({ error: `failed to build pzlite catalog: ${error.message}` });
+    }
+});
+
 app.get('/truffled-catalog', async (_req, res) => {
     try {
         let payload = null;
@@ -2662,6 +2884,7 @@ app.get('/truffled-catalog', async (_req, res) => {
         const rows = Array.isArray(payload?.games) ? payload.games : [];
         const items = [];
         const seen = new Set();
+        const seenSlugs = new Set();
 
         const catalogRows = rows.length
             ? rows
@@ -2687,9 +2910,16 @@ app.get('/truffled-catalog', async (_req, res) => {
             } catch {
                 continue;
             }
-            const launchUrl = `/${mappedFile}`;
+            const slugCandidates = [
+                toLaunchSlug(deriveTruffledCanonicalSlug(normalized, mappedFile), ''),
+                toLaunchSlug(toTruffledLocalSlug(normalized), ''),
+            ].filter(Boolean);
+            const slug = slugCandidates.find((candidate) => !seenSlugs.has(candidate)) || '';
+            if (!slug) continue;
+            seenSlugs.add(slug);
+            const launchUrl = `/truf/${encodeURIComponent(slug)}.html`;
             items.push({
-                id: `truffled-${normalized}`,
+                id: `truffled-${slug}`,
                 name,
                 url: launchUrl,
                 cover: normalizedThumb ? new URL(normalizedThumb, TRUFFLED_BASE).href : '',
