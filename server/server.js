@@ -74,6 +74,7 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'pzlite',
     'pzlite-catalog',
     'truf',
+    'tllysc',
     'totalscience-catalog',
     'velara-catalog',
     'astra',
@@ -81,10 +82,12 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
 ]);
 const TRUFFLED_ALIAS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PETEZAH_CACHE_TTL_MS = 5 * 60 * 1000;
+const TOTALLY_SCIENCE_CACHE_TTL_MS = 5 * 60 * 1000;
 let authWriteLock = Promise.resolve();
 const presenceMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
 let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 
 const GN_MATH_BLOCKED_HTML_FILES = new Set([
     '114-f.html',
@@ -587,6 +590,98 @@ async function getPetezahCatalogData() {
         return petezahCatalogCache;
     } catch (error) {
         if (petezahCatalogCache.map.size > 0) return petezahCatalogCache;
+        throw error;
+    }
+}
+
+function normalizeTotallyScienceSourceSlug(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^\.?\//, '')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '')
+        .replace(/\\/g, '/');
+}
+
+async function buildTotallyScienceCatalogData() {
+    const response = await fetch(TOTALLY_SCIENCE_BASE);
+    if (!response.ok) {
+        throw new Error(`totally science fetch failed: ${response.status}`);
+    }
+
+    const html = await response.text();
+    const rawRows = [];
+    const seenSources = new Set();
+    const usedLaunchSlugs = new Set();
+    const items = [];
+    const map = new Map();
+
+    const pushRaw = (slugRaw, nameRaw, coverRaw = '') => {
+        const sourceSlug = normalizeTotallyScienceSourceSlug(slugRaw);
+        const name = String(nameRaw || '').trim().replace(/\s+/g, ' ');
+        if (!sourceSlug || !name) return;
+        if (/^(t|tag|about|contact|privacy-policy|all-tags|new-games|recently-played-games|page)(\/|$)/i.test(sourceSlug)) return;
+        const sourceKey = sourceSlug.toLowerCase();
+        if (seenSources.has(sourceKey)) return;
+        seenSources.add(sourceKey);
+
+        const baseLaunchSlug = toLaunchSlug(sourceSlug, toLaunchSlug(name, 'game'));
+        let launchSlug = baseLaunchSlug;
+        let suffix = 2;
+        while (usedLaunchSlugs.has(launchSlug)) {
+            launchSlug = `${baseLaunchSlug}-${suffix}`;
+            suffix += 1;
+        }
+        usedLaunchSlugs.add(launchSlug);
+
+        const normalizedCover = String(coverRaw || '').trim().replace(/^\.?\//, '').replace(/^\/+/, '');
+        const targetUrl = new URL(`${sourceSlug}/`, TOTALLY_SCIENCE_BASE).href;
+        const cover = normalizedCover ? new URL(normalizedCover, TOTALLY_SCIENCE_BASE).href : '';
+
+        items.push({
+            id: `totalscience-${launchSlug}`,
+            name,
+            url: `/tllysc/${encodeURIComponent(launchSlug)}.html`,
+            cover,
+        });
+        map.set(launchSlug, {
+            targetUrl,
+            name,
+            cover,
+        });
+    };
+
+    const cardRe = /<article[^>]*class="[^"]*\bc-card\b[^"]*"[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<div[^>]*class="c-card__title"[^>]*>\s*<a[^>]*href="\.\/([^"\/]+)\/"[^>]*>([^<]+)<\/a>/gi;
+    let m;
+    while ((m = cardRe.exec(html)) !== null) {
+        pushRaw(m[2], m[3], m[1]);
+    }
+
+    const rowRe = /<div[^>]*onclick="location\.href='\/([^'\/]+)\/'"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<h3[^>]*>([^<]+)<\/h3>/gi;
+    while ((m = rowRe.exec(html)) !== null) {
+        pushRaw(m[1], m[3], m[2]);
+    }
+
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return { items, map };
+}
+
+async function getTotallyScienceCatalogData() {
+    const now = Date.now();
+    if (totallyScienceCatalogCache.map.size > 0 && now < totallyScienceCatalogCache.expiresAt) {
+        return totallyScienceCatalogCache;
+    }
+
+    try {
+        const built = await buildTotallyScienceCatalogData();
+        totallyScienceCatalogCache = {
+            expiresAt: now + TOTALLY_SCIENCE_CACHE_TTL_MS,
+            items: built.items,
+            map: built.map,
+        };
+        return totallyScienceCatalogCache;
+    } catch (error) {
+        if (totallyScienceCatalogCache.map.size > 0) return totallyScienceCatalogCache;
         throw error;
     }
 }
@@ -2447,6 +2542,29 @@ app.get(/^\/pzlite\/([^/]+)\.html$/i, async (req, res, next) => {
     }
 });
 
+app.get(/^\/tllysc\/([^/]+)\.html$/i, async (req, res, next) => {
+    let slug = String(req.params?.[0] || '').trim();
+    try {
+        slug = decodeURIComponent(slug);
+    } catch {
+    }
+    slug = slug.toLowerCase();
+    if (!/^[a-z0-9_-]+$/.test(slug)) return res.status(400).send('invalid tllysc slug');
+
+    try {
+        const data = await getTotallyScienceCatalogData();
+        const entry = data.map.get(slug);
+        if (!entry) return next();
+
+        const shell = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${String(entry.name || 'Totally Science')}</title><style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000}iframe{width:100%;height:100%;border:none;display:block}</style></head><body><iframe id="tllysc-frame" allow="fullscreen; autoplay; clipboard-write; gamepad; microphone; camera; geolocation" referrerpolicy="strict-origin-when-cross-origin"></iframe><script>document.getElementById('tllysc-frame').src=${safeJsonForInlineScript(entry.targetUrl)};</script></body></html>`;
+        res.setHeader('X-Rift-Tllysc', '1');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(shell);
+    } catch (error) {
+        return res.status(502).json({ error: `tllysc launch failed: ${error.message}` });
+    }
+});
+
 app.get('/:gameSlug', async (req, res, next) => {
     const slugRaw = String(req.params?.gameSlug || '').trim();
     if (!slugRaw || slugRaw.includes('.')) return next();
@@ -2996,45 +3114,8 @@ app.get('/truffled-catalog', async (_req, res) => {
 
 app.get('/totalscience-catalog', async (_req, res) => {
     try {
-        const response = await fetch(TOTALLY_SCIENCE_BASE);
-        if (!response.ok) {
-            return res.status(502).json({ error: `totally science fetch failed: ${response.status}` });
-        }
-
-        const html = await response.text();
-        const items = [];
-        const seen = new Set();
-        const pushGame = (slugRaw, nameRaw, coverRaw = '') => {
-            const slug = String(slugRaw || '').trim().replace(/^\.?\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
-            const name = String(nameRaw || '').trim().replace(/\s+/g, ' ');
-            if (!slug || !name) return;
-            if (/^(t|tag|about|contact|privacy-policy|all-tags|new-games|recently-played-games|page)(\/|$)/i.test(slug)) return;
-            const key = `${slug.toLowerCase()}|${name.toLowerCase()}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-
-            const normalizedCover = String(coverRaw || '').trim().replace(/^\.?\//, '').replace(/^\/+/, '');
-            items.push({
-                id: `totalscience-${slug.toLowerCase()}`,
-                name,
-                url: new URL(`${slug}/`, TOTALLY_SCIENCE_BASE).href,
-                cover: normalizedCover ? new URL(normalizedCover, TOTALLY_SCIENCE_BASE).href : '',
-            });
-        };
-
-        const cardRe = /<article[^>]*class="[^"]*\bc-card\b[^"]*"[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<div[^>]*class="c-card__title"[^>]*>\s*<a[^>]*href="\.\/([^"\/]+)\/"[^>]*>([^<]+)<\/a>/gi;
-        let m;
-        while ((m = cardRe.exec(html)) !== null) {
-            pushGame(m[2], m[3], m[1]);
-        }
-
-        const rowRe = /<div[^>]*onclick="location\.href='\/([^'\/]+)\/'"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<h3[^>]*>([^<]+)<\/h3>/gi;
-        while ((m = rowRe.exec(html)) !== null) {
-            pushGame(m[1], m[3], m[2]);
-        }
-
-        items.sort((a, b) => a.name.localeCompare(b.name));
-        return res.json(items);
+        const data = await getTotallyScienceCatalogData();
+        return res.json(data.items);
     } catch (error) {
         return res.status(500).json({ error: `failed to build totally science catalog: ${error.message}` });
     }
