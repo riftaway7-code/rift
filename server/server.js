@@ -27,6 +27,7 @@ const GN_MATH_ZONES_JSON = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/zone
 const GN_MATH_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/';
 const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_BASE).href;
 const GN_MATH_COVER_BASE = new URL('covers@main/', GN_MATH_BASE).href;
+const SDXP_FALLBACK_BASE = 'https://strongdog.com/';
 const DUCKMATH_GAMES_PAGE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/g4m3s.html';
 const DUCKMATH_BASE = 'https://cdn.jsdelivr.net/gh/Divij-Agarwal-42/duckmath.github.io@main/';
 const TRUFFLED_GAMES_JSON = 'https://truffled.lol/js/json/g.json';
@@ -443,6 +444,101 @@ async function collectIndexFiles(dir) {
     }
 
     return out;
+}
+
+async function findSdxpBackupIndexFile() {
+    const root = path.join(__dirname, '..');
+    try {
+        const entries = await fs.readdir(root, { withFileTypes: true });
+        const candidates = entries
+            .filter((entry) => entry.isDirectory() && /^\.deploy_untracked_backup_/i.test(entry.name))
+            .map((entry) => path.join(root, entry.name, 'public_sdxp', 'index.html'))
+            .sort()
+            .reverse();
+
+        for (const candidate of candidates) {
+            try {
+                await fs.access(candidate);
+                return candidate;
+            } catch {
+            }
+        }
+    } catch {
+    }
+    return '';
+}
+
+function parseSdxpCatalogCards(html) {
+    const source = String(html || '');
+    const items = [];
+    const seen = new Set();
+    const anchorRe = /<a\b[\s\S]*?<\/a>/gi;
+    let block;
+    while ((block = anchorRe.exec(source)) !== null) {
+        const chunk = String(block[0] || '');
+        if (!/\bclass\s*=\s*["'][^"']*\bcard\b[^"']*["']/i.test(chunk)) continue;
+
+        const hrefMatch = chunk.match(/href\s*=\s*["']([^"']+)["']/i);
+        const imgMatch = chunk.match(/<img[^>]*src\s*=\s*["']([^"']+)["']/i);
+        const nameMatch = chunk.match(/<figcaption[^>]*>([^<]+)<\/figcaption>/i);
+        if (!hrefMatch || !nameMatch) continue;
+
+        const hrefRaw = String(hrefMatch[1] || '').trim();
+        const name = String(nameMatch[1] || '').replace(/\s+/g, ' ').trim();
+        if (!hrefRaw || !name) continue;
+        if (/^(?:https?:|\/\/|javascript:|data:|#)/i.test(hrefRaw)) continue;
+
+        const rel = hrefRaw
+            .replace(/^\.?\//, '')
+            .replace(/^\/+/, '')
+            .replace(/\\/g, '/');
+        if (!rel || rel.includes('..')) continue;
+        const key = rel.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const relCoverRaw = String(imgMatch?.[1] || '').trim();
+        const relCover = relCoverRaw
+            .replace(/^\.?\//, '')
+            .replace(/^\/+/, '')
+            .replace(/\\/g, '/');
+        const cover = relCover && !relCover.includes('..')
+            ? `/sdxp/${encodePathForUrl(relCover)}`
+            : '';
+
+        items.push({
+            id: `sdxp-fallback-${key.replace(/[^a-z0-9/_-]+/gi, '-')}`,
+            name,
+            url: `/sdxp/${encodePathForUrl(rel)}`,
+            cover,
+        });
+    }
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return items;
+}
+
+async function loadSdxpFallbackCatalog() {
+    const backupIndex = await findSdxpBackupIndexFile();
+    if (backupIndex) {
+        try {
+            const html = await fs.readFile(backupIndex, 'utf8');
+            const parsed = parseSdxpCatalogCards(html);
+            if (parsed.length) return parsed;
+        } catch {
+        }
+    }
+
+    try {
+        const response = await fetch(SDXP_FALLBACK_BASE);
+        if (response.ok) {
+            const html = await response.text();
+            const parsed = parseSdxpCatalogCards(html);
+            if (parsed.length) return parsed;
+        }
+    } catch {
+    }
+
+    return [];
 }
 
 function isSafeHostname(hostname) {
@@ -1928,6 +2024,42 @@ app.get(/^\/gn\/(.+)$/, async (req, res, next) => {
     });
 });
 
+app.get(/^\/sdxp\/(.+)$/, async (req, res, next) => {
+    const rawTail = String(req.params?.[0] || '').trim();
+    if (!rawTail) return next();
+
+    let tail = rawTail;
+    try {
+        tail = decodeURIComponent(rawTail);
+    } catch {
+    }
+    tail = tail.replace(/^\/+/, '').replace(/\\/g, '/');
+    if (!tail || tail.includes('..')) {
+        return res.status(400).send('invalid sdxp path');
+    }
+
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const target = new URL(`${tail}${query}`, SDXP_FALLBACK_BASE).href;
+
+    try {
+        const upstream = await fetch(target);
+        if (!upstream.ok) return next();
+        const upstreamType = String(upstream.headers.get('content-type') || '').trim();
+        const guessedType = guessContentTypeFromPath(tail);
+        if (upstreamType) {
+            res.setHeader('Content-Type', upstreamType);
+        } else if (guessedType) {
+            res.setHeader('Content-Type', guessedType);
+        }
+        const cacheControl = upstream.headers.get('cache-control');
+        if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+        const raw = Buffer.from(await upstream.arrayBuffer());
+        return res.status(upstream.status).send(raw);
+    } catch {
+        return next();
+    }
+});
+
 app.get('/:gameSlug', async (req, res, next) => {
     const slugRaw = String(req.params?.gameSlug || '').trim();
     if (!slugRaw || slugRaw.includes('.')) return next();
@@ -2332,24 +2464,27 @@ app.all('/proxy', async (req, res) => {
 
 app.get('/sdxp-catalog', async (_req, res) => {
     try {
-        await fs.access(SDXP_HTML_ROOT);
-    } catch {
-        return res.json([]);
-    }
+        let items = [];
+        try {
+            await fs.access(SDXP_HTML_ROOT);
+            const indexFiles = await collectIndexFiles(SDXP_HTML_ROOT);
+            items = await Promise.all(indexFiles.map(async (file) => {
+                const rel = path.relative(path.join(__dirname, '..', 'public', 'sdxp'), file).replace(/\\/g, '/');
+                const gameFolder = path.basename(path.dirname(file));
+                const cover = await pickSdxpCover(file);
+                return {
+                    id: `sdxp-${rel}`,
+                    name: humanizeFolderName(gameFolder),
+                    url: `/sdxp/${rel}`,
+                    cover,
+                };
+            }));
+        } catch {
+        }
 
-    try {
-        const indexFiles = await collectIndexFiles(SDXP_HTML_ROOT);
-        const items = await Promise.all(indexFiles.map(async (file) => {
-            const rel = path.relative(path.join(__dirname, '..', 'public', 'sdxp'), file).replace(/\\/g, '/');
-            const gameFolder = path.basename(path.dirname(file));
-            const cover = await pickSdxpCover(file);
-            return {
-                id: `sdxp-${rel}`,
-                name: humanizeFolderName(gameFolder),
-                url: `/sdxp/${rel}`,
-                cover,
-            };
-        }));
+        if (!items.length) {
+            items = await loadSdxpFallbackCatalog();
+        }
 
         items.sort((a, b) => a.name.localeCompare(b.name));
         res.json(items);
