@@ -31,6 +31,12 @@ const VAULT_CONFIG = {
                bases: [],
                localCatalogUrl: "/duckmath-catalog",
           },
+          ccported: {
+               key: "ccported",
+               label: "CCPorted",
+               bases: [],
+               localCatalogUrl: "/ccported-catalog",
+          },
           truffled: {
                key: "truffled",
                label: "Truffled",
@@ -381,11 +387,12 @@ const RiftVault = {
                truffled: 0,
                totalscience: 1,
                duckmath: 2,
-               sdxp: 3,
-               velara: 4,
-               "gn-math": 5,
-               petezah: 6,
-               seraph: 7,
+               ccported: 3,
+               sdxp: 4,
+               velara: 5,
+               "gn-math": 6,
+               petezah: 7,
+               seraph: 8,
           };
           return rank[source] ?? 9;
      },
