@@ -2812,16 +2812,19 @@
         const quickButtons = win.querySelectorAll("[data-safari-quick]");
 
         const openTarget = (raw) => {
-          const target = resolveSafariTarget(raw);
-          if (!target) {
+          const rawValue = String(raw || "").trim();
+          if (!rawValue) {
             if (status) {
               status.textContent = "Enter a URL or search term.";
             }
             return;
           }
-          window.open(target, "_blank", "noopener,noreferrer");
+
+          const resolved = resolveSafariTarget(rawValue);
+          const browserLaunchUrl = `${window.location.origin}/browser?url=${encodeURIComponent(rawValue)}`;
+          window.open(browserLaunchUrl, "_blank", "noopener,noreferrer");
           if (status) {
-            status.textContent = `Opened: ${target}`;
+            status.textContent = `Opened in Rift Browser (Proxy): ${resolved || rawValue}`;
           }
         };
 
