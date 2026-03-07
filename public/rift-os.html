@@ -12,445 +12,493 @@
         gtag('config', 'G-W1SEMRGLRR');
     </script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="/global/css/global.css">
     <style>
         :root {
-            --rift-glass: rgba(16, 22, 35, 0.42);
-            --rift-glass-strong: rgba(15, 20, 32, 0.62);
-            --rift-outline: rgba(255, 255, 255, 0.2);
-            --rift-text: rgba(248, 251, 255, 0.9);
-            --rift-dim: rgba(226, 234, 255, 0.68);
-            --rift-shadow: 0 16px 44px rgba(5, 8, 18, 0.46);
+            --glass: rgba(255, 255, 255, 0.14);
+            --glass-strong: rgba(255, 255, 255, 0.2);
+            --text: rgba(248, 251, 255, 0.96);
+            --text-dim: rgba(228, 236, 255, 0.78);
+            --shadow: 0 26px 52px rgba(6, 10, 22, 0.5);
         }
 
-        body.rift-os-page {
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
             margin: 0;
-            min-height: 100vh;
-            height: 100vh !important;
-            width: 100vw;
-            display: block !important;
-            align-items: initial !important;
-            justify-content: initial !important;
-            overflow: hidden !important;
-            color: var(--rift-text);
-            font-family: "Run", "Trebuchet MS", sans-serif;
-            background:
-                radial-gradient(circle at 18% 0%, rgba(170, 202, 255, 0.24), transparent 42%),
-                radial-gradient(circle at 82% 100%, rgba(129, 179, 255, 0.22), transparent 40%),
-                linear-gradient(140deg, #101727, #0a1220 45%, #090f19 100%);
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+            background: #090d18;
+            color: var(--text);
+            user-select: none;
         }
 
-        body.rift-os-page::before {
-            opacity: 0 !important;
-        }
-
-        .rift-os {
+        .os-root {
             position: relative;
             width: 100%;
             height: 100%;
+            background:
+                radial-gradient(circle at 15% 10%, rgba(173, 213, 255, 0.3), transparent 36%),
+                radial-gradient(circle at 85% 86%, rgba(147, 192, 255, 0.3), transparent 32%),
+                linear-gradient(135deg, #0b1020, #10182d 46%, #0a111f 100%);
         }
 
-        .rift-os::before {
-            content: "";
+        .boot-screen,
+        .setup-screen {
             position: absolute;
             inset: 0;
+            z-index: 100;
+            display: grid;
+            place-items: center;
             background:
-                radial-gradient(circle at 22% 18%, rgba(202, 224, 255, 0.18), transparent 36%),
-                radial-gradient(circle at 82% 85%, rgba(142, 181, 255, 0.2), transparent 32%);
-            filter: blur(34px);
-            pointer-events: none;
-            animation: auraDrift 14s ease-in-out infinite alternate;
+                radial-gradient(circle at 20% 0%, rgba(152, 207, 255, 0.28), transparent 35%),
+                radial-gradient(circle at 80% 100%, rgba(171, 203, 255, 0.26), transparent 34%),
+                linear-gradient(145deg, #0a0f1d, #121b33 55%, #0b1222);
+        }
+
+        .boot-screen.hidden,
+        .setup-screen.hidden {
+            display: none;
+        }
+
+        .boot-wrap {
+            width: min(430px, 88vw);
+            display: grid;
+            justify-items: center;
+            gap: 18px;
+        }
+
+        .boot-logo {
+            width: 118px;
+            height: 118px;
+            border-radius: 28px;
+            background:
+                linear-gradient(165deg, rgba(255, 255, 255, 0.82), rgba(209, 228, 255, 0.34)),
+                radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.9), transparent 58%);
+            border: 1px solid rgba(255, 255, 255, 0.52);
+            backdrop-filter: blur(8px);
+            display: grid;
+            place-items: center;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+                0 28px 60px rgba(6, 12, 30, 0.52);
+            font-size: 40px;
+            color: rgba(9, 18, 37, 0.9);
+        }
+
+        .boot-title {
+            font-size: 21px;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+        }
+
+        .boot-progress {
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            background: rgba(255, 255, 255, 0.12);
+            overflow: hidden;
+        }
+
+        .boot-bar {
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #b8d3ff, #e6f2ff);
+            box-shadow: 0 0 18px rgba(224, 240, 255, 0.65);
+            animation: bootFill 2.6s ease forwards;
+        }
+
+        .boot-note {
+            font-size: 12px;
+            text-transform: lowercase;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+        }
+
+        @keyframes bootFill {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+
+        .setup-card {
+            width: min(760px, 92vw);
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background:
+                linear-gradient(170deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1)),
+                rgba(17, 24, 41, 0.55);
+            backdrop-filter: blur(24px) saturate(1.2);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .setup-head {
+            padding: 20px 24px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .setup-head h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+        }
+
+        .setup-step {
+            font-size: 11px;
+            letter-spacing: 0.11em;
+            text-transform: lowercase;
+            color: var(--text-dim);
+        }
+
+        .setup-body {
+            min-height: 340px;
+            padding: 22px 24px 18px;
+            display: grid;
+            gap: 16px;
+            align-content: start;
+        }
+
+        .setup-pane {
+            display: none;
+            gap: 14px;
+        }
+
+        .setup-pane.active {
+            display: grid;
+        }
+
+        .setup-pane h2 {
+            margin: 0;
+            font-size: 31px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+        }
+
+        .setup-pane p {
+            margin: 0;
+            color: var(--text-dim);
+            line-height: 1.58;
+            font-size: 14px;
+            max-width: 62ch;
+        }
+
+        .option-grid {
+            margin-top: 2px;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .option-btn {
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.14);
+            color: var(--text);
+            min-height: 98px;
+            padding: 10px;
+            text-align: left;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .option-btn:hover,
+        .option-btn.active {
+            transform: translateY(-1px);
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.26);
+        }
+
+        .option-btn strong {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .option-btn span {
+            font-size: 11px;
+            color: rgba(236, 244, 255, 0.84);
+            letter-spacing: 0.03em;
+        }
+
+        .setup-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .setup-input {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.34);
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--text);
+            padding: 10px 12px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .setup-input::placeholder {
+            color: rgba(238, 245, 255, 0.7);
+        }
+
+        .setup-actions {
+            padding: 0 24px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .setup-btn {
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.36);
+            background: rgba(255, 255, 255, 0.16);
+            color: var(--text);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: lowercase;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        .setup-btn.primary {
+            background: linear-gradient(180deg, rgba(222, 238, 255, 0.9), rgba(181, 213, 255, 0.85));
+            color: #101b31;
+            border-color: rgba(228, 242, 255, 0.9);
+            font-weight: 600;
+        }
+
+        .setup-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .desktop-shell {
+            position: absolute;
+            inset: 0;
+            display: none;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(180, 219, 255, 0.3), transparent 34%),
+                radial-gradient(circle at 84% 82%, rgba(168, 198, 255, 0.27), transparent 30%),
+                linear-gradient(140deg, #0c1222, #172642 46%, #0d1629 100%);
+        }
+
+        .desktop-shell.active {
+            display: block;
         }
 
         .menu-bar {
             position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            height: 40px;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            height: 38px;
+            border-radius: 11px;
+            border: 1px solid rgba(255, 255, 255, 0.33);
+            background: linear-gradient(170deg, rgba(255, 255, 255, 0.31), rgba(255, 255, 255, 0.1));
+            backdrop-filter: blur(18px) saturate(1.16);
+            box-shadow: 0 14px 30px rgba(6, 11, 24, 0.38);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 12px;
-            border-radius: 12px;
-            border: 1px solid var(--rift-outline);
-            background: linear-gradient(160deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06));
-            backdrop-filter: blur(18px) saturate(1.1);
-            box-shadow: var(--rift-shadow);
-            z-index: 50;
+            padding: 0 10px;
+            z-index: 20;
         }
 
-        .menu-left,
-        .menu-right {
+        .menu-group {
             display: flex;
             align-items: center;
             gap: 8px;
             min-width: 0;
         }
 
-        .menu-pill {
-            border: 1px solid rgba(255, 255, 255, 0.26);
+        .menu-item {
             border-radius: 999px;
-            background: rgba(10, 14, 24, 0.32);
-            color: var(--rift-text);
+            border: 1px solid rgba(255, 255, 255, 0.34);
+            background: rgba(6, 12, 23, 0.3);
+            color: var(--text);
+            text-decoration: none;
             font-size: 10px;
+            letter-spacing: 0.08em;
             text-transform: lowercase;
-            letter-spacing: 0.09em;
             padding: 6px 10px;
             white-space: nowrap;
         }
 
         .menu-brand {
             font-size: 11px;
-            letter-spacing: 0.14em;
+            font-weight: 600;
+            letter-spacing: 0.12em;
             text-transform: lowercase;
-            color: rgba(248, 251, 255, 0.98);
-            font-weight: 700;
             padding: 0 2px;
         }
 
-        .menu-clock {
-            font-size: 10px;
-            letter-spacing: 0.09em;
-            text-transform: lowercase;
-            color: rgba(246, 250, 255, 0.9);
-        }
-
-        .desktop {
+        .desktop-content {
             position: absolute;
-            inset: 64px 12px 98px;
-            overflow: hidden;
+            inset: 58px 12px 86px;
             border-radius: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.23);
             background:
-                linear-gradient(165deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-                radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 44%);
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), var(--rift-shadow);
-            backdrop-filter: blur(10px) saturate(1.08);
+                linear-gradient(160deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03)),
+                rgba(8, 14, 25, 0.32);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
         }
 
-        .desktop-grid {
+        .desktop-particles {
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 36px 36px;
-            opacity: 0.24;
-            pointer-events: none;
+                linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+            background-size: 32px 32px;
+            opacity: 0.22;
         }
 
-        .desktop-icons {
+        .welcome-card {
             position: absolute;
+            right: 16px;
             top: 16px;
-            left: 16px;
-            display: grid;
-            gap: 10px;
-            z-index: 4;
-        }
-
-        .desktop-shortcut {
-            width: 94px;
-            min-height: 88px;
-            padding: 10px 8px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: rgba(8, 13, 22, 0.36);
-            text-decoration: none;
-            display: grid;
-            justify-items: center;
-            align-content: center;
-            gap: 6px;
-            color: var(--rift-text);
-            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-        }
-
-        .desktop-shortcut .material-icons {
-            font-size: 28px;
-        }
-
-        .desktop-shortcut span:last-child {
-            font-size: 10px;
-            letter-spacing: 0.08em;
-            text-transform: lowercase;
-            text-align: center;
-        }
-
-        .desktop-shortcut:hover {
-            transform: translateY(-1px);
-            background: rgba(10, 16, 27, 0.56);
-            border-color: rgba(255, 255, 255, 0.3);
-        }
-
-        .window-stage {
-            position: absolute;
-            inset: 0;
-            z-index: 3;
-        }
-
-        .os-window {
-            position: absolute;
-            width: min(540px, calc(100% - 140px));
-            min-height: 290px;
+            width: min(360px, calc(100% - 32px));
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            background: var(--rift-glass-strong);
-            backdrop-filter: blur(22px) saturate(1.1);
-            box-shadow: 0 22px 52px rgba(5, 8, 18, 0.54);
-            overflow: hidden;
-            transition: transform 0.26s ease, box-shadow 0.26s ease;
-        }
-
-        .os-window[data-app="browser"] {
-            top: 44px;
-            left: 160px;
-        }
-
-        .os-window[data-app="launchpad"] {
-            top: 110px;
-            right: 80px;
-        }
-
-        .window-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 10px 12px;
-            background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
-            border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-            user-select: none;
-            cursor: move;
-        }
-
-        .window-dots {
-            display: flex;
-            gap: 6px;
-        }
-
-        .window-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 999px;
-            border: 1px solid rgba(0, 0, 0, 0.24);
-        }
-
-        .window-dot.red { background: #ff5f56; }
-        .window-dot.yellow { background: #ffbd2e; }
-        .window-dot.green { background: #27c93f; }
-
-        .window-title {
-            font-size: 11px;
-            letter-spacing: 0.1em;
-            text-transform: lowercase;
-            color: rgba(245, 250, 255, 0.9);
-        }
-
-        .window-body {
+            border: 1px solid rgba(255, 255, 255, 0.26);
+            background: rgba(10, 16, 31, 0.44);
+            backdrop-filter: blur(22px);
+            box-shadow: var(--shadow);
             padding: 14px;
-            display: grid;
-            gap: 10px;
+            z-index: 5;
         }
 
-        .window-body p {
-            margin: 0;
-            font-size: 11px;
-            color: var(--rift-dim);
-            text-transform: lowercase;
-            line-height: 1.5;
+        .welcome-card h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            font-weight: 500;
         }
 
-        .window-actions {
+        .welcome-card p {
+            margin: 0 0 10px;
+            line-height: 1.55;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .welcome-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
 
-        .window-actions a,
-        .window-actions button {
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.26);
-            background: rgba(255, 255, 255, 0.1);
-            color: rgba(245, 250, 255, 0.94);
+        .welcome-actions a {
             text-decoration: none;
-            font-family: inherit;
+            color: var(--text);
             font-size: 10px;
-            text-transform: lowercase;
             letter-spacing: 0.08em;
-            padding: 8px 10px;
-            cursor: pointer;
-        }
-
-        .window-actions a:hover,
-        .window-actions button:hover {
-            background: rgba(255, 255, 255, 0.18);
-        }
-
-        .app-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .app-grid a {
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.08);
-            text-decoration: none;
-            color: var(--rift-text);
-            padding: 10px;
-            display: grid;
-            justify-items: center;
-            gap: 6px;
-        }
-
-        .app-grid a .material-icons {
-            font-size: 22px;
-        }
-
-        .app-grid a span:last-child {
-            font-size: 10px;
             text-transform: lowercase;
-            letter-spacing: 0.08em;
-        }
-
-        .control-center {
-            position: absolute;
-            top: 58px;
-            right: 16px;
-            width: min(300px, calc(100% - 32px));
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.24);
-            background: var(--rift-glass-strong);
-            backdrop-filter: blur(22px) saturate(1.1);
-            box-shadow: var(--rift-shadow);
-            padding: 12px;
-            z-index: 60;
-            display: none;
-        }
-
-        .control-center.active {
-            display: grid;
-            gap: 10px;
-            animation: panelIn 0.22s ease;
-        }
-
-        .cc-title {
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            text-transform: lowercase;
-            color: rgba(245, 250, 255, 0.86);
-        }
-
-        .cc-row {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .cc-chip {
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--rift-text);
-            font-size: 10px;
-            text-transform: lowercase;
-            letter-spacing: 0.08em;
-            padding: 8px;
-            text-align: center;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.14);
+            padding: 8px 12px;
         }
 
         .dock {
             position: absolute;
             left: 50%;
-            bottom: 16px;
+            bottom: 14px;
             transform: translateX(-50%);
+            max-width: min(96vw, 980px);
             display: flex;
-            align-items: flex-end;
             gap: 10px;
-            padding: 10px 14px;
+            align-items: flex-end;
+            padding: 10px 13px;
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.26);
-            background: linear-gradient(170deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06));
-            backdrop-filter: blur(20px) saturate(1.2);
-            box-shadow: 0 20px 42px rgba(3, 8, 17, 0.55);
-            z-index: 70;
+            border: 1px solid rgba(255, 255, 255, 0.34);
+            background: linear-gradient(170deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1));
+            backdrop-filter: blur(26px) saturate(1.2);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+                0 20px 42px rgba(4, 10, 24, 0.52);
             overflow-x: auto;
-            max-width: min(95vw, 920px);
             scrollbar-width: none;
+            z-index: 25;
         }
 
-        .dock::-webkit-scrollbar { display: none; }
+        .dock::-webkit-scrollbar {
+            display: none;
+        }
 
-        .dock-btn {
+        .dock-item {
             width: 52px;
             height: 52px;
-            border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.28);
-            background: linear-gradient(170deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.06));
-            color: rgba(245, 250, 255, 0.96);
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.36);
+            background: linear-gradient(170deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.1));
+            color: rgba(245, 251, 255, 0.98);
+            text-decoration: none;
             display: grid;
             place-items: center;
-            text-decoration: none;
-            cursor: pointer;
-            transition: transform 0.2s ease, filter 0.2s ease;
             flex: 0 0 auto;
+            transition: transform 0.1s linear;
         }
 
-        .dock-btn .material-icons {
+        .dock-item .material-icons {
             font-size: 26px;
         }
 
-        .dock-btn:hover {
-            transform: translateY(-8px) scale(1.08);
-            filter: brightness(1.08);
-        }
-
-        .launchpad-overlay {
+        .launchpad {
             position: absolute;
             inset: 0;
             display: none;
             place-items: center;
-            z-index: 65;
-            background: rgba(4, 8, 15, 0.66);
-            backdrop-filter: blur(12px);
+            z-index: 30;
+            background: rgba(4, 8, 16, 0.68);
+            backdrop-filter: blur(14px) saturate(1.08);
         }
 
-        .launchpad-overlay.active {
+        .launchpad.active {
             display: grid;
         }
 
         .launchpad-panel {
             width: min(760px, 92vw);
-            border-radius: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.26);
-            background: var(--rift-glass-strong);
-            box-shadow: var(--rift-shadow);
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(16, 23, 39, 0.6);
+            backdrop-filter: blur(24px);
+            box-shadow: var(--shadow);
             padding: 16px;
         }
 
-        .launchpad-head {
+        .launchpad-top {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             margin-bottom: 12px;
         }
 
-        .launchpad-head h2 {
+        .launchpad-top h3 {
             margin: 0;
             font-size: 13px;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.09em;
             text-transform: lowercase;
-            color: rgba(247, 251, 255, 0.92);
+            font-weight: 500;
         }
 
         .launchpad-close {
-            border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.24);
-            background: rgba(255, 255, 255, 0.14);
-            color: var(--rift-text);
             width: 30px;
             height: 30px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.16);
+            color: var(--text);
             display: grid;
             place-items: center;
             cursor: pointer;
@@ -462,289 +510,297 @@
             gap: 10px;
         }
 
-        .launchpad-grid a {
+        .launchpad-app {
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.14);
             text-decoration: none;
-            color: var(--rift-text);
-            padding: 12px 8px;
+            color: var(--text);
             display: grid;
             justify-items: center;
             gap: 8px;
+            padding: 12px 8px;
         }
 
-        .launchpad-grid a .material-icons {
+        .launchpad-app .material-icons {
             font-size: 24px;
         }
 
-        .launchpad-grid a span:last-child {
+        .launchpad-app span:last-child {
             font-size: 10px;
             letter-spacing: 0.08em;
             text-transform: lowercase;
-            text-align: center;
         }
 
-        @keyframes panelIn {
-            from { transform: translateY(-6px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        @keyframes auraDrift {
-            from { transform: translateY(-6px); }
-            to { transform: translateY(8px); }
-        }
-
-        @media (max-width: 980px) {
-            .desktop {
-                inset: 58px 8px 92px;
-            }
-
-            .desktop-icons {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                width: calc(100% - 32px);
-            }
-
-            .desktop-shortcut {
-                width: auto;
-                min-height: 76px;
-            }
-
-            .os-window {
-                position: absolute;
-                width: calc(100% - 20px);
-                left: 10px !important;
-                right: auto !important;
-                top: auto !important;
-                bottom: 10px;
-                min-height: 220px;
-            }
-
-            .os-window[data-app="launchpad"] {
-                display: none;
+        @media (max-width: 920px) {
+            .option-grid,
+            .setup-row {
+                grid-template-columns: 1fr;
             }
 
             .launchpad-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .desktop-content {
+                inset: 56px 8px 82px;
+            }
+
+            .menu-item {
+                display: none;
+            }
+
+            .menu-item.keep {
+                display: inline-block;
+            }
         }
     </style>
 </head>
-<body class="rift-os-page">
-    <div class="rift-os">
-        <header class="menu-bar">
-            <div class="menu-left">
-                <span class="menu-brand">rift os</span>
-                <a class="menu-pill" href="/">exit rift os</a>
-                <span class="menu-pill">finder</span>
-                <span class="menu-pill">view</span>
-            </div>
-            <div class="menu-right">
-                <button class="menu-pill" id="controlToggle" type="button">control center</button>
-                <span class="menu-clock" id="menuClock">--:--</span>
-            </div>
-        </header>
-
-        <section class="control-center" id="controlCenter" aria-hidden="true">
-            <div class="cc-title">rift controls</div>
-            <div class="cc-row">
-                <div class="cc-chip">theme: aurora glass</div>
-                <div class="cc-chip">mode: desktop</div>
-            </div>
-            <div class="cc-row">
-                <a class="cc-chip" href="/settings">open settings</a>
-                <a class="cc-chip" href="/account">open account</a>
+<body>
+    <div class="os-root">
+        <section class="boot-screen" id="bootScreen">
+            <div class="boot-wrap">
+                <div class="boot-logo">
+                    <span class="material-icons">desktop_windows</span>
+                </div>
+                <div class="boot-title">Rift OS</div>
+                <div class="boot-progress"><div class="boot-bar"></div></div>
+                <div class="boot-note">starting desktop services...</div>
             </div>
         </section>
 
-        <main class="desktop">
-            <div class="desktop-grid"></div>
+        <section class="setup-screen hidden" id="setupScreen">
+            <div class="setup-card">
+                <header class="setup-head">
+                    <h1>welcome</h1>
+                    <span class="setup-step" id="setupStepLabel">step 1 of 3</span>
+                </header>
+                <main class="setup-body">
+                    <section class="setup-pane active" data-pane="0">
+                        <h2>Hello.</h2>
+                        <p>this quick setup prepares your rift desktop experience. choose your look, account name, and default launch behavior.</p>
+                        <div class="option-grid" id="appearanceGrid">
+                            <button class="option-btn active" data-theme="aurora">
+                                <strong>aurora</strong>
+                                <span>bright liquid glass</span>
+                            </button>
+                            <button class="option-btn" data-theme="midnight">
+                                <strong>midnight</strong>
+                                <span>deep blue glass</span>
+                            </button>
+                            <button class="option-btn" data-theme="frost">
+                                <strong>frost</strong>
+                                <span>cool silver glass</span>
+                            </button>
+                        </div>
+                    </section>
 
-            <div class="desktop-icons">
-                <a class="desktop-shortcut" href="/browser">
-                    <span class="material-icons">language</span>
-                    <span>rift browser</span>
-                </a>
-                <a class="desktop-shortcut" href="/chat">
-                    <span class="material-icons">forum</span>
-                    <span>rift chat</span>
-                </a>
-                <a class="desktop-shortcut" href="/music">
-                    <span class="material-icons">library_music</span>
-                    <span>rift music</span>
-                </a>
+                    <section class="setup-pane" data-pane="1">
+                        <h2>create your profile</h2>
+                        <p>set the label shown in the menu bar and home panel.</p>
+                        <div class="setup-row">
+                            <input id="setupName" class="setup-input" maxlength="26" placeholder="display name">
+                            <input id="setupDevice" class="setup-input" maxlength="32" placeholder="device name">
+                        </div>
+                    </section>
+
+                    <section class="setup-pane" data-pane="2">
+                        <h2>ready to enter Rift OS</h2>
+                        <p>your desktop is configured. you can always adjust style and profile inside account and settings later.</p>
+                    </section>
+                </main>
+                <footer class="setup-actions">
+                    <button id="setupBack" class="setup-btn" disabled>back</button>
+                    <button id="setupNext" class="setup-btn primary">continue</button>
+                </footer>
             </div>
+        </section>
 
-            <div class="window-stage">
-                <section class="os-window" data-app="browser" id="windowBrowser">
-                    <div class="window-head">
-                        <div class="window-dots">
-                            <span class="window-dot red"></span>
-                            <span class="window-dot yellow"></span>
-                            <span class="window-dot green"></span>
-                        </div>
-                        <div class="window-title">rift finder</div>
-                    </div>
-                    <div class="window-body">
-                        <p>welcome to rift os desktop mode. open modules from the dock or launchpad and keep rift workflows in one surface.</p>
-                        <div class="window-actions">
-                            <a href="/games">open games</a>
-                            <a href="/apps">open cheats</a>
-                            <a href="/rift_media">open media</a>
-                            <a href="/social-media-&-partners">credits</a>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="os-window" data-app="launchpad" id="windowLaunchpad">
-                    <div class="window-head">
-                        <div class="window-dots">
-                            <span class="window-dot red"></span>
-                            <span class="window-dot yellow"></span>
-                            <span class="window-dot green"></span>
-                        </div>
-                        <div class="window-title">quick apps</div>
-                    </div>
-                    <div class="window-body">
-                        <div class="app-grid">
-                            <a href="/browser"><span class="material-icons">language</span><span>browser</span></a>
-                            <a href="/chat"><span class="material-icons">forum</span><span>chat</span></a>
-                            <a href="/music"><span class="material-icons">library_music</span><span>music</span></a>
-                            <a href="/games"><span class="material-icons">sports_esports</span><span>games</span></a>
-                            <a href="/rift_media"><span class="material-icons">movie</span><span>media</span></a>
-                            <a href="/settings"><span class="material-icons">settings</span><span>settings</span></a>
-                        </div>
-                    </div>
-                </section>
-            </div>
-        </main>
-
-        <nav class="dock">
-            <button class="dock-btn" id="dockLaunchpad" type="button" title="launchpad">
-                <span class="material-icons">apps</span>
-            </button>
-            <a class="dock-btn" href="/browser" title="browser"><span class="material-icons">language</span></a>
-            <a class="dock-btn" href="/chat" title="chat"><span class="material-icons">forum</span></a>
-            <a class="dock-btn" href="/music" title="music"><span class="material-icons">library_music</span></a>
-            <a class="dock-btn" href="/games" title="games"><span class="material-icons">sports_esports</span></a>
-            <a class="dock-btn" href="/rift_media" title="media"><span class="material-icons">movie</span></a>
-            <a class="dock-btn" href="/account" title="account"><span class="material-icons">person</span></a>
-            <a class="dock-btn" href="/settings" title="settings"><span class="material-icons">settings</span></a>
-            <a class="dock-btn" href="/" title="home"><span class="material-icons">home</span></a>
-        </nav>
-
-        <section class="launchpad-overlay" id="launchpadOverlay" aria-hidden="true">
-            <div class="launchpad-panel">
-                <div class="launchpad-head">
-                    <h2>launchpad</h2>
-                    <button class="launchpad-close" id="launchpadClose" type="button">
-                        <span class="material-icons">close</span>
-                    </button>
+        <section class="desktop-shell" id="desktopShell">
+            <header class="menu-bar">
+                <div class="menu-group">
+                    <span class="menu-brand">rift os</span>
+                    <a class="menu-item keep" href="/">exit</a>
+                    <span class="menu-item">finder</span>
+                    <span class="menu-item">file</span>
+                    <span class="menu-item">edit</span>
                 </div>
-                <div class="launchpad-grid">
-                    <a href="/browser"><span class="material-icons">language</span><span>browser</span></a>
-                    <a href="/chat"><span class="material-icons">forum</span><span>chat</span></a>
-                    <a href="/music"><span class="material-icons">library_music</span><span>music</span></a>
-                    <a href="/games"><span class="material-icons">sports_esports</span><span>games</span></a>
-                    <a href="/apps"><span class="material-icons">apps</span><span>cheats</span></a>
-                    <a href="/rift_media"><span class="material-icons">movie</span><span>media</span></a>
-                    <a href="/account"><span class="material-icons">person</span><span>account</span></a>
-                    <a href="/social-media-&-partners"><span class="material-icons">handshake</span><span>credits</span></a>
+                <div class="menu-group">
+                    <button class="menu-item keep" id="controlButton" type="button">control center</button>
+                    <span class="menu-item keep" id="userLabel">owner</span>
+                    <span class="menu-item keep" id="clockLabel">--:--</span>
                 </div>
-            </div>
+            </header>
+
+            <main class="desktop-content">
+                <div class="desktop-particles"></div>
+                <article class="welcome-card">
+                    <h2 id="welcomeHeading">welcome back</h2>
+                    <p>launch apps from the dock or open full launchpad. this is your rift-native desktop mode.</p>
+                    <div class="welcome-actions">
+                        <a href="/games">games</a>
+                        <a href="/rift_media">media</a>
+                        <a href="/chat">chat</a>
+                        <a href="/browser">browser</a>
+                    </div>
+                </article>
+            </main>
+
+            <nav class="dock" id="dock">
+                <button class="dock-item" id="openLaunchpad" type="button" title="launchpad"><span class="material-icons">apps</span></button>
+                <a class="dock-item" href="/browser" title="browser"><span class="material-icons">language</span></a>
+                <a class="dock-item" href="/chat" title="chat"><span class="material-icons">forum</span></a>
+                <a class="dock-item" href="/music" title="music"><span class="material-icons">library_music</span></a>
+                <a class="dock-item" href="/games" title="games"><span class="material-icons">sports_esports</span></a>
+                <a class="dock-item" href="/rift_media" title="media"><span class="material-icons">movie</span></a>
+                <a class="dock-item" href="/account" title="account"><span class="material-icons">person</span></a>
+                <a class="dock-item" href="/settings" title="settings"><span class="material-icons">settings</span></a>
+            </nav>
+
+            <section class="launchpad" id="launchpad">
+                <div class="launchpad-panel">
+                    <div class="launchpad-top">
+                        <h3>launchpad</h3>
+                        <button class="launchpad-close" id="closeLaunchpad" type="button"><span class="material-icons">close</span></button>
+                    </div>
+                    <div class="launchpad-grid">
+                        <a class="launchpad-app" href="/browser"><span class="material-icons">language</span><span>browser</span></a>
+                        <a class="launchpad-app" href="/chat"><span class="material-icons">forum</span><span>chat</span></a>
+                        <a class="launchpad-app" href="/music"><span class="material-icons">library_music</span><span>music</span></a>
+                        <a class="launchpad-app" href="/games"><span class="material-icons">sports_esports</span><span>games</span></a>
+                        <a class="launchpad-app" href="/apps"><span class="material-icons">apps</span><span>cheats</span></a>
+                        <a class="launchpad-app" href="/rift_media"><span class="material-icons">movie</span><span>media</span></a>
+                        <a class="launchpad-app" href="/account"><span class="material-icons">person</span><span>account</span></a>
+                        <a class="launchpad-app" href="/social-media-&-partners"><span class="material-icons">handshake</span><span>credits</span></a>
+                    </div>
+                </div>
+            </section>
         </section>
     </div>
 
-    <script src="/config.js"></script>
-    <script src="/global/js/ads.js"></script>
-    <script src="/global/js/riftx-gate.js"></script>
     <script>
         (function () {
-            const clockEl = document.getElementById('menuClock');
-            const controlToggle = document.getElementById('controlToggle');
-            const controlCenter = document.getElementById('controlCenter');
-            const launchpadOverlay = document.getElementById('launchpadOverlay');
-            const launchpadToggle = document.getElementById('dockLaunchpad');
-            const launchpadClose = document.getElementById('launchpadClose');
-            const windows = Array.from(document.querySelectorAll('.os-window'));
-            let highestZ = 20;
+            const bootScreen = document.getElementById('bootScreen');
+            const setupScreen = document.getElementById('setupScreen');
+            const desktopShell = document.getElementById('desktopShell');
+            const setupPanes = Array.from(document.querySelectorAll('.setup-pane'));
+            const setupBack = document.getElementById('setupBack');
+            const setupNext = document.getElementById('setupNext');
+            const setupStepLabel = document.getElementById('setupStepLabel');
+            const appearanceButtons = Array.from(document.querySelectorAll('.option-btn'));
+            const setupName = document.getElementById('setupName');
+            const setupDevice = document.getElementById('setupDevice');
+            const userLabel = document.getElementById('userLabel');
+            const welcomeHeading = document.getElementById('welcomeHeading');
+            const clockLabel = document.getElementById('clockLabel');
+            const dock = document.getElementById('dock');
+            const dockItems = Array.from(document.querySelectorAll('.dock-item'));
+            const launchpad = document.getElementById('launchpad');
+            const openLaunchpad = document.getElementById('openLaunchpad');
+            const closeLaunchpad = document.getElementById('closeLaunchpad');
+            const controlButton = document.getElementById('controlButton');
+            const osRoot = document.querySelector('.os-root');
+
+            let step = 0;
+            let theme = 'aurora';
+
+            function applyTheme(nextTheme) {
+                theme = nextTheme;
+                if (theme === 'midnight') {
+                    osRoot.style.background = 'radial-gradient(circle at 14% 12%, rgba(118, 160, 255, 0.22), transparent 34%), radial-gradient(circle at 84% 86%, rgba(104, 133, 204, 0.25), transparent 30%), linear-gradient(140deg, #070b16, #0f1730 46%, #081222 100%)';
+                } else if (theme === 'frost') {
+                    osRoot.style.background = 'radial-gradient(circle at 18% 12%, rgba(229, 241, 255, 0.26), transparent 34%), radial-gradient(circle at 84% 86%, rgba(187, 214, 247, 0.28), transparent 30%), linear-gradient(140deg, #4d5b74, #324864 46%, #243449 100%)';
+                } else {
+                    osRoot.style.background = 'radial-gradient(circle at 15% 10%, rgba(173, 213, 255, 0.3), transparent 36%), radial-gradient(circle at 85% 86%, rgba(147, 192, 255, 0.3), transparent 32%), linear-gradient(135deg, #0b1020, #10182d 46%, #0a111f 100%)';
+                }
+            }
+
+            function renderStep() {
+                setupPanes.forEach((pane, idx) => pane.classList.toggle('active', idx === step));
+                setupBack.disabled = step === 0;
+                setupNext.textContent = step === setupPanes.length - 1 ? 'enter rift os' : 'continue';
+                setupStepLabel.textContent = `step ${step + 1} of ${setupPanes.length}`;
+            }
+
+            setupBack.addEventListener('click', () => {
+                if (step === 0) return;
+                step -= 1;
+                renderStep();
+            });
+
+            setupNext.addEventListener('click', () => {
+                if (step < setupPanes.length - 1) {
+                    step += 1;
+                    renderStep();
+                    return;
+                }
+                const displayName = (setupName.value || 'owner').trim().slice(0, 26) || 'owner';
+                const deviceName = (setupDevice.value || 'rift desktop').trim().slice(0, 32) || 'rift desktop';
+                userLabel.textContent = displayName.toLowerCase();
+                welcomeHeading.textContent = `welcome, ${displayName.toLowerCase()}`;
+                document.title = `${deviceName} - Rift OS`;
+                setupScreen.classList.add('hidden');
+                desktopShell.classList.add('active');
+            });
+
+            appearanceButtons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    appearanceButtons.forEach((el) => el.classList.remove('active'));
+                    btn.classList.add('active');
+                    applyTheme(btn.dataset.theme || 'aurora');
+                });
+            });
 
             function updateClock() {
                 const now = new Date();
                 const fmt = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                clockEl.textContent = fmt.format(now).toLowerCase();
+                clockLabel.textContent = fmt.format(now).toLowerCase();
             }
+
+            function openPad(force) {
+                const active = typeof force === 'boolean' ? force : !launchpad.classList.contains('active');
+                launchpad.classList.toggle('active', active);
+            }
+
+            openLaunchpad.addEventListener('click', () => openPad(true));
+            closeLaunchpad.addEventListener('click', () => openPad(false));
+            launchpad.addEventListener('click', (event) => {
+                if (event.target === launchpad) openPad(false);
+            });
+
+            controlButton.addEventListener('click', () => openPad(true));
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') openPad(false);
+            });
+
+            dock.addEventListener('mousemove', (event) => {
+                const maxDistance = 110;
+                dockItems.forEach((item) => {
+                    const rect = item.getBoundingClientRect();
+                    const center = rect.left + rect.width / 2;
+                    const distance = Math.abs(event.clientX - center);
+                    const ratio = Math.max(0, (maxDistance - distance) / maxDistance);
+                    const scale = 1 + (ratio * 0.55);
+                    const lift = ratio * 14;
+                    item.style.transform = `translateY(${-lift}px) scale(${scale})`;
+                });
+            });
+
+            dock.addEventListener('mouseleave', () => {
+                dockItems.forEach((item) => {
+                    item.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+
+            renderStep();
+            applyTheme(theme);
             updateClock();
             setInterval(updateClock, 1000);
 
-            function toggleControlCenter(force) {
-                const next = typeof force === 'boolean' ? force : !controlCenter.classList.contains('active');
-                controlCenter.classList.toggle('active', next);
-                controlCenter.setAttribute('aria-hidden', next ? 'false' : 'true');
-            }
-
-            function toggleLaunchpad(force) {
-                const next = typeof force === 'boolean' ? force : !launchpadOverlay.classList.contains('active');
-                launchpadOverlay.classList.toggle('active', next);
-                launchpadOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
-            }
-
-            function bringToFront(win) {
-                highestZ += 1;
-                win.style.zIndex = String(highestZ);
-            }
-
-            function makeDraggable(win) {
-                const head = win.querySelector('.window-head');
-                if (!head) return;
-                let dragging = false;
-                let offsetX = 0;
-                let offsetY = 0;
-
-                head.addEventListener('pointerdown', (event) => {
-                    if (window.matchMedia('(max-width: 980px)').matches) return;
-                    dragging = true;
-                    bringToFront(win);
-                    const rect = win.getBoundingClientRect();
-                    offsetX = event.clientX - rect.left;
-                    offsetY = event.clientY - rect.top;
-                    head.setPointerCapture(event.pointerId);
-                });
-
-                head.addEventListener('pointermove', (event) => {
-                    if (!dragging) return;
-                    const stage = document.querySelector('.desktop').getBoundingClientRect();
-                    const x = Math.min(Math.max(event.clientX - stage.left - offsetX, 0), stage.width - win.offsetWidth);
-                    const y = Math.min(Math.max(event.clientY - stage.top - offsetY, 0), stage.height - win.offsetHeight);
-                    win.style.left = `${x}px`;
-                    win.style.top = `${y}px`;
-                });
-
-                head.addEventListener('pointerup', (event) => {
-                    dragging = false;
-                    head.releasePointerCapture(event.pointerId);
-                });
-            }
-
-            windows.forEach((win) => {
-                bringToFront(win);
-                makeDraggable(win);
-                win.addEventListener('pointerdown', () => bringToFront(win));
-            });
-
-            controlToggle.addEventListener('click', () => toggleControlCenter());
-            launchpadToggle.addEventListener('click', () => toggleLaunchpad());
-            launchpadClose.addEventListener('click', () => toggleLaunchpad(false));
-            launchpadOverlay.addEventListener('click', (event) => {
-                if (event.target === launchpadOverlay) toggleLaunchpad(false);
-            });
-
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') {
-                    toggleLaunchpad(false);
-                    toggleControlCenter(false);
-                }
-            });
+            setTimeout(() => {
+                bootScreen.classList.add('hidden');
+                setupScreen.classList.remove('hidden');
+            }, 2700);
         })();
     </script>
 </body>
