@@ -127,10 +127,14 @@ body.os-theme-frost {
   display: grid;
   place-items: center;
   box-shadow: var(--os-shadow);
+  overflow: hidden;
 }
 
-.os-boot-logo .material-icons {
-  font-size: 44px;
+.os-boot-logo img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 .os-boot-title {
@@ -154,7 +158,7 @@ body.os-theme-frost {
   border-radius: inherit;
   background: linear-gradient(90deg, #b9d5ff, #f2f8ff);
   box-shadow: 0 0 19px rgba(233, 245, 255, 0.74);
-  animation: osBootFill 1.9s ease forwards;
+  animation: osBootFill 5s linear forwards;
 }
 
 .os-boot-note {

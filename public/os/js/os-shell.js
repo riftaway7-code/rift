@@ -24,7 +24,6 @@
   const dockItems = Array.from(document.querySelectorAll('.os-dock-item'));
   const launchpadApps = Array.from(document.querySelectorAll('.os-launchpad-app'));
 
-  const STORAGE_DONE = 'rift_os_setup_done_v2';
   const STORAGE_THEME = 'rift_os_theme_v2';
   const STORAGE_NAME = 'rift_os_name_v2';
   const STORAGE_DEVICE = 'rift_os_device_v2';
@@ -184,10 +183,6 @@
 
   setTimeout(() => {
     if (boot) boot.classList.add('hidden');
-    if (localStorage.getItem(STORAGE_DONE) === 'true') {
-      enterDesktop();
-    } else {
-      runSetupFlow();
-    }
-  }, 2000);
+    enterDesktop();
+  }, 5000);
 })();
