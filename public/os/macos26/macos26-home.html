@@ -2821,10 +2821,10 @@
           }
 
           const resolved = resolveSafariTarget(rawValue);
-          const browserLaunchUrl = `${window.location.origin}/browser?url=${encodeURIComponent(rawValue)}`;
-          window.open(browserLaunchUrl, "_blank", "noopener,noreferrer");
+          const tinyjetLaunchUrl = `${window.location.origin}/tinyjet/?url=${encodeURIComponent(resolved || rawValue)}`;
+          window.open(tinyjetLaunchUrl, "_blank", "noopener,noreferrer");
           if (status) {
-            status.textContent = `Opened in Rift Browser (Proxy): ${resolved || rawValue}`;
+            status.textContent = `Opened in TinyJet: ${resolved || rawValue}`;
           }
         };
 
