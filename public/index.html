@@ -17,7 +17,6 @@
         .home-cards {
             display: grid;
             grid-template-columns: repeat(4, 170px);
-            grid-template-rows: repeat(2, minmax(0, 1fr));
             gap: 12px;
             width: 100%;
             max-width: 920px;
@@ -98,6 +97,10 @@
                 <span class="material-icons">library_music</span>
                 <span class="home-card-label">music</span>
             </a>
+            <a href="/rift_media" class="home-card">
+                <span class="material-icons">movie</span>
+                <span class="home-card-label">rift media</span>
+            </a>
             <a href="/chat" class="home-card">
                 <span class="material-icons">forum</span>
                 <span class="home-card-label">chat</span>
@@ -149,19 +152,62 @@
 <button class="nav-button" onclick="location.href='/social-media-&-partners'">
             <span class="material-icons">connect_without_contact</span>
         </button>
+        <button class="nav-button" onclick="location.href='/rift_media'">
+            <span class="material-icons">movie</span>
+        </button>
     </nav>
 
-    <!-- Partner Popup -->
-<div id="partner-popup" class="modal">
+    <!-- What's New Popup -->
+<div id="whats-new-popup" class="modal">
     <div class="modal-content">
-        <h3>Join our Discord!</h3>
-        <div style="display: grid; gap: 14px;">
-            <img src="/favicon.ico" alt="Rift logo" style="width: 96px; height: 96px; margin: 0 auto; border-radius: 14px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); object-fit: contain; padding: 12px;" />
-            <p style="margin: 0; text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.72);">Join rift on Discord:</p>
-            <a href="https://discord.gg/ZhPjR7vy4E" target="_blank" rel="noopener noreferrer" class="save-btn" style="display: block; text-align: center; text-decoration: none;">https://discord.gg/ZhPjR7vy4E</a>
+        <h3>Rift Major Update</h3>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: start; gap: 10px;">
+                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">swap_horiz</span>
+                <div>
+                    <strong style="color: white; font-size: 13px;">Rift x Nova mode selector</strong>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Choose Rift or Nova on the same URL. Choice is kept per tab session (not every section click).</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: start; gap: 10px;">
+                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">forum</span>
+                <div>
+                    <strong style="color: white; font-size: 13px;">Upgraded chat system</strong>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Cross-client labels (username | rift/nova), replies, reply notifications, DM threads, and friends/block controls.</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: start; gap: 10px;">
+                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">person_search</span>
+                <div>
+                    <strong style="color: white; font-size: 13px;">Full user profiles</strong>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Click a username to open a full profile modal before DM: stats, achievements, quests, season, badges, and style.</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: start; gap: 10px;">
+                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">call</span>
+                <div>
+                    <strong style="color: white; font-size: 13px;">Voice and video calls</strong>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">User and group calls, incoming call alerts, in-page call dock, and active speaker indicators.</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: start; gap: 10px;">
+                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">workspace_premium</span>
+                <div>
+                    <strong style="color: white; font-size: 13px;">Progression and customization</strong>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Daily quests, seasonal events, profile themes/effects, and a shared preset marketplace on account pages.</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: start; gap: 10px;">
+                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">shield</span>
+                <div>
+                    <strong style="color: white; font-size: 13px;">Safety and polish</strong>
+                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Bad-word masking, status controls (auto/online/idle/dnd), and account layout improvements.</p>
+                </div>
+            </div>
+            <a href="https://discord.gg/ZhPjR7vy4E" target="_blank" rel="noopener noreferrer" class="save-btn" style="display: block; text-align: center; text-decoration: none;">join discord: discord.gg/ZhPjR7vy4E</a>
         </div>
         <div class="modal-buttons" style="margin-top: 16px;">
-            <button id="partner-close" class="save-btn" style="flex: 1;">Got it!</button>
+            <button id="whats-new-close" class="save-btn" style="flex: 1;" disabled>continue to rift (5)</button>
         </div>
     </div>
 </div>
@@ -170,6 +216,7 @@
     <script src="/config.js"></script>
     <script src="/global/js/ads.js"></script>
     <script src="/global/js/global.js"></script>
+    <script src="/global/js/riftx-gate.js"></script>
     <script src="/components/cloaker.js"></script>
     <script src="/components/overlay.js"></script>
     <script src="/components/games.js"></script>
@@ -184,20 +231,47 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const popup = document.getElementById('partner-popup');
-        const closeBtn = document.getElementById('partner-close');
+        const WHATS_NEW_KEY = 'rift__whats-new-seen-v2-major';
+        const popup = document.getElementById('whats-new-popup');
+        const closeBtn = document.getElementById('whats-new-close');
+        const LOCK_SECONDS = 5;
         if (!popup || !closeBtn) return;
-        setTimeout(() => popup.classList.add('active'), 350);
-        
-        closeBtn.addEventListener('click', () => {
+        const seenThisSession = sessionStorage.getItem(WHATS_NEW_KEY);
+        let unlocked = false;
+
+        function closePopup() {
+            if (!unlocked) return;
+            sessionStorage.setItem(WHATS_NEW_KEY, 'true');
             popup.classList.remove('active');
-        });
-        
+        }
+
+        function startCountdown() {
+            let remaining = LOCK_SECONDS;
+            closeBtn.disabled = true;
+            closeBtn.textContent = `continue to rift (${remaining})`;
+            const timer = setInterval(() => {
+                remaining -= 1;
+                if (remaining > 0) {
+                    closeBtn.textContent = `continue to rift (${remaining})`;
+                    return;
+                }
+                clearInterval(timer);
+                unlocked = true;
+                closeBtn.disabled = false;
+                closeBtn.textContent = 'continue to rift';
+            }, 1000);
+        }
+
+        closeBtn.addEventListener('click', closePopup);
         popup.addEventListener('click', (e) => {
-            if (e.target === popup) {
-                popup.classList.remove('active');
-            }
+            if (e.target === popup) closePopup();
         });
+
+        if (seenThisSession) return;
+        setTimeout(() => {
+            popup.classList.add('active');
+            startCountdown();
+        }, 500);
     });
 </script>
 
@@ -268,5 +342,8 @@
 
 </body>
 </html>
+
+
+
 
 

@@ -102,6 +102,9 @@
 <button class="nav-button" onclick="location.href='/social-media-&-partners'">
             <span class="material-icons">connect_without_contact</span>
         </button>
+        <button class="nav-button" onclick="location.href='/rift_media'">
+            <span class="material-icons">movie</span>
+        </button>
     </nav>
 
     <script>
@@ -112,6 +115,7 @@
     <script src="/config.js"></script>
     <script src="/global/js/ads.js"></script>
     <script src="/global/js/global.js"></script>
+    <script src="/global/js/riftx-gate.js"></script>
     <script src="/components/cloaker.js"></script>
     <script src="/components/overlay.js"></script>
     <script src="/components/games.js"></script>
@@ -145,8 +149,181 @@
             if (!form || !input || !frame || !back || !forward || !reload || !more || !moreMenu || !popout || !panelSwitcher) return;
 
             const MAX_PANELS = 3;
+            const modeKey = window.location.pathname.startsWith('/nova/') ? 'nova' : 'rift';
+            const SESSION_KEY = `${modeKey}__browser-session-v2`;
+            const LAST_SESSION_KEY = `${modeKey}__browser-last-session-v2`;
+            const HISTORY_KEY = `${modeKey}__browser-history-v1`;
+            const BOOKMARKS_KEY = `${modeKey}__browser-bookmarks-v1`;
+            const MAX_GLOBAL_HISTORY = 160;
+            const MAX_BOOKMARKS = 120;
             const panels = [{ history: [], historyIndex: -1 }];
             let activePanel = 0;
+            let browserHistory = [];
+            let browserBookmarks = [];
+
+            function readJson(key, fallback) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    return raw ? JSON.parse(raw) : fallback;
+                } catch {
+                    return fallback;
+                }
+            }
+
+            function writeJson(key, value) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch {
+                }
+            }
+
+            function normalizePanels(raw) {
+                if (!Array.isArray(raw) || !raw.length) return [{ history: [], historyIndex: -1 }];
+                return raw.slice(0, MAX_PANELS).map((panel) => {
+                    const history = Array.isArray(panel?.history)
+                        ? panel.history.map((entry) => String(entry || '').trim()).filter(Boolean).slice(-60)
+                        : [];
+                    let historyIndex = Number(panel?.historyIndex);
+                    if (!Number.isFinite(historyIndex)) historyIndex = history.length - 1;
+                    if (!history.length) historyIndex = -1;
+                    if (historyIndex < -1) historyIndex = -1;
+                    if (historyIndex >= history.length) historyIndex = history.length - 1;
+                    return { history, historyIndex };
+                });
+            }
+
+            function persistSession() {
+                writeJson(SESSION_KEY, {
+                    panels,
+                    activePanel,
+                    updatedAt: Date.now(),
+                });
+            }
+
+            function restoreSession() {
+                const saved = readJson(SESSION_KEY, null);
+                if (!saved?.panels) return;
+                const restored = normalizePanels(saved.panels);
+                panels.splice(0, panels.length, ...restored);
+                const nextActive = Number(saved.activePanel);
+                activePanel = Number.isFinite(nextActive) && nextActive >= 0 && nextActive < panels.length ? nextActive : 0;
+                writeJson(LAST_SESSION_KEY, saved);
+            }
+
+            function labelForUrl(url) {
+                try {
+                    const parsed = new URL(url, window.location.origin);
+                    return String(parsed.hostname || '').replace(/^www\./i, '') || url;
+                } catch {
+                    return url;
+                }
+            }
+
+            function loadBookmarks() {
+                const rows = readJson(BOOKMARKS_KEY, []);
+                browserBookmarks = Array.isArray(rows)
+                    ? rows
+                        .map((item) => ({
+                            url: String(item?.url || '').trim(),
+                            label: String(item?.label || '').trim(),
+                            at: Number(item?.at || Date.now()),
+                        }))
+                        .filter((row) => row.url && row.url !== HOME_TARGET)
+                        .slice(0, MAX_BOOKMARKS)
+                    : [];
+            }
+
+            function saveBookmarks() {
+                writeJson(BOOKMARKS_KEY, browserBookmarks.slice(0, MAX_BOOKMARKS));
+            }
+
+            function loadGlobalHistory() {
+                const rows = readJson(HISTORY_KEY, []);
+                browserHistory = Array.isArray(rows)
+                    ? rows
+                        .map((item) => ({
+                            url: String(item?.url || '').trim(),
+                            at: Number(item?.at || Date.now()),
+                        }))
+                        .filter((row) => row.url && row.url !== HOME_TARGET)
+                        .slice(0, MAX_GLOBAL_HISTORY)
+                    : [];
+            }
+
+            function saveGlobalHistory() {
+                writeJson(HISTORY_KEY, browserHistory.slice(0, MAX_GLOBAL_HISTORY));
+            }
+
+            function rememberGlobalHistory(url) {
+                const safeUrl = String(url || '').trim();
+                if (!safeUrl || safeUrl === HOME_TARGET) return;
+                const existing = browserHistory.findIndex((row) => row.url === safeUrl);
+                if (existing >= 0) browserHistory.splice(existing, 1);
+                browserHistory.unshift({ url: safeUrl, at: Date.now() });
+                if (browserHistory.length > MAX_GLOBAL_HISTORY) browserHistory = browserHistory.slice(0, MAX_GLOBAL_HISTORY);
+                saveGlobalHistory();
+            }
+
+            function saveCurrentBookmark() {
+                const panel = panels[activePanel];
+                const current = panel.history[panel.historyIndex] || '';
+                if (!current || current === HOME_TARGET) return;
+                const existing = browserBookmarks.findIndex((row) => row.url === current);
+                if (existing >= 0) {
+                    browserBookmarks.splice(existing, 1);
+                } else {
+                    browserBookmarks.unshift({ url: current, label: labelForUrl(current), at: Date.now() });
+                    if (browserBookmarks.length > MAX_BOOKMARKS) browserBookmarks = browserBookmarks.slice(0, MAX_BOOKMARKS);
+                }
+                saveBookmarks();
+            }
+
+            function pickAndOpen(rows, heading) {
+                if (!rows.length) {
+                    alert(`${heading}: empty`);
+                    return;
+                }
+                const maxItems = Math.min(rows.length, 25);
+                const listing = rows
+                    .slice(0, maxItems)
+                    .map((row, idx) => `${idx + 1}. ${row.label || labelForUrl(row.url)}\n   ${row.url}`)
+                    .join('\n');
+                const pickedRaw = prompt(`${heading}\n\n${listing}\n\nEnter number to open:`);
+                if (pickedRaw == null) return;
+                const picked = Number.parseInt(String(pickedRaw || '').trim(), 10);
+                if (!Number.isFinite(picked) || picked < 1 || picked > maxItems) return;
+                const selected = rows[picked - 1];
+                if (!selected?.url) return;
+                loadTarget(selected.url, true);
+                renderPanelSwitcher();
+            }
+
+            function newSession() {
+                writeJson(LAST_SESSION_KEY, { panels, activePanel, updatedAt: Date.now() });
+                panels.splice(0, panels.length, { history: [], historyIndex: -1 });
+                activePanel = 0;
+                loadTarget(HOME_TARGET, true);
+                renderPanelSwitcher();
+                persistSession();
+            }
+
+            function restoreLastSession() {
+                const saved = readJson(LAST_SESSION_KEY, null);
+                if (!saved?.panels) return;
+                const restored = normalizePanels(saved.panels);
+                panels.splice(0, panels.length, ...restored);
+                const nextActive = Number(saved.activePanel);
+                activePanel = Number.isFinite(nextActive) && nextActive >= 0 && nextActive < panels.length ? nextActive : 0;
+                const panel = panels[activePanel];
+                const current = panel.history[panel.historyIndex] || HOME_TARGET;
+                loadTarget(current, false);
+                renderPanelSwitcher();
+                persistSession();
+            }
+
+            restoreSession();
+            loadBookmarks();
+            loadGlobalHistory();
 
             function toTarget(value) {
                 const trimmed = value.trim();
@@ -171,6 +348,52 @@
 
             function closeMoreMenu() {
                 moreMenu.hidden = true;
+            }
+
+            function ensureMoreItem(id, icon, label, handler) {
+                let btn = document.getElementById(id);
+                if (!btn) {
+                    btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.id = id;
+                    btn.className = 'browser-more-item';
+                    btn.innerHTML = `<span class="material-icons">${icon}</span><span>${label}</span>`;
+                    moreMenu.appendChild(btn);
+                }
+                btn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    handler();
+                    closeMoreMenu();
+                });
+                return btn;
+            }
+
+            const bookmarkToggleBtn = ensureMoreItem('browser-bookmark-toggle', 'bookmark_add', 'toggle bookmark', () => {
+                saveCurrentBookmark();
+            });
+            ensureMoreItem('browser-open-bookmarks', 'bookmarks', 'bookmarks', () => {
+                pickAndOpen(browserBookmarks, 'bookmarks');
+            });
+            ensureMoreItem('browser-open-history', 'history', 'history', () => {
+                pickAndOpen(browserHistory, 'history');
+            });
+            ensureMoreItem('browser-clear-history', 'delete_sweep', 'clear history', () => {
+                browserHistory = [];
+                saveGlobalHistory();
+            });
+            ensureMoreItem('browser-restore-last-session', 'restore', 'restore session', () => {
+                restoreLastSession();
+            });
+            ensureMoreItem('browser-new-session', 'tab_unselected', 'new session', () => {
+                newSession();
+            });
+
+            function updateBookmarkToggleLabel() {
+                if (!bookmarkToggleBtn) return;
+                const panel = panels[activePanel];
+                const current = panel.history[panel.historyIndex] || '';
+                const isMarked = !!current && current !== HOME_TARGET && browserBookmarks.some((row) => row.url === current);
+                bookmarkToggleBtn.innerHTML = `<span class="material-icons">${isMarked ? 'bookmark' : 'bookmark_add'}</span><span>${isMarked ? 'remove bookmark' : 'save bookmark'}</span>`;
             }
 
             function setLoading(active) {
@@ -331,10 +554,17 @@
                 if (pushHistory) {
                     panel.history.splice(panel.historyIndex + 1);
                     panel.history.push(resolvedTarget);
+                    if (panel.history.length > 60) panel.history = panel.history.slice(panel.history.length - 60);
                     panel.historyIndex = panel.history.length - 1;
                 }
 
+                if (!isBlank) {
+                    rememberGlobalHistory(resolvedTarget);
+                }
+
                 updateButtons();
+                updateBookmarkToggleLabel();
+                persistSession();
             }
 
             function renderPanelSwitcher() {
@@ -354,6 +584,7 @@
                         const current = panel.history[panel.historyIndex] || HOME_TARGET;
                         loadTarget(current, false);
                         renderPanelSwitcher();
+                        persistSession();
                     });
 
                     if (panels.length > 1) {
@@ -372,6 +603,7 @@
                             const current = panel.history[panel.historyIndex] || HOME_TARGET;
                             loadTarget(current, false);
                             renderPanelSwitcher();
+                            persistSession();
                         });
                         btn.appendChild(closeBtn);
                     }
@@ -391,6 +623,7 @@
                         activePanel = panels.length - 1;
                         loadTarget(HOME_TARGET, true);
                         renderPanelSwitcher();
+                        persistSession();
                     });
                     panelSwitcher.appendChild(addBtn);
                 }
@@ -482,12 +715,24 @@
                 window.location.replace(proxyUrl);
                 return;
             }
-            loadTarget(initialTarget || HOME_TARGET, true);
+            if (initialTarget) {
+                loadTarget(initialTarget, true);
+            } else {
+                const panel = panels[activePanel];
+                const current = panel.history[panel.historyIndex] || HOME_TARGET;
+                const shouldPush = current === HOME_TARGET && panel.historyIndex < 0;
+                loadTarget(current, shouldPush);
+            }
             renderPanelSwitcher();
+            updateBookmarkToggleLabel();
+            persistSession();
         })();
     </script>
 
 </body>
 </html>
+
+
+
 
 

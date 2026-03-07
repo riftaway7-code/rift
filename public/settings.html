@@ -109,6 +109,23 @@
                     </div>
                 </div>
 
+                <h2>theme editor</h2>
+                <p class="settings-hint">build your own custom color set. this overrides preset theme colors.</p>
+                <div class="settings-group">
+                    <label>background</label>
+                    <input type="color" id="theme-custom-bg" value="#050608" />
+                    <label>glow</label>
+                    <input type="color" id="theme-custom-glow" value="#2b3a47" />
+                    <label>accent</label>
+                    <input type="color" id="theme-custom-accent" value="#8ecbff" />
+                    <label>text</label>
+                    <input type="color" id="theme-custom-text" value="#ffffff" />
+                    <div class="switcher">
+                        <button id="theme-custom-save">save custom theme</button>
+                        <button id="theme-custom-clear">clear custom theme</button>
+                    </div>
+                </div>
+
                 <h2>rain background</h2>
                 <p class="settings-hint">toggle the animated rain overlay.</p>
                 <div class="settings-group">
@@ -158,11 +175,15 @@
 <button class="nav-button" onclick="location.href='/social-media-&-partners'">
             <span class="material-icons">connect_without_contact</span>
         </button>
+        <button class="nav-button" onclick="location.href='/rift_media'">
+            <span class="material-icons">movie</span>
+        </button>
     </nav>
 
     <script src="/config.js"></script>
     <script src="/global/js/ads.js"></script>
     <script src="/global/js/global.js"></script>
+    <script src="/global/js/riftx-gate.js"></script>
     <script src="/components/cloaker.js"></script>
     <script src="/components/overlay.js"></script>
     <script src="/components/games.js"></script>
@@ -250,6 +271,35 @@
                 });
             });
 
+            const customBg = document.getElementById('theme-custom-bg');
+            const customGlow = document.getElementById('theme-custom-glow');
+            const customAccent = document.getElementById('theme-custom-accent');
+            const customText = document.getElementById('theme-custom-text');
+            const customSaveBtn = document.getElementById('theme-custom-save');
+            const customClearBtn = document.getElementById('theme-custom-clear');
+            const customTheme = window.RiftAppearance?.getCustomTheme?.();
+            if (customTheme) {
+                customBg.value = customTheme.bg || customBg.value;
+                customGlow.value = customTheme.glow || customGlow.value;
+                customAccent.value = customTheme.accent || customAccent.value;
+                customText.value = customTheme.text || customText.value;
+            }
+            customSaveBtn?.addEventListener('click', () => {
+                window.RiftAppearance?.setCustomTheme?.({
+                    bg: customBg.value,
+                    glow: customGlow.value,
+                    accent: customAccent.value,
+                    text: customText.value,
+                });
+                RiftOverlay.toast('custom theme saved');
+                window.RiftAuth?.saveLocalSettings?.().catch(() => {});
+            });
+            customClearBtn?.addEventListener('click', () => {
+                window.RiftAppearance?.clearCustomTheme?.();
+                RiftOverlay.toast('custom theme cleared');
+                window.RiftAuth?.saveLocalSettings?.().catch(() => {});
+            });
+
             let rainEnabled = localStorage.getItem('rift__rain-enabled') !== 'false';
             const syncRain = () => {
                 document.getElementById('rain-on')?.classList.toggle('active', rainEnabled);
@@ -299,4 +349,7 @@
 
 </body>
 </html>
+
+
+
 
