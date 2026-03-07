@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rift OS</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="/os/css/os-shell.css">
+</head>
+<body class="os-page" data-os-title="Desktop" data-os-src="/games" data-os-app="home">
+  <div class="os-root">
+    <section class="os-boot" id="osBoot">
+      <div class="os-boot-wrap">
+        <div class="os-boot-logo" aria-hidden="true"><span class="material-icons">bolt</span></div>
+        <div class="os-boot-title">rift os</div>
+        <div class="os-boot-progress"><div class="os-boot-bar"></div></div>
+        <div class="os-boot-note">loading liquid glass shell</div>
+      </div>
+    </section>
+
+    <section class="os-setup hidden" id="osSetup">
+      <div class="os-setup-card">
+        <div class="os-setup-head">
+          <h1>Welcome to Rift OS</h1>
+          <span class="os-setup-step" id="osSetupStep">step 1 of 3</span>
+        </div>
+        <div class="os-setup-body">
+          <div class="os-setup-pane active">
+            <h2>Choose your look</h2>
+            <p>Pick a shell style. You can always switch later in settings.</p>
+            <div class="os-option-grid">
+              <button class="os-option active" type="button" data-theme="aurora"><strong>aurora glass</strong><span>balanced contrast</span></button>
+              <button class="os-option" type="button" data-theme="midnight"><strong>midnight glass</strong><span>deep blue tones</span></button>
+              <button class="os-option" type="button" data-theme="frost"><strong>frost glass</strong><span>brighter translucent look</span></button>
+            </div>
+          </div>
+          <div class="os-setup-pane">
+            <h2>Name this Mac-style space</h2>
+            <p>Set your owner and device labels for menu bar identity.</p>
+            <div class="os-setup-row">
+              <input class="os-input" id="osSetupName" maxlength="28" placeholder="owner name" autocomplete="name">
+              <input class="os-input" id="osSetupDevice" maxlength="32" placeholder="device name" autocomplete="off">
+            </div>
+          </div>
+          <div class="os-setup-pane">
+            <h2>Everything opens inside Rift OS</h2>
+            <p>Your apps load in-window, so /os/games and the rest stay in this desktop shell.</p>
+          </div>
+        </div>
+        <div class="os-setup-actions">
+          <button class="os-btn" id="osSetupBack" type="button">back</button>
+          <button class="os-btn primary" id="osSetupNext" type="button">continue</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="os-desktop" id="osDesktop">
+      <header class="os-menubar">
+        <div class="os-menu-group">
+          <span class="os-brand">rift os</span>
+          <a class="os-menu-link hide-mobile" href="/os">finder</a>
+          <a class="os-menu-link hide-mobile" href="/os/games">games</a>
+          <a class="os-menu-link hide-mobile" href="/os/apps">apps</a>
+          <a class="os-menu-link hide-mobile" href="/os/browser">browser</a>
+        </div>
+        <div class="os-menu-group">
+          <span class="os-menu-link" id="osUserLabel">owner</span>
+          <span class="os-menu-link" id="osClockLabel">--:--</span>
+        </div>
+      </header>
+
+      <main class="os-main">
+        <section class="os-window">
+          <div class="os-window-head">
+            <div class="os-traffic">
+              <span class="os-dot red"></span>
+              <span class="os-dot yellow"></span>
+              <span class="os-dot green"></span>
+            </div>
+            <div class="os-window-title" id="osWindowTitle">rift desktop</div>
+            <div class="os-window-tools">
+              <button class="os-tool" id="osOpenLaunchpad" type="button" aria-label="Open launchpad"><span class="material-icons">grid_view</span></button>
+              <a class="os-tool" href="/" aria-label="Exit Rift OS"><span class="material-icons">logout</span></a>
+            </div>
+          </div>
+          <iframe class="os-frame" id="osFrame" title="Rift OS application window" loading="lazy"></iframe>
+        </section>
+      </main>
+
+      <nav class="os-dock" id="osDock" aria-label="Rift OS dock">
+        <a class="os-dock-item" href="/os/games" data-os-app="games" title="games"><span class="material-icons">sports_esports</span></a>
+        <a class="os-dock-item" href="/os/apps" data-os-app="apps" title="apps"><span class="material-icons">apps</span></a>
+        <a class="os-dock-item" href="/os/browser" data-os-app="browser" title="browser"><span class="material-icons">language</span></a>
+        <a class="os-dock-item" href="/os/chat" data-os-app="chat" title="chat"><span class="material-icons">chat_bubble</span></a>
+        <a class="os-dock-item" href="/os/music" data-os-app="music" title="music"><span class="material-icons">music_note</span></a>
+        <a class="os-dock-item" href="/os/media" data-os-app="media" title="media"><span class="material-icons">movie</span></a>
+        <a class="os-dock-item" href="/os/account" data-os-app="account" title="account"><span class="material-icons">person</span></a>
+        <a class="os-dock-item" href="/os/settings" data-os-app="settings" title="settings"><span class="material-icons">settings</span></a>
+      </nav>
+
+      <section class="os-launchpad" id="osLaunchpad">
+        <div class="os-launchpad-panel">
+          <div class="os-launchpad-top">
+            <h3>launchpad</h3>
+            <button class="os-launchpad-close" id="osCloseLaunchpad" type="button" aria-label="Close launchpad"><span class="material-icons">close</span></button>
+          </div>
+          <div class="os-launchpad-grid">
+            <a class="os-launchpad-app" href="/os/games" data-os-app="games"><span class="material-icons">sports_esports</span><span>games</span></a>
+            <a class="os-launchpad-app" href="/os/apps" data-os-app="apps"><span class="material-icons">apps</span><span>apps</span></a>
+            <a class="os-launchpad-app" href="/os/browser" data-os-app="browser"><span class="material-icons">language</span><span>browser</span></a>
+            <a class="os-launchpad-app" href="/os/chat" data-os-app="chat"><span class="material-icons">chat_bubble</span><span>chat</span></a>
+            <a class="os-launchpad-app" href="/os/music" data-os-app="music"><span class="material-icons">music_note</span><span>music</span></a>
+            <a class="os-launchpad-app" href="/os/media" data-os-app="media"><span class="material-icons">movie</span><span>media</span></a>
+            <a class="os-launchpad-app" href="/os/account" data-os-app="account"><span class="material-icons">person</span><span>account</span></a>
+            <a class="os-launchpad-app" href="/os/settings" data-os-app="settings"><span class="material-icons">settings</span><span>settings</span></a>
+          </div>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <script src="/os/js/os-shell.js"></script>
+</body>
+</html>
