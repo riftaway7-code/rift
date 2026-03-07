@@ -72,6 +72,10 @@
   }
 
   function enterDesktop() {
+    if (String(appKey || '').toLowerCase() === 'home') {
+      window.location.replace('/os/macos26/macos26-home.html');
+      return;
+    }
     if (setup) setup.classList.add('hidden');
     if (desktop) desktop.classList.add('active');
     applyProfile();
