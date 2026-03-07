@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rift OS</title>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-W1SEMRGLRR"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-W1SEMRGLRR');
+    </script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="/global/css/global.css">
+    <style>
+        body.rift-os-page .container {
+            width: min(1180px, 96vw);
+            max-width: 1180px;
+        }
+
+        .os-shell {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 12px;
+        }
+
+        .os-panel {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(8px);
+            padding: 14px;
+        }
+
+        .os-panel h3 {
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            text-transform: lowercase;
+            color: rgba(255, 255, 255, 0.88);
+            margin-bottom: 10px;
+        }
+
+        .os-panel p {
+            color: rgba(255, 255, 255, 0.66);
+            font-size: 11px;
+            line-height: 1.55;
+            text-transform: lowercase;
+        }
+
+        .os-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .os-tile {
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.88);
+            text-decoration: none;
+            display: grid;
+            gap: 6px;
+            justify-items: center;
+            padding: 10px;
+            min-height: 86px;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .os-tile:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255, 255, 255, 0.36);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .os-tile .material-icons {
+            font-size: 24px;
+        }
+
+        .os-tile span:last-child {
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: lowercase;
+        }
+
+        .os-dock {
+            margin-top: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 999px;
+            padding: 10px 14px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .os-dock a {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            display: grid;
+            place-items: center;
+            color: rgba(255, 255, 255, 0.84);
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .os-dock a:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        @media (max-width: 900px) {
+            .os-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .os-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+    </style>
+</head>
+<body class="rift-os-page">
+    <div class="container">
+        <header>
+            <h1>rift os</h1>
+            <p class="page-subtitle">xen + anura inspired shell, integrated into rift</p>
+        </header>
+
+        <section class="os-shell">
+            <article class="os-panel">
+                <h3>launchpad</h3>
+                <p>this is the first built-in rift os shell. open core rift modules as desktop-style apps and expand from here.</p>
+                <div class="os-grid">
+                    <a class="os-tile" href="/browser">
+                        <span class="material-icons">language</span>
+                        <span>browser</span>
+                    </a>
+                    <a class="os-tile" href="/chat">
+                        <span class="material-icons">forum</span>
+                        <span>chat</span>
+                    </a>
+                    <a class="os-tile" href="/music">
+                        <span class="material-icons">library_music</span>
+                        <span>music</span>
+                    </a>
+                    <a class="os-tile" href="/games">
+                        <span class="material-icons">sports_esports</span>
+                        <span>games</span>
+                    </a>
+                    <a class="os-tile" href="/rift_media">
+                        <span class="material-icons">movie</span>
+                        <span>media</span>
+                    </a>
+                    <a class="os-tile" href="/account">
+                        <span class="material-icons">person</span>
+                        <span>account</span>
+                    </a>
+                </div>
+                <div class="os-dock">
+                    <a href="/"><span class="material-icons">home</span></a>
+                    <a href="/apps"><span class="material-icons">apps</span></a>
+                    <a href="/settings"><span class="material-icons">settings</span></a>
+                    <a href="/social-media-&-partners"><span class="material-icons">handshake</span></a>
+                </div>
+            </article>
+
+            <article class="os-panel">
+                <h3>roadmap</h3>
+                <p>next layer: draggable windows, desktop icons, file space, and package install flow. this page is the entrypoint so rift os is part of the core product, not a separate domain.</p>
+                <p style="margin-top: 10px;">if you want, i can next wire an actual window manager shell and mount each section as app windows.</p>
+            </article>
+        </section>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-button" onclick="location.href='/'">
+            <span class="material-icons">home</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/games'">
+            <span class="material-icons">sports_esports</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/apps'">
+            <span class="material-icons">apps</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/music'">
+            <span class="material-icons">library_music</span>
+        </button>
+        <button class="nav-button active" onclick="location.href='/rift-os'">
+            <span class="material-icons">desktop_windows</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/chat'">
+            <span class="material-icons">forum</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/browser'">
+            <span class="material-icons">language</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/account'">
+            <span class="material-icons">person</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/settings'">
+            <span class="material-icons">settings</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/social-media-&-partners'">
+            <span class="material-icons">connect_without_contact</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/rift_media'">
+            <span class="material-icons">movie</span>
+        </button>
+    </nav>
+
+    <script src="/config.js"></script>
+    <script src="/global/js/ads.js"></script>
+    <script src="/global/js/global.js"></script>
+    <script src="/global/js/riftx-gate.js"></script>
+    <script src="/components/cloaker.js"></script>
+    <script src="/components/overlay.js"></script>
+    <script src="/components/components.js"></script>
+    <script src="/components/404.js"></script>
+    <script>
+        const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
+        document.body.classList.add('nav-pos-' + savedPosition);
+    </script>
+</body>
+</html>
