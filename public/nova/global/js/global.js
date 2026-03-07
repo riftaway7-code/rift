@@ -1,16 +1,4 @@
-const RIFT_APPEARANCE = {
-    THEME_KEY: 'rift__theme',
-    RAIN_KEY: 'rift__rain-enabled',
-    PERFORMANCE_KEY: 'rift__performance-mode',
-    CUSTOM_THEME_KEY: 'rift__theme-custom-v1',
-    DEFAULT_THEME: 'midnight',
-    THEMES: [
-        'midnight', 'ocean', 'emerald', 'sunset', 'rose', 'violet',
-        'amber', 'crimson', 'arctic', 'graphite', 'neon', 'cobalt'
-    ],
-};
-
-function normalizeHexColor(value, fallback = '#8ecbff') {
+function normalizeNovaHex(value, fallback = '#ff7a4d') {
     const raw = String(value || '').trim().toLowerCase();
     const short = raw.match(/^#([0-9a-f]{3})$/i);
     if (short) {
@@ -21,275 +9,82 @@ function normalizeHexColor(value, fallback = '#8ecbff') {
     return fallback;
 }
 
-function hexToRgb(value) {
-    const hex = normalizeHexColor(value);
-    const parsed = hex.replace('#', '');
-    const r = Number.parseInt(parsed.slice(0, 2), 16);
-    const g = Number.parseInt(parsed.slice(2, 4), 16);
-    const b = Number.parseInt(parsed.slice(4, 6), 16);
-    return { r, g, b };
+function novaHexToRgb(value) {
+    const hex = normalizeNovaHex(value, '#ff7a4d').replace('#', '');
+    return {
+        r: Number.parseInt(hex.slice(0, 2), 16),
+        g: Number.parseInt(hex.slice(2, 4), 16),
+        b: Number.parseInt(hex.slice(4, 6), 16),
+    };
 }
 
-function rgbaFromHex(value, alpha = 1) {
-    const rgb = hexToRgb(value);
+function novaRgba(value, alpha = 1) {
+    const rgb = novaHexToRgb(value);
     const a = Math.max(0, Math.min(1, Number(alpha)));
     return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
 }
 
-function readCustomTheme() {
+function applyNovaCustomThemeFromStorage() {
+    let parsed = null;
     try {
-        const raw = localStorage.getItem(RIFT_APPEARANCE.CUSTOM_THEME_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return null;
-        return {
-            bg: normalizeHexColor(parsed.bg, '#050608'),
-            glow: normalizeHexColor(parsed.glow, '#2b3a47'),
-            accent: normalizeHexColor(parsed.accent, '#8ecbff'),
-            text: normalizeHexColor(parsed.text, '#ffffff'),
-        };
+        const raw = localStorage.getItem('nova__theme-custom-v1');
+        parsed = raw ? JSON.parse(raw) : null;
     } catch {
+        parsed = null;
+    }
+    if (!parsed || typeof parsed !== 'object') {
+        document.body.style.removeProperty('--dock-bg');
+        document.body.style.removeProperty('--dock-bg-2');
+        document.body.style.removeProperty('--dock-surface');
+        document.body.style.removeProperty('--dock-surface-soft');
+        document.body.style.removeProperty('--dock-border');
+        document.body.style.removeProperty('--dock-border-strong');
+        document.body.style.removeProperty('--dock-accent');
+        document.body.style.removeProperty('--dock-accent-soft');
+        document.body.style.removeProperty('--dock-text');
+        document.body.style.removeProperty('--dock-muted');
+        document.body.style.removeProperty('--dock-subtle');
         return null;
     }
-}
 
-function applyRiftAppearance() {
-    if (!document.body) return;
+    const base = normalizeNovaHex(parsed.base, '#12131a');
+    const accent = normalizeNovaHex(parsed.accent, '#ff7a4d');
+    const text = normalizeNovaHex(parsed.text, '#fff2ea');
 
-    const rawTheme = String(localStorage.getItem(RIFT_APPEARANCE.THEME_KEY) || RIFT_APPEARANCE.DEFAULT_THEME).toLowerCase();
-    const theme = RIFT_APPEARANCE.THEMES.includes(rawTheme) ? rawTheme : RIFT_APPEARANCE.DEFAULT_THEME;
-
-    for (const cls of Array.from(document.body.classList)) {
-        if (cls.startsWith('theme-')) document.body.classList.remove(cls);
-    }
-    document.body.classList.add(`theme-${theme}`);
-
-    const rainEnabled = localStorage.getItem(RIFT_APPEARANCE.RAIN_KEY) !== 'false';
-    const performanceMode = localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true';
-    document.body.classList.toggle('performance-mode', performanceMode);
-    document.body.classList.toggle('rain-disabled', performanceMode || !rainEnabled);
-
-    const custom = readCustomTheme();
-    if (custom) {
-        document.body.style.setProperty('--rift-bg-base', custom.bg);
-        document.body.style.setProperty('--rift-bg-glow-1', rgbaFromHex(custom.glow, 0.26));
-        document.body.style.setProperty('--rift-bg-glow-2', rgbaFromHex(custom.glow, 0.18));
-        document.body.style.setProperty('--rift-accent', custom.accent);
-        document.body.style.setProperty('--rift-accent-soft', rgbaFromHex(custom.accent, 0.3));
-        document.body.style.setProperty('--rift-text', rgbaFromHex(custom.text, 0.94));
-        document.body.style.setProperty('--rift-text-dim', rgbaFromHex(custom.text, 0.68));
-    } else {
-        document.body.style.removeProperty('--rift-bg-base');
-        document.body.style.removeProperty('--rift-bg-glow-1');
-        document.body.style.removeProperty('--rift-bg-glow-2');
-        document.body.style.removeProperty('--rift-accent');
-        document.body.style.removeProperty('--rift-accent-soft');
-        document.body.style.removeProperty('--rift-text');
-        document.body.style.removeProperty('--rift-text-dim');
-    }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyRiftAppearance, { once: true });
-} else {
-    applyRiftAppearance();
-}
-
-window.addEventListener('storage', (event) => {
-    if (
-        event.key === RIFT_APPEARANCE.THEME_KEY ||
-        event.key === RIFT_APPEARANCE.RAIN_KEY ||
-        event.key === RIFT_APPEARANCE.PERFORMANCE_KEY ||
-        event.key === RIFT_APPEARANCE.CUSTOM_THEME_KEY
-    ) {
-        applyRiftAppearance();
-    }
-});
-
-window.RiftAppearance = {
-    ...RIFT_APPEARANCE,
-    apply: applyRiftAppearance,
-    setTheme(theme) {
-        const next = String(theme || '').toLowerCase();
-        localStorage.setItem(this.THEME_KEY, this.THEMES.includes(next) ? next : this.DEFAULT_THEME);
-        this.apply();
-    },
-    setRainEnabled(enabled) {
-        localStorage.setItem(this.RAIN_KEY, enabled ? 'true' : 'false');
-        this.apply();
-    },
-    setPerformanceMode(enabled) {
-        localStorage.setItem(this.PERFORMANCE_KEY, enabled ? 'true' : 'false');
-        this.apply();
-    },
-    getCustomTheme() {
-        return readCustomTheme();
-    },
-    setCustomTheme(custom) {
-        const payload = {
-            bg: normalizeHexColor(custom?.bg, '#050608'),
-            glow: normalizeHexColor(custom?.glow, '#2b3a47'),
-            accent: normalizeHexColor(custom?.accent, '#8ecbff'),
-            text: normalizeHexColor(custom?.text, '#ffffff'),
-        };
-        localStorage.setItem(this.CUSTOM_THEME_KEY, JSON.stringify(payload));
-        this.apply();
-        return payload;
-    },
-    clearCustomTheme() {
-        localStorage.removeItem(this.CUSTOM_THEME_KEY);
-        this.apply();
-    },
-};
-
-const RIFT_BOOT = {
-    SESSION_KEY: 'rift__boot-screen-shown-v1',
-    FADE_MS: 520,
-};
-
-function runRiftBootTerminal(bootRoot, onLoadingShown) {
-    const output = bootRoot.querySelector('.rift-boot-terminal-output');
-    if (!output) return () => {};
-
-    const lines = [
-        'grub rescue> ls',
-        '(hd0) (hd0,gpt1)',
-        'grub rescue> set prefix=(hd0,gpt1)/boot/grub',
-        'grub rescue> set root=(hd0,gpt1)',
-        'grub rescue> insmod normal',
-        'grub rescue> normal',
-        'booting rift kernel...',
-        'rift loading...'
-    ];
-
-    let stopped = false;
-    let loadingNotified = false;
-    const timers = [];
-    let lineIndex = 0;
-    let charIndex = 0;
-
-    function schedule(fn, delay) {
-        const timer = window.setTimeout(() => {
-            if (!stopped) fn();
-        }, delay);
-        timers.push(timer);
-    }
-
-    function step() {
-        if (lineIndex >= lines.length) return;
-
-        const current = lines[lineIndex];
-        if (charIndex < current.length) {
-            output.textContent += current.charAt(charIndex);
-            charIndex += 1;
-            schedule(step, 20 + Math.floor(Math.random() * 16));
-            return;
-        }
-
-        output.textContent += '\n';
-        output.scrollTop = output.scrollHeight;
-        if (!loadingNotified && current === 'rift loading...') {
-            loadingNotified = true;
-            if (typeof onLoadingShown === 'function') onLoadingShown();
-        }
-        lineIndex += 1;
-        charIndex = 0;
-        schedule(step, 190);
-    }
-
-    schedule(step, 220);
-
-    return () => {
-        stopped = true;
-        for (const timer of timers) window.clearTimeout(timer);
-    };
-}
-
-function mountRiftBootScreen() {
-    if (!document.body) return;
-    if (localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true') return;
-    if (sessionStorage.getItem(RIFT_BOOT.SESSION_KEY) === 'true') return;
-    sessionStorage.setItem(RIFT_BOOT.SESSION_KEY, 'true');
-
-    const boot = document.createElement('div');
-    boot.className = 'rift-boot-screen';
-    boot.setAttribute('aria-hidden', 'true');
-    boot.innerHTML = `
-        <div class="rift-boot-grid"></div>
-        <div class="rift-boot-content">
-            <div class="rift-boot-stage rift-boot-stage-terminal is-active">
-                <div class="rift-boot-terminal-title">grub rescue mode</div>
-                <div class="rift-boot-terminal" aria-hidden="true">
-                    <pre class="rift-boot-terminal-output"></pre>
-                    <span class="rift-boot-terminal-caret"></span>
-                </div>
-            </div>
-            <div class="rift-boot-stage rift-boot-stage-welcome">
-                <div class="rift-boot-logo">Welcome to Rift</div>
-                <div class="rift-boot-subtitle">powered by scramjet</div>
-                <div class="rift-boot-subtitle">inspired by infamous</div>
-                <div class="rift-boot-cta">press space to jump in</div>
-            </div>
-        </div>
-    `;
-
-    document.body.classList.add('rift-boot-active');
-    document.body.appendChild(boot);
-    const terminalStage = boot.querySelector('.rift-boot-stage-terminal');
-    const welcomeStage = boot.querySelector('.rift-boot-stage-welcome');
-    let inWelcomeStage = false;
-    const stopTerminal = runRiftBootTerminal(boot, () => {
-        if (!terminalStage || !welcomeStage) return;
-        terminalStage.classList.remove('is-active');
-        welcomeStage.classList.add('is-active');
-        inWelcomeStage = true;
-    });
-    let dismissed = false;
-
-    function onBootKeyDown(event) {
-        if (event.key === 'Tab') {
-            event.preventDefault();
-            dismiss();
-            return;
-        }
-        if ((event.key === ' ' || event.code === 'Space') && inWelcomeStage) {
-            event.preventDefault();
-            dismiss();
-        }
-    }
-
-    function dismiss() {
-        if (dismissed) return;
-        dismissed = true;
-        stopTerminal();
-        document.removeEventListener('keydown', onBootKeyDown, true);
-        boot.classList.add('is-exiting');
-        document.body.classList.remove('rift-boot-active');
-        window.setTimeout(() => boot.remove(), RIFT_BOOT.FADE_MS);
-    }
-
-    requestAnimationFrame(() => {
-        boot.classList.add('is-visible');
-    });
-
-    document.addEventListener('keydown', onBootKeyDown, true);
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mountRiftBootScreen, { once: true });
-} else {
-    mountRiftBootScreen();
+    document.body.style.setProperty('--dock-bg', base);
+    document.body.style.setProperty('--dock-bg-2', normalizeNovaHex(parsed.base2, '#1c1f2b'));
+    document.body.style.setProperty('--dock-surface', novaRgba(base, 0.9));
+    document.body.style.setProperty('--dock-surface-soft', novaRgba(base, 0.72));
+    document.body.style.setProperty('--dock-border', novaRgba(accent, 0.34));
+    document.body.style.setProperty('--dock-border-strong', novaRgba(accent, 0.66));
+    document.body.style.setProperty('--dock-accent', accent);
+    document.body.style.setProperty('--dock-accent-soft', normalizeNovaHex(parsed.accentSoft, '#ffc37a'));
+    document.body.style.setProperty('--dock-text', text);
+    document.body.style.setProperty('--dock-muted', novaRgba(text, 0.72));
+    document.body.style.setProperty('--dock-subtle', novaRgba(text, 0.58));
+    return { base, accent, text };
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    const typingText = document.getElementById('typingText');
-    const performanceMode = localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true';
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration('/').then((registration) => {
+            if (registration) registration.update().catch(() => {});
+        }).catch(() => {});
+    }
 
+    const THEME_KEY = 'nova__theme';
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'black';
+    document.body.setAttribute('data-theme', savedTheme);
+    applyNovaCustomThemeFromStorage();
+
+    const typingText = document.getElementById('typingText');
+
+    // Quotes to cycle through
     const quotes = [
-        "the quiet keeps rifting wider",
-        "time keeps moving through what's already rifted",
-        "the space between moments keeps rifting",
-        "the quiet keeps rifting wider"
+        "nova is online",
+        "one library. clean launch flow.",
+        "minimal now, sharper every update",
+        "build fast. ship clean."
     ];
 
     let currentQuoteIndex = 0;
@@ -320,62 +115,227 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    if (typingText) {
-        if (performanceMode) {
-            typingText.textContent = 'performance mode enabled';
-        } else {
-            typeEffect();
+    // Start typing effect
+    if (typingText) typeEffect();
+
+    // Global constellation background
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'nova-constellation-canvas';
+        document.body.prepend(canvas);
+        const ctx = canvas.getContext('2d', { alpha: true });
+
+        let width = 0;
+        let height = 0;
+        let raf = 0;
+        let mouseX = 0;
+        let mouseY = 0;
+        const stars = [];
+        const starCount = 90;
+        const connectDistance = 120;
+
+        function resizeConstellation() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = Math.floor(width * window.devicePixelRatio);
+            canvas.height = Math.floor(height * window.devicePixelRatio);
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
         }
-    }
 
-    if (!performanceMode) {
-        const cursorLight = document.createElement('div');
-        cursorLight.className = 'cursor-light';
-        document.body.appendChild(cursorLight);
+        function seedStars() {
+            stars.length = 0;
+            for (let i = 0; i < starCount; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: (Math.random() - 0.5) * 0.22,
+                    vy: (Math.random() - 0.5) * 0.22,
+                    r: Math.random() * 1.8 + 0.6,
+                });
+            }
+        }
 
-        let prevX = null;
-        let prevY = null;
+        function animateConstellation() {
+            ctx.clearRect(0, 0, width, height);
 
-        document.addEventListener('mousemove', function (e) {
-            const viewer = document.getElementById('game-viewer');
-            if (viewer && viewer.classList.contains('active')) {
-                cursorLight.style.display = 'none';
+            for (const star of stars) {
+                star.x += star.vx;
+                star.y += star.vy;
+
+                if (star.x < -10) star.x = width + 10;
+                if (star.x > width + 10) star.x = -10;
+                if (star.y < -10) star.y = height + 10;
+                if (star.y > height + 10) star.y = -10;
+
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(180, 228, 255, 0.9)';
+                ctx.fill();
+            }
+
+            for (let i = 0; i < stars.length; i++) {
+                for (let j = i + 1; j < stars.length; j++) {
+                    const a = stars[i];
+                    const b = stars[j];
+                    const dx = a.x - b.x;
+                    const dy = a.y - b.y;
+                    const d = Math.hypot(dx, dy);
+                    if (d > connectDistance) continue;
+
+                    const mx = (a.x + b.x) * 0.5;
+                    const my = (a.y + b.y) * 0.5;
+                    const md = Math.hypot(mx - mouseX, my - mouseY);
+                    const mouseBoost = md < 180 ? (1 - md / 180) * 0.22 : 0;
+                    const alpha = Math.max(0, (1 - d / connectDistance) * 0.22 + mouseBoost);
+
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.strokeStyle = `rgba(120, 189, 255, ${alpha})`;
+                    ctx.lineWidth = 0.9;
+                    ctx.stroke();
+                }
+            }
+
+            raf = requestAnimationFrame(animateConstellation);
+        }
+
+        resizeConstellation();
+        seedStars();
+        mouseX = width * 0.5;
+        mouseY = height * 0.5;
+        animateConstellation();
+
+        window.addEventListener('resize', () => {
+            resizeConstellation();
+            seedStars();
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
                 return;
             }
-            cursorLight.style.display = '';
-
-            cursorLight.style.left = e.clientX + 'px';
-            cursorLight.style.top = e.clientY + 'px';
-
-            if (prevX !== null && prevY !== null) {
-                const trail = document.createElement('div');
-                trail.className = 'cursor-trail';
-
-                const dx = e.clientX - prevX;
-                const dy = e.clientY - prevY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-                trail.style.left = prevX + 'px';
-                trail.style.top = prevY + 'px';
-                trail.style.width = distance + 'px';
-                trail.style.transform = `rotate(${angle}deg)`;
-                trail.style.transformOrigin = '0 50%';
-
-                document.body.appendChild(trail);
-
-                setTimeout(() => {
-                    trail.remove();
-                }, 500);
+            if (!document.hidden && !raf) {
+                animateConstellation();
             }
-
-            prevX = e.clientX;
-            prevY = e.clientY;
         });
     }
 
+    // Cursor beacon effect
+    const cursorLight = document.createElement('div');
+    cursorLight.className = 'cursor-light';
+    const cursorDot = document.createElement('div');
+    cursorDot.className = 'cursor-dot';
+    document.body.classList.add('nova-custom-cursor');
+    document.body.appendChild(cursorLight);
+    document.body.appendChild(cursorDot);
+
+    let cursorTargetX = window.innerWidth * 0.5;
+    let cursorTargetY = window.innerHeight * 0.5;
+    let cursorRenderX = cursorTargetX;
+    let cursorRenderY = cursorTargetY;
+    const lightHalf = 70;
+    const dotHalf = 5;
+    let cursorVisible = true;
+    let cursorRaf = 0;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function setCursorVisible(isVisible) {
+        cursorVisible = !!isVisible;
+        cursorLight.style.opacity = cursorVisible ? '1' : '0';
+        cursorDot.style.opacity = cursorVisible ? '1' : '0';
+    }
+
+    function renderCursor() {
+        if (!cursorVisible) {
+            cursorRaf = requestAnimationFrame(renderCursor);
+            return;
+        }
+
+        if (reduceMotion) {
+            cursorRenderX = cursorTargetX;
+            cursorRenderY = cursorTargetY;
+        } else {
+            cursorRenderX += (cursorTargetX - cursorRenderX) * 0.18;
+            cursorRenderY += (cursorTargetY - cursorRenderY) * 0.18;
+        }
+
+        cursorLight.style.transform = `translate(${cursorRenderX - lightHalf}px, ${cursorRenderY - lightHalf}px)`;
+        cursorDot.style.transform = `translate(${cursorTargetX - dotHalf}px, ${cursorTargetY - dotHalf}px)`;
+        cursorRaf = requestAnimationFrame(renderCursor);
+    }
+
+    function isViewerActive() {
+        const viewer = document.getElementById('game-viewer');
+        return !!(viewer && viewer.classList.contains('active'));
+    }
+
+    renderCursor();
+
+    document.addEventListener('mousemove', function (e) {
+        if (isViewerActive()) {
+            setCursorVisible(false);
+            return;
+        }
+        cursorTargetX = e.clientX;
+        cursorTargetY = e.clientY;
+        setCursorVisible(true);
+    });
+
+    document.addEventListener('mouseleave', () => {
+        setCursorVisible(false);
+    });
+
+    document.addEventListener('mouseenter', () => {
+        if (!isViewerActive()) setCursorVisible(true);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!cursorVisible || isViewerActive()) return;
+        const pulse = document.createElement('div');
+        pulse.className = 'cursor-pulse';
+        pulse.style.left = e.clientX + 'px';
+        pulse.style.top = e.clientY + 'px';
+        document.body.appendChild(pulse);
+        setTimeout(() => pulse.remove(), 520);
+    });
+
+    // Nav toggle
     const nav = document.querySelector('.bottom-nav');
     if (nav) {
+        const currentPath = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
+        if (!nav.querySelector('[data-nova-chat-nav]')) {
+            const chatBtn = document.createElement('button');
+            chatBtn.className = 'nav-button';
+            chatBtn.setAttribute('data-nova-chat-nav', '1');
+            if (currentPath === '/chat' || currentPath === '/nova/chat') {
+                chatBtn.classList.add('active');
+            }
+            chatBtn.innerHTML = '<span class="material-icons">chat</span>';
+            chatBtn.addEventListener('click', () => {
+                window.location.href = '/chat?rx=nova';
+            });
+
+            const settingsBtn = Array.from(nav.querySelectorAll('.nav-button')).find((button) => {
+                const onclick = String(button.getAttribute('onclick') || '').toLowerCase();
+                return onclick.includes('/settings');
+            });
+            if (settingsBtn) {
+                nav.insertBefore(chatBtn, settingsBtn);
+            } else {
+                nav.appendChild(chatBtn);
+            }
+        }
+
         const toggle = document.createElement('button');
         toggle.className = 'nav-toggle';
         toggle.title = 'Toggle navigation';
@@ -387,23 +347,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Apply saved nav position on all pages
 document.addEventListener('DOMContentLoaded', () => {
-    const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
+    const savedPosition = localStorage.getItem('nova__nav-position') || 'bottom';
     document.body.classList.add('nav-pos-' + savedPosition);
 });
 
 });
 
+// Global auth/save helper for Nova pages.
 (function () {
     const SETTINGS_KEYS = [
-        'rift__nav-position',
-        'rift__launch-mode',
-        'rift__disguise-title',
-        'rift__disguise-favicon',
-        'rift__theme',
-        'rift__theme-custom-v1',
-        'rift__rain-enabled',
-        'rift__performance-mode',
+        'nova__nav-position',
+        'nova__launch-mode',
+        'nova__disguise-title',
+        'nova__disguise-favicon',
+        'nova__theme',
+        'nova__theme-custom-v1',
     ];
 
     async function request(url, options = {}) {
@@ -435,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return settings;
     }
 
-    window.RiftAuth = {
+    window.NovaAuth = {
         async me() {
             return await request('/api/auth/me');
         },
@@ -478,6 +438,54 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 })();
 
+window.NovaTheme = {
+    key: 'nova__theme',
+    customKey: 'nova__theme-custom-v1',
+    allowed: ['black', 'purple', 'blue', 'yellow', 'pink'],
+    get() {
+        const value = localStorage.getItem(this.key) || 'black';
+        return this.allowed.includes(value) ? value : 'black';
+    },
+    apply(theme) {
+        const value = this.allowed.includes(theme) ? theme : 'black';
+        localStorage.setItem(this.key, value);
+        document.body.setAttribute('data-theme', value);
+        applyNovaCustomThemeFromStorage();
+        return value;
+    },
+    getCustomTheme() {
+        try {
+            const raw = localStorage.getItem(this.customKey);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return {
+                base: normalizeNovaHex(parsed.base, '#12131a'),
+                accent: normalizeNovaHex(parsed.accent, '#ff7a4d'),
+                text: normalizeNovaHex(parsed.text, '#fff2ea'),
+            };
+        } catch {
+            return null;
+        }
+    },
+    setCustomTheme(theme) {
+        const payload = {
+            base: normalizeNovaHex(theme?.base, '#12131a'),
+            accent: normalizeNovaHex(theme?.accent, '#ff7a4d'),
+            text: normalizeNovaHex(theme?.text, '#fff2ea'),
+            base2: normalizeNovaHex(theme?.base2, '#1c1f2b'),
+            accentSoft: normalizeNovaHex(theme?.accentSoft, '#ffc37a'),
+        };
+        localStorage.setItem(this.customKey, JSON.stringify(payload));
+        applyNovaCustomThemeFromStorage();
+        return payload;
+    },
+    clearCustomTheme() {
+        localStorage.removeItem(this.customKey);
+        applyNovaCustomThemeFromStorage();
+    },
+};
+
 function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
     const now = Date.now();
     const cached = window.__riftAuthMeCacheV1;
@@ -505,7 +513,6 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
     const seenIds = new Set();
     const queue = [];
     let active = null;
-    let pollTimer = null;
 
     function getMode() {
         try {
@@ -701,7 +708,7 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
             return;
         }
         poll();
-        pollTimer = window.setInterval(poll, POLL_MS);
+        window.setInterval(poll, POLL_MS);
     })();
 })();
 
@@ -1169,231 +1176,3 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
         call.incomingTimer = setInterval(() => { pollIncoming(); }, INCOMING_POLL_MS);
     })();
 })();
-
-(function () {
-    const STORAGE_KEY = 'rift__mini_player_v1';
-    const UPDATE_EVENT = 'rift-mini-player-update';
-    const audio = new Audio();
-    audio.preload = 'metadata';
-
-    const state = {
-        queue: [],
-        currentIndex: -1,
-        isPlaying: false,
-    };
-
-    let elRoot = null;
-    let elArt = null;
-    let elTitle = null;
-    let elTime = null;
-    let elPlay = null;
-
-    function safeParse(raw, fallback) {
-        try { return JSON.parse(raw); } catch { return fallback; }
-    }
-
-    function fmt(seconds) {
-        if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
-        const s = Math.floor(seconds % 60);
-        const m = Math.floor(seconds / 60);
-        return `${m}:${String(s).padStart(2, '0')}`;
-    }
-
-    function saveState() {
-        const payload = {
-            queue: state.queue.slice(0, 100),
-            currentIndex: state.currentIndex,
-            currentTime: Number(audio.currentTime || 0),
-            isPlaying: !!state.isPlaying,
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    }
-
-    function loadState() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const parsed = safeParse(raw, null);
-        if (!parsed || typeof parsed !== 'object') return;
-        state.queue = Array.isArray(parsed.queue) ? parsed.queue : [];
-        state.currentIndex = Number.isFinite(parsed.currentIndex) ? parsed.currentIndex : -1;
-        if (state.currentIndex >= 0 && state.currentIndex < state.queue.length) {
-            const t = state.queue[state.currentIndex];
-            audio.src = `/api/music/stream/${encodeURIComponent(t.id)}?provider=${encodeURIComponent(t.provider || 'audius')}`;
-            if (Number.isFinite(parsed.currentTime) && parsed.currentTime > 0) {
-                audio.currentTime = parsed.currentTime;
-            }
-            state.isPlaying = !!parsed.isPlaying;
-        }
-    }
-
-    function currentTrack() {
-        if (state.currentIndex < 0 || state.currentIndex >= state.queue.length) return null;
-        return state.queue[state.currentIndex];
-    }
-
-    function notify() {
-        window.dispatchEvent(new CustomEvent(UPDATE_EVENT, {
-            detail: {
-                queue: state.queue,
-                currentIndex: state.currentIndex,
-                isPlaying: !audio.paused,
-                currentTime: Number(audio.currentTime || 0),
-                duration: Number(audio.duration || 0),
-                track: currentTrack(),
-            },
-        }));
-    }
-
-    function syncUi() {
-        if (!elRoot) return;
-        const track = currentTrack();
-        if (!track) {
-            elRoot.style.display = 'none';
-            return;
-        }
-        elRoot.style.display = '';
-        elArt.src = track.artwork || '/favicon.ico';
-        elTitle.textContent = track.title || 'Untitled';
-        elTime.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
-        elPlay.textContent = audio.paused ? 'play_arrow' : 'pause';
-    }
-
-    async function playTrackAt(index, autoplay = true) {
-        if (!Number.isFinite(index) || index < 0 || index >= state.queue.length) return;
-        state.currentIndex = index;
-        const track = state.queue[index];
-        audio.src = `/api/music/stream/${encodeURIComponent(track.id)}?provider=${encodeURIComponent(track.provider || 'audius')}`;
-        if (autoplay) {
-            try { await audio.play(); } catch {}
-        }
-        syncUi();
-        saveState();
-        notify();
-    }
-
-    async function toggle() {
-        if (!currentTrack()) return;
-        if (audio.paused) {
-            try { await audio.play(); } catch {}
-        } else {
-            audio.pause();
-        }
-        syncUi();
-        saveState();
-        notify();
-    }
-
-    function next() {
-        if (!state.queue.length) return;
-        const nextIndex = state.currentIndex < state.queue.length - 1 ? state.currentIndex + 1 : 0;
-        playTrackAt(nextIndex, true);
-    }
-
-    function prev() {
-        if (!state.queue.length) return;
-        const prevIndex = state.currentIndex > 0 ? state.currentIndex - 1 : state.queue.length - 1;
-        playTrackAt(prevIndex, true);
-    }
-
-    function seekRatio(ratio) {
-        const clamped = Math.max(0, Math.min(1, Number(ratio || 0)));
-        if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
-        audio.currentTime = audio.duration * clamped;
-        syncUi();
-        saveState();
-        notify();
-    }
-
-    function setQueue(queue, startIndex = 0, autoplay = true) {
-        state.queue = Array.isArray(queue) ? queue.slice(0, 100) : [];
-        state.currentIndex = -1;
-        if (!state.queue.length) {
-            audio.pause();
-            audio.src = '';
-            syncUi();
-            saveState();
-            notify();
-            return;
-        }
-        playTrackAt(startIndex, autoplay);
-    }
-
-    function injectStyle() {
-        if (document.getElementById('rift-mini-player-style')) return;
-        const style = document.createElement('style');
-        style.id = 'rift-mini-player-style';
-        style.textContent = `
-            .rift-mini-player{position:fixed;left:12px;top:12px;z-index:11000;display:none;width:240px;padding:8px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.72);backdrop-filter:blur(10px)}
-            .rift-mini-top{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center}
-            .rift-mini-art{width:44px;height:44px;border-radius:8px;object-fit:cover;background:#111}
-            .rift-mini-title{color:#fff;font-size:11px;line-height:1.2;max-height:2.4em;overflow:hidden}
-            .rift-mini-time{color:rgba(255,255,255,.65);font-size:10px;margin-top:2px}
-            .rift-mini-controls{margin-top:7px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-            .rift-mini-btn{height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center;cursor:pointer}
-            .rift-mini-btn .material-icons{font-size:18px}
-        `;
-        document.head.appendChild(style);
-    }
-
-    function createUi() {
-        injectStyle();
-        const root = document.createElement('div');
-        root.className = 'rift-mini-player';
-        root.innerHTML = `
-            <div class="rift-mini-top">
-                <img class="rift-mini-art" alt="">
-                <div>
-                    <div class="rift-mini-title"></div>
-                    <div class="rift-mini-time"></div>
-                </div>
-            </div>
-            <div class="rift-mini-controls">
-                <button class="rift-mini-btn" type="button" data-action="prev"><span class="material-icons">skip_previous</span></button>
-                <button class="rift-mini-btn" type="button" data-action="play"><span class="material-icons">play_arrow</span></button>
-                <button class="rift-mini-btn" type="button" data-action="next"><span class="material-icons">skip_next</span></button>
-            </div>
-        `;
-        document.body.appendChild(root);
-        elRoot = root;
-        elArt = root.querySelector('.rift-mini-art');
-        elTitle = root.querySelector('.rift-mini-title');
-        elTime = root.querySelector('.rift-mini-time');
-        elPlay = root.querySelector('[data-action="play"] .material-icons');
-        root.querySelector('[data-action="prev"]').addEventListener('click', prev);
-        root.querySelector('[data-action="play"]').addEventListener('click', () => { toggle(); });
-        root.querySelector('[data-action="next"]').addEventListener('click', next);
-    }
-
-    audio.addEventListener('timeupdate', () => { syncUi(); notify(); saveState(); });
-    audio.addEventListener('play', () => { state.isPlaying = true; syncUi(); notify(); saveState(); });
-    audio.addEventListener('pause', () => { state.isPlaying = false; syncUi(); notify(); saveState(); });
-    audio.addEventListener('ended', next);
-
-    window.RiftMiniPlayer = {
-        setQueue,
-        playTrackAt,
-        toggle,
-        prev,
-        next,
-        seekRatio,
-        getState() {
-            return {
-                queue: state.queue,
-                currentIndex: state.currentIndex,
-                isPlaying: !audio.paused,
-                currentTime: Number(audio.currentTime || 0),
-                duration: Number(audio.duration || 0),
-                track: currentTrack(),
-            };
-        },
-        updateEvent: UPDATE_EVENT,
-    };
-
-    window.addEventListener('beforeunload', saveState);
-    document.addEventListener('DOMContentLoaded', () => {
-        createUi();
-        loadState();
-        syncUi();
-        notify();
-    });
-})();
-

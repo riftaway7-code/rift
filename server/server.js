@@ -23,6 +23,7 @@ const VALIDATE_TARGET_IPS = (process.env.VALIDATE_TARGET_IPS || '161.153.8.72')
 const validateCache = new Map();
 const VALIDATE_TTL_MS = 60 * 1000;
 const SDXP_HTML_ROOT = path.join(__dirname, '..', 'public', 'sdxp', 'html');
+const NOVA_PUBLIC_DIR = path.join(__dirname, '..', 'public', 'nova');
 const GN_MATH_ZONES_JSON = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/zones.json';
 const GN_MATH_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/';
 const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_BASE).href;
@@ -64,12 +65,83 @@ const AUTH_DB_PATH = process.env.AUTH_DB_PATH
     : (process.env.VERCEL
         ? path.join('/tmp', 'rift-data', 'auth-db.json')
         : path.join(__dirname, '..', 'data', 'auth-db.json'));
+const AUTH_DB_LOCK_PATH = `${AUTH_DB_PATH}.lock`;
+const AUTH_DB_LOCK_TIMEOUT_MS = 8000;
+const AUTH_DB_LOCK_STALE_MS = 1000 * 30;
 const SESSION_COOKIE = 'rift_sid';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+const SESSION_TOUCH_WRITE_INTERVAL_MS = 1000 * 60; // 1 minute
 const ACTIVE_USER_WINDOW_MS = 1000 * 60 * 10; // 10 minutes
+const USER_STATUS_MODES = new Set(['auto', 'online', 'idle', 'dnd']);
+const USER_STATUS_AUTO_ONLINE_MS = 1000 * 60 * 2;
+const USER_STATUS_OFFLINE_MS = 1000 * 60 * 12;
+const USER_ACTIVITY_TTL_MS = 1000 * 60 * 30;
 const PRESENCE_TTL_MS = 1000 * 60; // 60 seconds
 const CHAT_ROOM_INACTIVE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
 const SYSTEM_CHAT_ROOM_IDS = new Set(['lobby', 'links']);
+const CHAT_CALL_MEMBER_TTL_MS = 1000 * 45;
+const CHAT_CALL_SIGNAL_TTL_MS = 1000 * 60 * 2;
+const CHAT_TYPING_TTL_MS = 1000 * 6;
+const CHAT_PIN_LIMIT = 3;
+const CHAT_REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
+const CHAT_BAD_WORDS = new Set([
+    'asshole',
+    'bastard',
+    'bitch',
+    'bullshit',
+    'cunt',
+    'dick',
+    'fag',
+    'faggot',
+    'fuck',
+    'motherfucker',
+    'nigga',
+    'nigger',
+    'pussy',
+    'shit',
+    'slut',
+    'whore',
+]);
+const CHAT_BAD_WORD_SUFFIXES = ['s', 'es', 'ed', 'er', 'ers', 'ing', 'in'];
+const PROFILE_FRAME_EFFECTS = ['none', 'pulse', 'glow', 'orbit'];
+const PROFILE_ACCENT_ANIMATIONS = ['none', 'shimmer', 'breathe', 'wave'];
+const PROFILE_THEME_DEFS = [
+    { id: 'classic', name: 'classic', requiresAchievementId: '' },
+    { id: 'midnight', name: 'midnight', requiresAchievementId: '' },
+    { id: 'starlight', name: 'starlight', requiresAchievementId: 'theme_editor' },
+    { id: 'trailblazer', name: 'trailblazer', requiresAchievementId: 'explorer' },
+    { id: 'party-flare', name: 'party flare', requiresAchievementId: 'party_up' },
+];
+const DAILY_QUEST_DEFS = [
+    { id: 'daily_chat', name: 'chat runner', metric: 'chatMessages', target: 8, xp: 50 },
+    { id: 'daily_games', name: 'game sprint', metric: 'gameLaunches', target: 4, xp: 70 },
+    { id: 'daily_music', name: 'music curator', metric: 'musicActions', target: 3, xp: 45 },
+];
+const PROFILE_PRESET_SHARE_LIMIT = 200;
+const PROFILE_PRESET_CODE_RE = /^[A-Z0-9]{6,12}$/;
+const BUILTIN_PROFILE_PRESETS = [
+    {
+        code: 'RIFT01',
+        name: 'rift pulse',
+        style: { themeId: 'midnight', frameEffect: 'pulse', accentAnimation: 'breathe', accent: '#8ecbff' },
+        builtIn: true,
+        creatorUsername: 'system',
+    },
+    {
+        code: 'NOVA01',
+        name: 'nova shimmer',
+        style: { themeId: 'starlight', frameEffect: 'glow', accentAnimation: 'shimmer', accent: '#ff7a4d' },
+        builtIn: true,
+        creatorUsername: 'system',
+    },
+    {
+        code: 'WAVE01',
+        name: 'wave trail',
+        style: { themeId: 'trailblazer', frameEffect: 'orbit', accentAnimation: 'wave', accent: '#4dd7a5' },
+        builtIn: true,
+        creatorUsername: 'system',
+    },
+];
 const RESERVED_TOP_LEVEL_PATHS = new Set([
     'api',
     'gn',
@@ -127,7 +199,10 @@ const VELARA_CACHE_TTL_MS = 5 * 60 * 1000;
 const VELARA_RESOLVED_TTL_MS = 30 * 60 * 1000;
 const SERAPH_CACHE_TTL_MS = 5 * 60 * 1000;
 let authWriteLock = Promise.resolve();
+const sessionTouchWriteMap = new Map();
+let lastKnownGoodAuthDb = null;
 const presenceMap = new Map();
+const userActivityMap = new Map();
 let truffledAliasCache = { expiresAt: 0, map: new Map() };
 let duckMathCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let ccportedCatalogCache = { expiresAt: 0, items: [], map: new Map() };
@@ -144,6 +219,8 @@ let seraphCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 const totallyScienceResolvedLaunchCache = new Map();
 const velaraResolvedLaunchCache = new Map();
 const duckMathResolvedLaunchCache = new Map();
+const chatCallRooms = new Map();
+const chatTypingRooms = new Map();
 
 const GN_MATH_BLOCKED_HTML_FILES = new Set([
     '114-f.html',
@@ -2554,8 +2631,193 @@ function createToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
+function cloneJsonSafe(value) {
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return null;
+    }
+}
+
 function sanitizeUsername(value) {
     return String(value || '').trim().toLowerCase();
+}
+
+function shouldPersistSessionTouch(token, now = Date.now()) {
+    const key = String(token || '').trim();
+    if (!key) return false;
+    const lastWriteAt = Number(sessionTouchWriteMap.get(key) || 0);
+    if (lastWriteAt > 0 && (now - lastWriteAt) < SESSION_TOUCH_WRITE_INTERVAL_MS) {
+        return false;
+    }
+    sessionTouchWriteMap.set(key, now);
+    return true;
+}
+
+function parseUserStatusModeInput(input) {
+    const mode = String(input || '').trim().toLowerCase();
+    if (!USER_STATUS_MODES.has(mode)) return '';
+    return mode;
+}
+
+function normalizeUserStatusMode(input) {
+    return parseUserStatusModeInput(input) || 'auto';
+}
+
+function normalizeUserStatus(input) {
+    const value = String(input || '').trim().toLowerCase();
+    if (value === 'online' || value === 'idle' || value === 'dnd' || value === 'offline') return value;
+    return 'offline';
+}
+
+function pruneUserActivity(now = Date.now()) {
+    for (const [userId, entry] of userActivityMap.entries()) {
+        const lastSeenAt = Number(entry?.lastSeenAt || 0);
+        if (!lastSeenAt || (now - lastSeenAt) > USER_ACTIVITY_TTL_MS) {
+            userActivityMap.delete(userId);
+        }
+    }
+}
+
+function touchUserActivity(userId, now = Date.now()) {
+    const id = String(userId || '').trim();
+    if (!id) return;
+    pruneUserActivity(now);
+    userActivityMap.set(id, { lastSeenAt: now });
+}
+
+function getUserStatusMode(db, userId) {
+    const id = String(userId || '').trim();
+    if (!id) return 'auto';
+    const prefs = db?.userStatusPrefs && typeof db.userStatusPrefs === 'object' ? db.userStatusPrefs : {};
+    return normalizeUserStatusMode(prefs[id]?.mode);
+}
+
+function getLastActiveByUserId(db, userIds, now = Date.now()) {
+    const ids = new Set(
+        (Array.isArray(userIds) ? userIds : [])
+            .map((entry) => String(entry || '').trim())
+            .filter(Boolean)
+    );
+    const out = new Map();
+    if (!ids.size) return out;
+
+    pruneUserActivity(now);
+    for (const userId of ids) {
+        const seen = Number(userActivityMap.get(userId)?.lastSeenAt || 0);
+        if (seen > 0) out.set(userId, seen);
+    }
+
+    const sessions = Array.isArray(db?.sessions) ? db.sessions : [];
+    for (const session of sessions) {
+        if (!session || typeof session !== 'object') continue;
+        if (Number(session.expiresAt || 0) <= now) continue;
+        const userId = String(session.userId || '').trim();
+        if (!ids.has(userId)) continue;
+        const seen = Number(session.lastSeenAt || session.createdAt || 0);
+        if (seen <= 0) continue;
+        if (seen > Number(out.get(userId) || 0)) {
+            out.set(userId, seen);
+        }
+    }
+
+    return out;
+}
+
+function computeEffectiveUserStatus(mode, lastSeenAt, now = Date.now()) {
+    const seen = Number(lastSeenAt || 0);
+    if (!seen || (now - seen) > USER_STATUS_OFFLINE_MS) return 'offline';
+    if (mode === 'dnd') return 'dnd';
+    if (mode === 'online') return 'online';
+    if (mode === 'idle') return 'idle';
+    return (now - seen) <= USER_STATUS_AUTO_ONLINE_MS ? 'online' : 'idle';
+}
+
+function getEffectiveUserStatus(db, userId, now = Date.now()) {
+    const id = String(userId || '').trim();
+    if (!id) return 'offline';
+    const lastSeenByUser = getLastActiveByUserId(db, [id], now);
+    const mode = getUserStatusMode(db, id);
+    return computeEffectiveUserStatus(mode, lastSeenByUser.get(id), now);
+}
+
+function getEffectiveStatusesForUsers(db, userIds, now = Date.now()) {
+    const ids = Array.from(new Set(
+        (Array.isArray(userIds) ? userIds : [])
+            .map((entry) => String(entry || '').trim())
+            .filter(Boolean)
+    ));
+    const out = {};
+    if (!ids.length) return out;
+
+    const lastSeenByUser = getLastActiveByUserId(db, ids, now);
+    for (const userId of ids) {
+        const mode = getUserStatusMode(db, userId);
+        out[userId] = computeEffectiveUserStatus(mode, lastSeenByUser.get(userId), now);
+    }
+    return out;
+}
+
+function hasUserBlockedTarget(db, blockerUserId, targetUserId) {
+    const blockerId = String(blockerUserId || '').trim();
+    const targetId = String(targetUserId || '').trim();
+    if (!blockerId || !targetId) return false;
+    const save = getUserSave(db, blockerId);
+    const social = getUserSocial(save);
+    return social.blocked.includes(targetId);
+}
+
+function areUsersBlockedEitherDirection(db, userIdA, userIdB) {
+    const a = String(userIdA || '').trim();
+    const b = String(userIdB || '').trim();
+    if (!a || !b || a === b) return false;
+    return hasUserBlockedTarget(db, a, b) || hasUserBlockedTarget(db, b, a);
+}
+
+function isDmRoomBlockedForUser(db, room, viewerUserId) {
+    if (!isDmRoom(room)) return false;
+    const viewerId = String(viewerUserId || '').trim();
+    if (!viewerId) return false;
+    const peerId = getDmUserIds(room).find((id) => id !== viewerId);
+    if (!peerId) return false;
+    return areUsersBlockedEitherDirection(db, viewerId, peerId);
+}
+
+function getFriendPayloadForUser(db, viewerUserId, now = Date.now()) {
+    const viewerId = String(viewerUserId || '').trim();
+    if (!viewerId) return { friends: [], blocked: [], now };
+    const viewerSave = getUserSave(db, viewerId);
+    const social = getUserSocial(viewerSave);
+    const blockedSet = new Set(normalizeSocialUserIds(social.blocked, 500));
+    const friendIds = normalizeSocialUserIds(social.friends, 500)
+        .filter((id) => id !== viewerId && !blockedSet.has(id));
+    const blockedIds = Array.from(blockedSet).filter((id) => id !== viewerId);
+    const allIds = Array.from(new Set([...friendIds, ...blockedIds]));
+    const statuses = getEffectiveStatusesForUsers(db, allIds, now);
+    const lastSeenById = getLastActiveByUserId(db, allIds, now);
+    const usersById = new Map((Array.isArray(db.users) ? db.users : []).map((user) => [String(user?.id || ''), user]));
+    const statusRank = { online: 0, idle: 1, dnd: 2, offline: 3 };
+    const toRow = (id, relation) => {
+        const user = usersById.get(id);
+        if (!user) return null;
+        const status = normalizeUserStatus(statuses[id]);
+        return {
+            userId: String(user.id || id),
+            username: String(user.username || 'user'),
+            relation,
+            status,
+            lastSeenAt: Number(lastSeenById.get(id) || 0),
+        };
+    };
+    const sortRows = (a, b) => {
+        const left = statusRank[String(a?.status || 'offline')] ?? 99;
+        const right = statusRank[String(b?.status || 'offline')] ?? 99;
+        if (left !== right) return left - right;
+        return String(a?.username || '').localeCompare(String(b?.username || ''));
+    };
+    const friends = friendIds.map((id) => toRow(id, 'friend')).filter(Boolean).sort(sortRows);
+    const blocked = blockedIds.map((id) => toRow(id, 'blocked')).filter(Boolean).sort(sortRows);
+    return { friends, blocked, now };
 }
 
 function isValidUsername(username) {
@@ -2573,9 +2835,56 @@ async function ensureAuthDb() {
         await fs.mkdir(path.dirname(AUTH_DB_PATH), { recursive: true });
         await fs.writeFile(
             AUTH_DB_PATH,
-            JSON.stringify({ users: [], sessions: [], saves: {} }, null, 2),
+            JSON.stringify({ users: [], sessions: [], saves: {}, userStatusPrefs: {}, themePresetMarket: [] }, null, 2),
             'utf8'
         );
+    }
+}
+
+async function sleep(ms) {
+    return await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function acquireAuthDbLock(timeoutMs = AUTH_DB_LOCK_TIMEOUT_MS) {
+    await fs.mkdir(path.dirname(AUTH_DB_LOCK_PATH), { recursive: true });
+    const start = Date.now();
+
+    while (true) {
+        try {
+            const handle = await fs.open(AUTH_DB_LOCK_PATH, 'wx');
+            try {
+                await handle.writeFile(`${process.pid}:${Date.now()}`, 'utf8');
+            } catch {
+            }
+            return handle;
+        } catch (error) {
+            if (error?.code !== 'EEXIST') throw error;
+
+            try {
+                const stat = await fs.stat(AUTH_DB_LOCK_PATH);
+                if ((Date.now() - Number(stat.mtimeMs || 0)) > AUTH_DB_LOCK_STALE_MS) {
+                    await fs.unlink(AUTH_DB_LOCK_PATH);
+                    continue;
+                }
+            } catch {
+            }
+
+            if ((Date.now() - start) > timeoutMs) {
+                throw new Error('auth db lock timeout');
+            }
+            await sleep(25);
+        }
+    }
+}
+
+async function releaseAuthDbLock(handle) {
+    try {
+        await handle?.close();
+    } catch {
+    }
+    try {
+        await fs.unlink(AUTH_DB_LOCK_PATH);
+    } catch {
     }
 }
 
@@ -2626,7 +2935,7 @@ function extractFirstJsonObject(raw) {
 
 async function parseAuthDbWithRecovery(raw) {
     const text = String(raw || '').trim();
-    if (!text) return { users: [], sessions: [], saves: {} };
+    if (!text) return { users: [], sessions: [], saves: {}, userStatusPrefs: {}, themePresetMarket: [] };
 
     try {
         return JSON.parse(text);
@@ -2660,23 +2969,58 @@ async function readAuthDb() {
                 await fs.writeFile(backupPath, raw, 'utf8');
             } catch {
             }
-            db = { users: [], sessions: [], saves: {} };
-            await writeAuthDb(db);
-            console.error(`[auth-db] parse failed; backed up corrupt file to ${backupPath}: ${error.message}`);
+            const recovered = cloneJsonSafe(lastKnownGoodAuthDb);
+            if (recovered) {
+                db = recovered;
+                console.error(`[auth-db] parse failed; using last known good snapshot after backup to ${backupPath}: ${error.message}`);
+            } else {
+                throw new Error(`[auth-db] parse failed; backup at ${backupPath}: ${error.message}`);
+            }
         }
     }
     db.users = Array.isArray(db.users) ? db.users : [];
     db.sessions = Array.isArray(db.sessions) ? db.sessions : [];
     db.saves = db.saves && typeof db.saves === 'object' ? db.saves : {};
-    if (pruneInactiveChatRooms(db)) {
-        await writeAuthDb(db);
+    db.userStatusPrefs = db.userStatusPrefs && typeof db.userStatusPrefs === 'object' ? db.userStatusPrefs : {};
+    db.themePresetMarket = Array.isArray(db.themePresetMarket) ? db.themePresetMarket : [];
+    for (const [userId, pref] of Object.entries(db.userStatusPrefs)) {
+        const id = String(userId || '').trim();
+        if (!id || !pref || typeof pref !== 'object') {
+            delete db.userStatusPrefs[userId];
+            continue;
+        }
+        db.userStatusPrefs[id] = {
+            mode: normalizeUserStatusMode(pref.mode),
+            updatedAt: Number(pref.updatedAt || Date.now()),
+        };
+        if (id !== userId) delete db.userStatusPrefs[userId];
+    }
+    pruneInactiveChatRooms(db);
+    const snapshot = cloneJsonSafe(db);
+    if (snapshot) {
+        lastKnownGoodAuthDb = snapshot;
     }
     return db;
 }
 
 async function writeAuthDb(db) {
     await fs.mkdir(path.dirname(AUTH_DB_PATH), { recursive: true });
-    await fs.writeFile(AUTH_DB_PATH, JSON.stringify(db, null, 2), 'utf8');
+    const serialized = JSON.stringify(db, null, 2);
+    const tempPath = `${AUTH_DB_PATH}.tmp-${process.pid}-${Date.now()}`;
+    await fs.writeFile(tempPath, serialized, 'utf8');
+    try {
+        await fs.rename(tempPath, AUTH_DB_PATH);
+    } catch (error) {
+        try {
+            await fs.unlink(tempPath);
+        } catch {
+        }
+        throw error;
+    }
+    const snapshot = cloneJsonSafe(db);
+    if (snapshot) {
+        lastKnownGoodAuthDb = snapshot;
+    }
 }
 
 async function updateAuthDb(mutator) {
@@ -2684,9 +3028,14 @@ async function updateAuthDb(mutator) {
         .catch(() => {
         })
         .then(async () => {
-            const db = await readAuthDb();
-            const updated = await mutator(db);
-            await writeAuthDb(updated || db);
+            const lockHandle = await acquireAuthDbLock();
+            try {
+                const db = await readAuthDb();
+                const updated = await mutator(db);
+                await writeAuthDb(updated || db);
+            } finally {
+                await releaseAuthDbLock(lockHandle);
+            }
         });
     return authWriteLock;
 }
@@ -2701,6 +3050,7 @@ async function getSessionFromRequest(req) {
     if (!session || session.expiresAt <= now) return null;
     const user = db.users.find((entry) => entry && entry.id === session.userId);
     if (!user) return null;
+    touchUserActivity(user.id, now);
     return { token, session, user, db };
 }
 
@@ -2714,12 +3064,561 @@ function userSafeView(user) {
 
 function getUserSave(db, userId) {
     if (!db.saves[userId]) {
-        db.saves[userId] = { settings: {}, games: {} };
+        db.saves[userId] = {
+            settings: {},
+            games: {},
+            profile: {},
+            profileStyle: {},
+            profilePresets: [],
+            collections: [],
+            achievements: {},
+            partyJoins: 0,
+            social: {},
+            activity: {},
+        };
     }
     const save = db.saves[userId];
     save.settings = save.settings && typeof save.settings === 'object' ? save.settings : {};
     save.games = save.games && typeof save.games === 'object' ? save.games : {};
+    save.profile = normalizeProfileCard(save.profile);
+    save.profileStyle = normalizeProfileStyle(save.profileStyle);
+    save.profilePresets = normalizeSocialUserIds(save.profilePresets, 500).map((entry) => normalizePresetCode(entry)).filter(Boolean);
+    save.collections = normalizeCollections(save.collections);
+    save.achievements = save.achievements && typeof save.achievements === 'object' ? save.achievements : {};
+    save.partyJoins = Number.isFinite(Number(save.partyJoins)) ? Number(save.partyJoins) : 0;
+    save.social = save.social && typeof save.social === 'object' ? save.social : {};
+    save.activity = getUserActivityState(save);
     return save;
+}
+
+function normalizeSocialUserIds(input, maxLen = 400) {
+    const rows = Array.isArray(input) ? input : [];
+    const out = [];
+    for (const entry of rows) {
+        const userId = String(entry || '').trim();
+        if (!userId || out.includes(userId)) continue;
+        out.push(userId);
+        if (out.length >= maxLen) break;
+    }
+    return out;
+}
+
+function getUserSocial(save) {
+    const source = save && typeof save === 'object' ? save : {};
+    source.social = source.social && typeof source.social === 'object' ? source.social : {};
+    source.social.friends = normalizeSocialUserIds(source.social.friends, 500);
+    source.social.blocked = normalizeSocialUserIds(source.social.blocked, 500);
+    return source.social;
+}
+
+function getUtcDayKey(now = Date.now()) {
+    const date = new Date(Number(now || Date.now()));
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function normalizeProfileThemeId(input) {
+    const value = String(input || '').trim().toLowerCase();
+    const allowed = new Set(PROFILE_THEME_DEFS.map((entry) => String(entry.id || '')));
+    if (allowed.has(value)) return value;
+    return 'classic';
+}
+
+function normalizeProfileFrameEffect(input) {
+    const value = String(input || '').trim().toLowerCase();
+    return PROFILE_FRAME_EFFECTS.includes(value) ? value : 'none';
+}
+
+function normalizeProfileAccentAnimation(input) {
+    const value = String(input || '').trim().toLowerCase();
+    return PROFILE_ACCENT_ANIMATIONS.includes(value) ? value : 'none';
+}
+
+function normalizePresetCode(input) {
+    const value = String(input || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    return PROFILE_PRESET_CODE_RE.test(value) ? value : '';
+}
+
+function normalizeProfileStyle(input) {
+    const raw = input && typeof input === 'object' ? input : {};
+    return {
+        themeId: normalizeProfileThemeId(raw.themeId),
+        frameEffect: normalizeProfileFrameEffect(raw.frameEffect),
+        accentAnimation: normalizeProfileAccentAnimation(raw.accentAnimation),
+        presetCode: normalizePresetCode(raw.presetCode),
+        updatedAt: Number(raw.updatedAt || 0),
+    };
+}
+
+function getUserActivityState(save, now = Date.now()) {
+    const source = save && typeof save === 'object' ? save : {};
+    source.activity = source.activity && typeof source.activity === 'object' ? source.activity : {};
+    const dayKey = getUtcDayKey(now);
+    const currentDay = String(source.activity.dayKey || '');
+    if (currentDay !== dayKey) {
+        source.activity.dayKey = dayKey;
+        source.activity.daily = { chatMessages: 0, gameLaunches: 0, musicActions: 0 };
+    }
+    source.activity.daily = source.activity.daily && typeof source.activity.daily === 'object'
+        ? source.activity.daily
+        : { chatMessages: 0, gameLaunches: 0, musicActions: 0 };
+    source.activity.total = source.activity.total && typeof source.activity.total === 'object'
+        ? source.activity.total
+        : { chatMessages: 0, gameLaunches: 0, musicActions: 0 };
+    for (const key of ['chatMessages', 'gameLaunches', 'musicActions']) {
+        source.activity.daily[key] = Math.max(0, Number(source.activity.daily[key] || 0));
+        source.activity.total[key] = Math.max(0, Number(source.activity.total[key] || 0));
+    }
+    return source.activity;
+}
+
+function applyActivityDelta(save, delta = {}, now = Date.now()) {
+    const activity = getUserActivityState(save, now);
+    for (const key of ['chatMessages', 'gameLaunches', 'musicActions']) {
+        const amount = Number(delta[key] || 0);
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+        activity.daily[key] = Number(activity.daily[key] || 0) + amount;
+        activity.total[key] = Number(activity.total[key] || 0) + amount;
+    }
+    activity.updatedAt = Number(now || Date.now());
+    return activity;
+}
+
+function getThemePresetMarket(db) {
+    if (!Array.isArray(db.themePresetMarket)) db.themePresetMarket = [];
+    const rows = db.themePresetMarket
+        .filter((entry) => entry && typeof entry === 'object')
+        .map((entry) => ({
+            id: String(entry.id || crypto.randomUUID()),
+            code: normalizePresetCode(entry.code),
+            name: sanitizeProfileShort(entry.name || 'preset', 60),
+            creatorUserId: String(entry.creatorUserId || ''),
+            creatorUsername: sanitizeProfileShort(entry.creatorUsername || 'user', 32),
+            style: normalizeProfileStyle(entry.style),
+            accent: normalizeHexColor(entry.accent, '#8ecbff'),
+            createdAt: Number(entry.createdAt || Date.now()),
+        }))
+        .filter((entry) => !!entry.code);
+    db.themePresetMarket = rows.slice(0, PROFILE_PRESET_SHARE_LIMIT);
+    return db.themePresetMarket;
+}
+
+function sanitizeProfileShort(value, maxLen = 120) {
+    return String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLen);
+}
+
+function sanitizeProfileBio(value, maxLen = 360) {
+    return String(value || '')
+        .replace(/\r/g, '')
+        .trim()
+        .slice(0, maxLen);
+}
+
+function normalizeHexColor(value, fallback = '#8ecbff') {
+    const raw = String(value || '').trim().toLowerCase();
+    const short = raw.match(/^#([a-f0-9]{3})$/i);
+    if (short) {
+        const [a, b, c] = short[1].split('');
+        return `#${a}${a}${b}${b}${c}${c}`;
+    }
+    if (/^#[a-f0-9]{6}$/i.test(raw)) return raw;
+    return fallback;
+}
+
+function normalizeProfileCard(input) {
+    const raw = input && typeof input === 'object' ? input : {};
+    return {
+        tagline: sanitizeProfileShort(raw.tagline, 80),
+        bio: sanitizeProfileBio(raw.bio, 360),
+        accent: normalizeHexColor(raw.accent, '#8ecbff'),
+        favoriteGameId: String(raw.favoriteGameId || '').trim().slice(0, 120),
+        favoriteGameName: sanitizeProfileShort(raw.favoriteGameName, 120),
+        updatedAt: Number(raw.updatedAt || 0),
+    };
+}
+
+function sanitizeCollectionName(value) {
+    return String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 48);
+}
+
+function normalizeCollectionId(value) {
+    const id = String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '')
+        .slice(0, 64);
+    return id;
+}
+
+function normalizeCollectionGameId(value) {
+    return String(value || '').trim().slice(0, 140);
+}
+
+function normalizeCollections(input) {
+    const rows = Array.isArray(input) ? input : [];
+    const out = [];
+    const seenIds = new Set();
+    for (const row of rows) {
+        if (!row || typeof row !== 'object') continue;
+        const id = normalizeCollectionId(row.id) || `col-${crypto.randomUUID().slice(0, 12)}`;
+        if (seenIds.has(id)) continue;
+        seenIds.add(id);
+        const name = sanitizeCollectionName(row.name) || 'collection';
+        const createdAt = Number(row.createdAt || Date.now());
+        const updatedAt = Number(row.updatedAt || createdAt);
+        const gamesRaw = Array.isArray(row.games) ? row.games : [];
+        const games = [];
+        const seenGames = new Set();
+        for (const entry of gamesRaw) {
+            const gameId = normalizeCollectionGameId(entry?.id || entry?.gameId || '');
+            if (!gameId || seenGames.has(gameId)) continue;
+            seenGames.add(gameId);
+            games.push({
+                id: gameId,
+                name: sanitizeProfileShort(entry?.name || entry?.gameName || '', 120),
+                addedAt: Number(entry?.addedAt || updatedAt || Date.now()),
+            });
+            if (games.length >= 300) break;
+        }
+        out.push({ id, name, createdAt, updatedAt, games });
+        if (out.length >= 80) break;
+    }
+    return out;
+}
+
+function getPartyMap(db) {
+    if (!db.parties || typeof db.parties !== 'object') db.parties = {};
+    return db.parties;
+}
+
+function sanitizePartyCode(value) {
+    return String(value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 8);
+}
+
+function sanitizePartyName(value) {
+    return String(value || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 48);
+}
+
+function sanitizePartyTrackId(value) {
+    return String(value || '')
+        .trim()
+        .replace(/[^a-z0-9:_-]/gi, '')
+        .slice(0, 140);
+}
+
+function normalizePartyMusicTrack(input) {
+    if (!input || typeof input !== 'object') return null;
+    const title = sanitizeProfileShort(input.title || input.name || '', 120);
+    if (!title) return null;
+    const artist = sanitizeProfileShort(input.artist || '', 120);
+    const provider = String(input.provider || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '')
+        .slice(0, 24);
+    const trackId = sanitizePartyTrackId(input.trackId || input.id || '');
+    return {
+        title,
+        artist,
+        provider,
+        trackId,
+    };
+}
+
+function createPartyCode(parties) {
+    const map = parties && typeof parties === 'object' ? parties : {};
+    for (let i = 0; i < 50; i += 1) {
+        const candidate = crypto.randomBytes(3).toString('hex').toUpperCase();
+        const exists = Object.values(map).some((party) => sanitizePartyCode(party?.code) === candidate);
+        if (!exists) return candidate;
+    }
+    return crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
+}
+
+function getPartyForUser(db, userId) {
+    const id = String(userId || '').trim();
+    if (!id) return null;
+    const parties = getPartyMap(db);
+    for (const party of Object.values(parties)) {
+        const members = Array.isArray(party?.members) ? party.members : [];
+        if (members.some((member) => String(member?.userId || '') === id)) return party;
+    }
+    return null;
+}
+
+function leavePartyInternal(db, partyId, userId) {
+    const id = String(userId || '').trim();
+    const pid = String(partyId || '').trim();
+    if (!id || !pid) return null;
+    const parties = getPartyMap(db);
+    const party = parties[pid];
+    if (!party) return null;
+    const before = Array.isArray(party.members) ? party.members : [];
+    const after = before.filter((member) => String(member?.userId || '') !== id);
+    if (!after.length) {
+        delete parties[pid];
+        return null;
+    }
+    party.members = after;
+    if (!after.some((member) => String(member?.userId || '') === String(party.ownerUserId || ''))) {
+        party.ownerUserId = String(after[0].userId || '');
+        party.ownerUsername = String(after[0].username || 'user');
+    }
+    party.updatedAt = Date.now();
+    parties[pid] = party;
+    return party;
+}
+
+function computeSaveStats(save) {
+    const games = save?.games && typeof save.games === 'object' ? Object.values(save.games) : [];
+    let totalLaunches = 0;
+    let uniqueGames = 0;
+    let favoriteGames = 0;
+    for (const game of games) {
+        if (!game || typeof game !== 'object') continue;
+        const launches = Number(game.launches || 0);
+        const played = launches > 0 || Number(game.lastPlayedAt || 0) > 0;
+        if (played) uniqueGames += 1;
+        totalLaunches += Number.isFinite(launches) && launches > 0 ? launches : 0;
+        if (game.favorite === true) favoriteGames += 1;
+    }
+    const collections = normalizeCollections(save?.collections);
+    const hasCustomTheme =
+        !!save?.settings?.['rift__theme-custom-v1'] ||
+        !!save?.settings?.['nova__theme-custom-v1'];
+    return {
+        totalLaunches,
+        uniqueGames,
+        favoriteGames,
+        collectionCount: collections.length,
+        partyJoins: Number.isFinite(Number(save?.partyJoins)) ? Number(save.partyJoins) : 0,
+        hasCustomTheme,
+    };
+}
+
+const LIGHT_ACHIEVEMENTS = [
+    { id: 'first_launch', name: 'first launch', description: 'launch 1 game', target: 1, metric: 'totalLaunches' },
+    { id: 'arcade_grinder', name: 'arcade grinder', description: 'launch 25 games total', target: 25, metric: 'totalLaunches' },
+    { id: 'explorer', name: 'explorer', description: 'play 10 unique games', target: 10, metric: 'uniqueGames' },
+    { id: 'collector', name: 'collector', description: 'create 3 collections', target: 3, metric: 'collectionCount' },
+    { id: 'theme_editor', name: 'theme editor', description: 'save a custom theme', target: 1, metric: 'hasCustomTheme' },
+    { id: 'party_up', name: 'party up', description: 'join or create a party', target: 1, metric: 'partyJoins' },
+];
+
+function ensureAchievementState(save) {
+    if (!save.achievements || typeof save.achievements !== 'object') {
+        save.achievements = {};
+    }
+    return save.achievements;
+}
+
+function evaluateAchievements(save, options = {}) {
+    const now = Number(options.now || Date.now());
+    const persist = !!options.persist;
+    const state = ensureAchievementState(save || {});
+    const stats = computeSaveStats(save || {});
+    const rows = [];
+    for (const def of LIGHT_ACHIEVEMENTS) {
+        const rawValue = def.metric === 'hasCustomTheme'
+            ? (stats.hasCustomTheme ? 1 : 0)
+            : Number(stats[def.metric] || 0);
+        const progress = Math.max(0, rawValue);
+        const unlocked = progress >= def.target;
+        let unlockedAt = Number(state[def.id]?.unlockedAt || 0);
+        if (persist && unlocked && !unlockedAt) {
+            unlockedAt = now;
+            state[def.id] = { unlockedAt };
+        }
+        rows.push({
+            id: def.id,
+            name: def.name,
+            description: def.description,
+            unlocked,
+            unlockedAt: unlockedAt || 0,
+            progress,
+            target: def.target,
+        });
+    }
+    return rows;
+}
+
+function getUnlockedProfileThemeIds(save, now = Date.now()) {
+    const achievements = evaluateAchievements(save || {}, { persist: false, now });
+    const unlockedIds = new Set(
+        achievements.filter((row) => !!row.unlocked).map((row) => String(row.id || ''))
+    );
+    const allowed = [];
+    for (const def of PROFILE_THEME_DEFS) {
+        const required = String(def.requiresAchievementId || '');
+        if (!required || unlockedIds.has(required)) {
+            allowed.push(String(def.id || 'classic'));
+        }
+    }
+    if (!allowed.includes('classic')) allowed.unshift('classic');
+    return Array.from(new Set(allowed));
+}
+
+function getCurrentSeasonEvent(now = Date.now()) {
+    const value = Number(now || Date.now());
+    const year = new Date(value).getUTCFullYear();
+    const start = Date.UTC(year, 2, 1, 0, 0, 0, 0);
+    const end = Date.UTC(year, 4, 1, 0, 0, 0, 0);
+    const active = value >= start && value < end;
+    return {
+        id: `spring-${year}`,
+        name: `spring ${year} splash`,
+        active,
+        startsAt: start,
+        endsAt: end,
+        badgeIds: ['spring_scout', 'spring_streak'],
+    };
+}
+
+function computeProfileProgression(save, now = Date.now()) {
+    const activity = getUserActivityState(save, now);
+    const achievements = evaluateAchievements(save, { persist: false, now });
+    const unlockedCount = achievements.filter((row) => !!row.unlocked).length;
+    const chat = Number(activity.total?.chatMessages || 0);
+    const games = Number(activity.total?.gameLaunches || 0);
+    const music = Number(activity.total?.musicActions || 0);
+    const xp = (chat * 5) + (games * 10) + (music * 7) + (unlockedCount * 40);
+    const level = Math.max(1, Math.floor(xp / 120) + 1);
+    const badges = [];
+    if (xp >= 150) badges.push({ id: 'xp_rookie', name: 'xp rookie' });
+    if (xp >= 600) badges.push({ id: 'xp_veteran', name: 'xp veteran' });
+    if (chat >= 80) badges.push({ id: 'chat_streaker', name: 'chat streaker' });
+    if (games >= 25) badges.push({ id: 'quest_gamer', name: 'quest gamer' });
+    const season = getCurrentSeasonEvent(now);
+    if (season.active && (chat + games + music) >= 30) badges.push({ id: 'spring_scout', name: 'spring scout' });
+    if (season.active && unlockedCount >= 3) badges.push({ id: 'spring_streak', name: 'spring streak' });
+    return {
+        xp,
+        level,
+        totals: { chatMessages: chat, gameLaunches: games, musicActions: music },
+        badges,
+    };
+}
+
+function computeDailyQuestRows(save, now = Date.now()) {
+    const activity = getUserActivityState(save, now);
+    const dayKey = String(activity.dayKey || getUtcDayKey(now));
+    const daily = activity.daily || {};
+    return DAILY_QUEST_DEFS.map((def) => {
+        const progress = Math.max(0, Number(daily[def.metric] || 0));
+        return {
+            id: def.id,
+            name: def.name,
+            metric: def.metric,
+            progress,
+            target: Number(def.target || 0),
+            complete: progress >= Number(def.target || 0),
+            xp: Number(def.xp || 0),
+            dayKey,
+        };
+    });
+}
+
+function getProfileStyleForUser(save, now = Date.now()) {
+    const style = normalizeProfileStyle(save?.profileStyle);
+    const unlockedThemeIds = getUnlockedProfileThemeIds(save, now);
+    const safeThemeId = unlockedThemeIds.includes(style.themeId) ? style.themeId : 'classic';
+    return {
+        ...style,
+        themeId: safeThemeId,
+        availableThemeIds: unlockedThemeIds,
+    };
+}
+
+function toThemePresetPublicView(entry, options = {}) {
+    const row = entry && typeof entry === 'object' ? entry : {};
+    const style = normalizeProfileStyle(row.style);
+    return {
+        code: normalizePresetCode(row.code),
+        name: sanitizeProfileShort(row.name || 'preset', 60),
+        creatorUsername: sanitizeProfileShort(row.creatorUsername || 'user', 32),
+        style,
+        accent: normalizeHexColor(row.accent, '#8ecbff'),
+        builtIn: !!row.builtIn,
+        createdAt: Number(row.createdAt || 0),
+        owned: !!options.owned,
+    };
+}
+
+function toProfileCardPublicView(db, user, now = Date.now()) {
+    const save = getUserSave(db, user.id);
+    const profile = normalizeProfileCard(save.profile);
+    const style = getProfileStyleForUser(save, now);
+    const stats = computeSaveStats(save);
+    const achievements = evaluateAchievements(save, { persist: false, now });
+    const unlocked = achievements.filter((entry) => entry.unlocked);
+    unlocked.sort((a, b) => Number(a.unlockedAt || 0) - Number(b.unlockedAt || 0));
+    const progression = computeProfileProgression(save, now);
+    const dailyQuests = computeDailyQuestRows(save, now);
+    const season = getCurrentSeasonEvent(now);
+    return {
+        userId: String(user.id || ''),
+        username: String(user.username || 'user'),
+        createdAt: Number(user.createdAt || 0),
+        status: getEffectiveUserStatus(db, user.id, now),
+        profile,
+        style,
+        stats: {
+            totalLaunches: stats.totalLaunches,
+            uniqueGames: stats.uniqueGames,
+            favoriteGames: stats.favoriteGames,
+            collectionCount: stats.collectionCount,
+            achievementCount: unlocked.length,
+        },
+        progression,
+        dailyQuests,
+        season,
+        achievements: unlocked.slice(-6),
+    };
+}
+
+function toPartyPublicView(db, party, viewerUserId = '', now = Date.now()) {
+    if (!party || typeof party !== 'object') return null;
+    const members = Array.isArray(party.members) ? party.members : [];
+    const ids = members.map((member) => String(member?.userId || '')).filter(Boolean);
+    const statuses = getEffectiveStatusesForUsers(db, ids, now);
+    const musicTrack = normalizePartyMusicTrack(party.musicTrack)
+        || normalizePartyMusicTrack({ title: party.gameName || '', trackId: party.gameId || '' });
+    const cleanMembers = members
+        .filter((member) => member && typeof member === 'object')
+        .map((member) => ({
+            userId: String(member.userId || ''),
+            username: String(member.username || 'user'),
+            joinedAt: Number(member.joinedAt || 0),
+            lastSeenAt: Number(member.lastSeenAt || 0),
+            status: normalizeUserStatus(statuses[String(member.userId || '')]),
+        }));
+    return {
+        id: String(party.id || ''),
+        code: sanitizePartyCode(party.code),
+        name: sanitizePartyName(party.name) || 'party',
+        ownerUserId: String(party.ownerUserId || ''),
+        ownerUsername: String(party.ownerUsername || 'user'),
+        gameId: normalizeCollectionGameId(party.gameId || ''),
+        gameName: sanitizeProfileShort(party.gameName || musicTrack?.title || '', 120),
+        musicTrack,
+        createdAt: Number(party.createdAt || 0),
+        updatedAt: Number(party.updatedAt || 0),
+        memberCount: cleanMembers.length,
+        isOwner: String(viewerUserId || '') === String(party.ownerUserId || ''),
+        members: cleanMembers,
+    };
 }
 
 function normalizeMusicTrack(input) {
@@ -2850,12 +3749,62 @@ function getRoomMessages(db, roomId) {
     return map[roomId];
 }
 
-function toRoomPublicView(room) {
+function isDmRoom(room) {
+    return !!(room && typeof room === 'object' && room.kind === 'dm');
+}
+
+function getDmUserIds(room) {
+    if (!room || typeof room !== 'object' || !Array.isArray(room.dmUserIds)) return [];
+    return room.dmUserIds.map((entry) => String(entry || '')).filter(Boolean);
+}
+
+function buildDmRoomId(userIdA, userIdB) {
+    const a = String(userIdA || '').trim();
+    const b = String(userIdB || '').trim();
+    if (!a || !b || a === b) return '';
+    const pair = [a, b].sort().join('|');
+    const digest = crypto.createHash('sha1').update(pair).digest('hex').slice(0, 24);
+    return `dm-${digest}`;
+}
+
+function normalizeRoomPinnedMessageIds(room) {
+    if (!room || typeof room !== 'object') return [];
+    const source = Array.isArray(room.pinnedMessageIds) ? room.pinnedMessageIds : [];
+    const out = [];
+    for (const entry of source) {
+        const value = normalizeChatReplyId(entry);
+        if (!value) continue;
+        if (out.includes(value)) continue;
+        out.push(value);
+        if (out.length >= CHAT_PIN_LIMIT) break;
+    }
+    room.pinnedMessageIds = out;
+    return out;
+}
+
+function toRoomPublicView(room, viewerUser = null, context = {}) {
+    const dmUserIds = getDmUserIds(room);
+    const viewerId = String(viewerUser?.id || '');
+    const peerId = dmUserIds.find((id) => id !== viewerId) || '';
+    const dmNames = room && room.dmUsernames && typeof room.dmUsernames === 'object'
+        ? room.dmUsernames
+        : {};
+    const peerUsername = String(dmNames[peerId] || '');
+    const isDm = isDmRoom(room);
+    const statuses = context && typeof context.userStatusesById === 'object' ? context.userStatusesById : {};
+    const lastSeenByUserId = context && context.lastSeenByUserId instanceof Map ? context.lastSeenByUserId : new Map();
     return {
         id: room.id,
-        name: room.name,
+        name: isDm ? (peerUsername || room.name || 'direct-message') : room.name,
         ownerUsername: room.ownerUsername,
         isPrivate: !!room.isPrivate,
+        kind: isDm ? 'dm' : 'room',
+        isDm,
+        dmPeerUserId: isDm ? peerId : '',
+        dmPeerUsername: isDm ? (peerUsername || '') : '',
+        dmPeerStatus: isDm ? normalizeUserStatus(statuses[peerId]) : 'offline',
+        dmPeerLastSeenAt: isDm ? Number(lastSeenByUserId.get(peerId) || 0) : 0,
+        pinnedMessageIds: normalizeRoomPinnedMessageIds(room),
         createdAt: room.createdAt,
         lastMessageAt: room.lastMessageAt || room.createdAt,
     };
@@ -2874,6 +3823,11 @@ function isRiftAdminUser(user) {
 }
 
 function canAccessRoom(authUser, room, password) {
+    if (isDmRoom(room)) {
+        const userId = String(authUser?.id || '');
+        if (!userId) return false;
+        return getDmUserIds(room).includes(userId);
+    }
     if (!room?.isPrivate) return true;
     if (isRiftAdminUser(authUser)) return true;
     return verifyRoomPassword(room, password);
@@ -2887,6 +3841,7 @@ function pruneInactiveChatRooms(db) {
 
     for (const [roomId, room] of Object.entries(rooms)) {
         if (SYSTEM_CHAT_ROOM_IDS.has(roomId)) continue;
+        if (isDmRoom(room)) continue;
         const lastActivity = Number(room.lastMessageAt || room.createdAt || 0);
         if (lastActivity <= 0 || (now - lastActivity) < CHAT_ROOM_INACTIVE_TTL_MS) continue;
         delete rooms[roomId];
@@ -2908,9 +3863,120 @@ function sortChatRoomsForList(a, b) {
 function canDeleteRoom(authUser, room) {
     if (!authUser || !room) return false;
     if (SYSTEM_CHAT_ROOM_IDS.has(room.id)) return false;
+    if (isDmRoom(room)) return false;
     const username = sanitizeUsername(authUser.username);
     if (username === 'rift') return true;
     return room.ownerUserId === authUser.id;
+}
+
+function canPinRoom(authUser, room) {
+    if (!authUser || !room) return false;
+    if (isDmRoom(room)) {
+        const userId = String(authUser.id || '');
+        return !!userId && getDmUserIds(room).includes(userId);
+    }
+    return isRiftAdminUser(authUser) || room.ownerUserId === authUser.id;
+}
+
+function buildDmRoomPresenceContext(db, rooms, viewerUserId, now = Date.now()) {
+    const viewerId = String(viewerUserId || '').trim();
+    const candidates = Array.isArray(rooms) ? rooms : [];
+    const peerIds = new Set();
+    for (const room of candidates) {
+        if (!isDmRoom(room)) continue;
+        const peerId = getDmUserIds(room).find((id) => id !== viewerId);
+        if (peerId) peerIds.add(peerId);
+    }
+    const ids = Array.from(peerIds);
+    return {
+        userStatusesById: getEffectiveStatusesForUsers(db, ids, now),
+        lastSeenByUserId: getLastActiveByUserId(db, ids, now),
+    };
+}
+
+function sanitizeCallSignalType(input) {
+    const value = String(input || '').trim().toLowerCase();
+    if (value === 'offer' || value === 'answer' || value === 'ice' || value === 'hangup') return value;
+    return '';
+}
+
+function sanitizeCallSignalPayload(input) {
+    if (typeof input === 'undefined') return null;
+    let text = '';
+    try {
+        text = JSON.stringify(input);
+    } catch {
+        return null;
+    }
+    if (!text || text.length > 12000) return null;
+    try {
+        return JSON.parse(text);
+    } catch {
+        return null;
+    }
+}
+
+function pruneChatCallRooms(now = Date.now()) {
+    for (const [roomId, callRoom] of chatCallRooms.entries()) {
+        if (!callRoom || typeof callRoom !== 'object') {
+            chatCallRooms.delete(roomId);
+            continue;
+        }
+
+        if (!callRoom.members || typeof callRoom.members !== 'object') callRoom.members = {};
+        if (!Array.isArray(callRoom.signals)) callRoom.signals = [];
+
+        for (const [memberId, member] of Object.entries(callRoom.members)) {
+            const lastSeenAt = Number(member?.lastSeenAt || 0);
+            if (lastSeenAt <= 0 || (now - lastSeenAt) > CHAT_CALL_MEMBER_TTL_MS) {
+                delete callRoom.members[memberId];
+            }
+        }
+
+        callRoom.signals = callRoom.signals.filter((signal) => {
+            const expiresAt = Number(signal?.expiresAt || 0);
+            return expiresAt > now;
+        });
+
+        const memberCount = Object.keys(callRoom.members).length;
+        if (memberCount <= 0 && callRoom.signals.length <= 0) {
+            chatCallRooms.delete(roomId);
+        }
+    }
+}
+
+function getOrCreateChatCallRoom(roomId) {
+    const key = String(roomId || '');
+    let room = chatCallRooms.get(key);
+    if (!room || typeof room !== 'object') {
+        room = {
+            roomId: key,
+            mode: 'voice',
+            members: {},
+            signals: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+        chatCallRooms.set(key, room);
+    }
+    if (!room.members || typeof room.members !== 'object') room.members = {};
+    if (!Array.isArray(room.signals)) room.signals = [];
+    return room;
+}
+
+function toChatCallMembersPublicView(callRoom) {
+    if (!callRoom || typeof callRoom !== 'object' || !callRoom.members || typeof callRoom.members !== 'object') {
+        return [];
+    }
+    return Object.values(callRoom.members)
+        .filter((entry) => entry && typeof entry === 'object')
+        .map((entry) => ({
+            userId: String(entry.userId || ''),
+            username: String(entry.username || 'user'),
+            clientMode: normalizeChatClientMode(entry.clientMode),
+            joinedAt: Number(entry.joinedAt || Date.now()),
+            wantsVideo: !!entry.wantsVideo,
+        }));
 }
 
 function sanitizeChatText(input) {
@@ -2918,7 +3984,211 @@ function sanitizeChatText(input) {
         .replace(/\s+/g, ' ')
         .trim();
     if (!text) return '';
-    return text.slice(0, 400);
+    const limited = text.slice(0, 400);
+    return limited.replace(/\b[a-z]{3,}\b/gi, (word) => {
+        const clean = String(word || '').toLowerCase();
+        if (!clean) return word;
+        let isBad = CHAT_BAD_WORDS.has(clean);
+        if (!isBad) {
+            for (const suffix of CHAT_BAD_WORD_SUFFIXES) {
+                if (!clean.endsWith(suffix) || clean.length <= suffix.length + 2) continue;
+                const base = clean.slice(0, clean.length - suffix.length);
+                if (CHAT_BAD_WORDS.has(base)) {
+                    isBad = true;
+                    break;
+                }
+            }
+        }
+        if (!isBad) return word;
+        if (word.length <= 2) return word;
+        return `${word[0]}${'#'.repeat(word.length - 2)}${word[word.length - 1]}`;
+    });
+}
+
+function normalizeChatClientMode(input) {
+    return String(input || '').trim().toLowerCase() === 'nova' ? 'nova' : 'rift';
+}
+
+function normalizeChatReplyId(input) {
+    const value = String(input || '').trim();
+    if (!value) return '';
+    if (value.length > 120) return '';
+    return value;
+}
+
+function normalizeChatReactionEmoji(input) {
+    const value = String(input || '').trim();
+    if (!value) return '';
+    return CHAT_REACTION_EMOJIS.includes(value) ? value : '';
+}
+
+function normalizeMessageReactions(message) {
+    if (!message || typeof message !== 'object') return {};
+    const source = message.reactions && typeof message.reactions === 'object' ? message.reactions : {};
+    const out = {};
+    for (const emoji of CHAT_REACTION_EMOJIS) {
+        const users = Array.isArray(source[emoji]) ? source[emoji] : [];
+        const normalized = [];
+        for (const userId of users) {
+            const value = String(userId || '').trim();
+            if (!value || normalized.includes(value)) continue;
+            normalized.push(value);
+        }
+        if (normalized.length) out[emoji] = normalized;
+    }
+    message.reactions = out;
+    return out;
+}
+
+function toChatReactionsPublicView(message, viewerUserId = '') {
+    const reactions = normalizeMessageReactions(message);
+    const viewerId = String(viewerUserId || '').trim();
+    return CHAT_REACTION_EMOJIS
+        .map((emoji) => {
+            const users = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
+            if (!users.length) return null;
+            return {
+                emoji,
+                count: users.length,
+                me: viewerId ? users.includes(viewerId) : false,
+            };
+        })
+        .filter(Boolean);
+}
+
+function pruneChatTyping(now = Date.now()) {
+    for (const [roomId, roomTyping] of chatTypingRooms.entries()) {
+        if (!roomTyping || typeof roomTyping !== 'object') {
+            chatTypingRooms.delete(roomId);
+            continue;
+        }
+        for (const [userId, typingState] of Object.entries(roomTyping)) {
+            const lastTypingAt = Number(typingState?.lastTypingAt || 0);
+            if (!lastTypingAt || (now - lastTypingAt) > CHAT_TYPING_TTL_MS) {
+                delete roomTyping[userId];
+            }
+        }
+        if (!Object.keys(roomTyping).length) {
+            chatTypingRooms.delete(roomId);
+        }
+    }
+}
+
+function setUserTypingState(roomId, user, typing, clientMode = 'rift', status = 'offline', now = Date.now()) {
+    const rid = normalizeRoomName(roomId);
+    const userId = String(user?.id || '').trim();
+    if (!rid || !userId) return;
+    pruneChatTyping(now);
+    if (!typing) {
+        const roomTyping = chatTypingRooms.get(rid);
+        if (roomTyping) {
+            delete roomTyping[userId];
+            if (!Object.keys(roomTyping).length) chatTypingRooms.delete(rid);
+        }
+        return;
+    }
+    const roomTyping = chatTypingRooms.get(rid) || {};
+    roomTyping[userId] = {
+        userId,
+        username: String(user?.username || 'user'),
+        clientMode: normalizeChatClientMode(clientMode),
+        status: normalizeUserStatus(status),
+        lastTypingAt: now,
+    };
+    chatTypingRooms.set(rid, roomTyping);
+}
+
+function getRoomTypingPublicView(roomId, viewerUserId = '', now = Date.now()) {
+    pruneChatTyping(now);
+    const rid = normalizeRoomName(roomId);
+    const roomTyping = chatTypingRooms.get(rid);
+    if (!roomTyping || typeof roomTyping !== 'object') return [];
+    const viewerId = String(viewerUserId || '').trim();
+    return Object.values(roomTyping)
+        .filter((entry) => entry && typeof entry === 'object' && String(entry.userId || '') !== viewerId)
+        .sort((a, b) => Number(b.lastTypingAt || 0) - Number(a.lastTypingAt || 0))
+        .map((entry) => ({
+            userId: String(entry.userId || ''),
+            username: String(entry.username || 'user'),
+            clientMode: normalizeChatClientMode(entry.clientMode),
+            status: normalizeUserStatus(entry.status),
+            lastTypingAt: Number(entry.lastTypingAt || now),
+        }));
+}
+
+function resolveRoomPinnedMessagesPublicView(db, room, userStatusesById, viewerUserId = '') {
+    if (!room || typeof room !== 'object') return [];
+    const pinnedIds = normalizeRoomPinnedMessageIds(room);
+    if (!pinnedIds.length) return [];
+    const rows = getRoomMessages(db, room.id);
+    const byId = new Map(
+        rows
+            .filter((entry) => entry && typeof entry === 'object')
+            .map((entry) => [String(entry.id || ''), entry])
+    );
+    const out = [];
+    const keep = [];
+    for (const messageId of pinnedIds) {
+        const row = byId.get(messageId);
+        if (!row) continue;
+        const view = toChatMessagePublicView(row, userStatusesById, viewerUserId);
+        if (!view) continue;
+        keep.push(messageId);
+        out.push(view);
+    }
+    room.pinnedMessageIds = keep.slice(0, CHAT_PIN_LIMIT);
+    return out;
+}
+
+function getMessageUserStatus(message, userStatusesById) {
+    const userId = String(message?.userId || '').trim();
+    if (userId && userStatusesById && typeof userStatusesById === 'object' && Object.prototype.hasOwnProperty.call(userStatusesById, userId)) {
+        const status = normalizeUserStatus(userStatusesById[userId]);
+        if (status) return status;
+    }
+    return normalizeUserStatus(message?.status);
+}
+
+function collectChatUserIds(messages) {
+    if (!Array.isArray(messages)) return [];
+    const out = new Set();
+    for (const message of messages) {
+        if (!message || typeof message !== 'object') continue;
+        const userId = String(message.userId || '').trim();
+        if (userId) out.add(userId);
+        const replyUserId = String(message.replyTo?.userId || '').trim();
+        if (replyUserId) out.add(replyUserId);
+    }
+    return Array.from(out);
+}
+
+function toChatReplyStub(message, userStatusesById) {
+    if (!message || typeof message !== 'object') return null;
+    return {
+        id: String(message.id || ''),
+        userId: String(message.userId || ''),
+        username: String(message.username || 'user'),
+        text: sanitizeChatText(message.text || ''),
+        createdAt: Number(message.createdAt) || Date.now(),
+        clientMode: normalizeChatClientMode(message.clientMode),
+        status: getMessageUserStatus(message, userStatusesById),
+    };
+}
+
+function toChatMessagePublicView(message, userStatusesById, viewerUserId = '') {
+    if (!message || typeof message !== 'object') return null;
+    return {
+        id: String(message.id || ''),
+        roomId: String(message.roomId || ''),
+        userId: String(message.userId || ''),
+        username: String(message.username || 'user'),
+        text: sanitizeChatText(message.text || ''),
+        createdAt: Number(message.createdAt) || Date.now(),
+        clientMode: normalizeChatClientMode(message.clientMode),
+        status: getMessageUserStatus(message, userStatusesById),
+        reactions: toChatReactionsPublicView(message, viewerUserId),
+        replyTo: message.replyTo ? toChatReplyStub(message.replyTo, userStatusesById) : null,
+    };
 }
 
 function safeJsonForInlineScript(value) {
@@ -2981,6 +4251,31 @@ async function hostnamePointsToAllowedIp(hostname) {
         return false;
     }
 }
+
+app.use(async (req, res, next) => {
+    if ((req.method || 'GET').toUpperCase() !== 'GET') return next();
+
+    const mode = String(req.query?.rx || '').trim().toLowerCase();
+    if (mode !== 'nova') return next();
+    if (req.path.includes('.')) return next();
+
+    const normalizedPath = req.path.length > 1
+        ? req.path.replace(/\/+$/, '')
+        : req.path;
+    const htmlPath = normalizedPath === '/'
+        ? 'index.html'
+        : `${normalizedPath.replace(/^\/+/, '')}.html`;
+
+    if (!htmlPath || htmlPath.includes('..')) return next();
+    const file = path.join(NOVA_PUBLIC_DIR, htmlPath);
+
+    try {
+        await fs.access(file);
+        return res.sendFile(file);
+    } catch {
+        return next();
+    }
+});
 
 app.use(express.static(path.join(__dirname, '..', 'public'), { redirect: false }));
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
@@ -3111,13 +4406,15 @@ app.get('/api/auth/me', async (req, res) => {
         if (!auth) return res.status(401).json({ authenticated: false });
 
         const now = Date.now();
-        await updateAuthDb((db) => {
-            const session = db.sessions.find((s) => s.token === auth.token);
-            if (session) {
-                session.lastSeenAt = now;
-            }
-            return db;
-        });
+        if (shouldPersistSessionTouch(auth.token, now)) {
+            await updateAuthDb((db) => {
+                const session = db.sessions.find((s) => s.token === auth.token);
+                if (session) {
+                    session.lastSeenAt = now;
+                }
+                return db;
+            });
+        }
 
         return res.json({ authenticated: true, user: userSafeView(auth.user) });
     } catch (error) {
@@ -3130,14 +4427,55 @@ app.get('/api/auth/ping', async (req, res) => {
         const auth = await getSessionFromRequest(req);
         if (!auth) return res.json({ ok: true, authenticated: false });
         const now = Date.now();
-        await updateAuthDb((db) => {
-            const session = db.sessions.find((s) => s.token === auth.token);
-            if (session) session.lastSeenAt = now;
-            return db;
-        });
+        if (shouldPersistSessionTouch(auth.token, now)) {
+            await updateAuthDb((db) => {
+                const session = db.sessions.find((s) => s.token === auth.token);
+                if (session) session.lastSeenAt = now;
+                return db;
+            });
+        }
         return res.json({ ok: true, authenticated: true, now });
     } catch (error) {
         return jsonError(res, 500, `Ping failed: ${error.message}`);
+    }
+});
+
+app.get('/api/status/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const now = Date.now();
+        const mode = getUserStatusMode(db, auth.user.id);
+        const status = getEffectiveUserStatus(db, auth.user.id, now);
+        return res.json({ ok: true, mode, status, now });
+    } catch (error) {
+        return jsonError(res, 500, `Status read failed: ${error.message}`);
+    }
+});
+
+app.put('/api/status/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const mode = parseUserStatusModeInput(req.body?.mode);
+        if (!mode) return jsonError(res, 400, 'Invalid status mode');
+        const now = Date.now();
+        await updateAuthDb((db) => {
+            if (!db.userStatusPrefs || typeof db.userStatusPrefs !== 'object') {
+                db.userStatusPrefs = {};
+            }
+            db.userStatusPrefs[String(auth.user.id)] = {
+                mode,
+                updatedAt: now,
+            };
+            return db;
+        });
+        const db = await readAuthDb();
+        const status = getEffectiveUserStatus(db, auth.user.id, now);
+        return res.json({ ok: true, mode, status, now });
+    } catch (error) {
+        return jsonError(res, 500, `Status update failed: ${error.message}`);
     }
 });
 
@@ -3250,6 +4588,9 @@ app.put('/api/save/games/:gameId', async (req, res) => {
                 ? save.games[gameId]
                 : {};
             const launchDelta = Number(progress.launches || 0);
+            if (Number.isFinite(launchDelta) && launchDelta > 0) {
+                applyActivityDelta(save, { gameLaunches: launchDelta }, Date.now());
+            }
             save.games[gameId] = {
                 ...existing,
                 ...progress,
@@ -3261,6 +4602,652 @@ app.put('/api/save/games/:gameId', async (req, res) => {
         return res.json({ ok: true });
     } catch (error) {
         return jsonError(res, 500, `Game save failed: ${error.message}`);
+    }
+});
+
+app.get('/api/profile/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const user = (Array.isArray(db.users) ? db.users : []).find((entry) => entry?.id === auth.user.id) || auth.user;
+        return res.json({ ok: true, profile: toProfileCardPublicView(db, user, Date.now()) });
+    } catch (error) {
+        return jsonError(res, 500, `Profile read failed: ${error.message}`);
+    }
+});
+
+app.put('/api/profile/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const input = req.body?.profile && typeof req.body.profile === 'object'
+            ? req.body.profile
+            : (req.body && typeof req.body === 'object' ? req.body : null);
+        if (!input) return jsonError(res, 400, 'profile object is required');
+        const now = Date.now();
+        let profileView = null;
+        await updateAuthDb((db) => {
+            const users = Array.isArray(db.users) ? db.users : [];
+            const user = users.find((entry) => entry?.id === auth.user.id) || auth.user;
+            const save = getUserSave(db, auth.user.id);
+            const next = normalizeProfileCard({
+                tagline: input.tagline,
+                bio: input.bio,
+                accent: input.accent,
+                favoriteGameId: input.favoriteGameId,
+                favoriteGameName: input.favoriteGameName,
+                updatedAt: now,
+            });
+            save.profile = next;
+            profileView = toProfileCardPublicView(db, user, now);
+            return db;
+        });
+        return res.json({ ok: true, profile: profileView });
+    } catch (error) {
+        return jsonError(res, 500, `Profile update failed: ${error.message}`);
+    }
+});
+
+app.get('/api/profile/:username', async (req, res, next) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const rawUsername = String(req.params?.username || '').trim().toLowerCase();
+        if (rawUsername === 'presets' || rawUsername === 'me' || rawUsername === 'customization') {
+            return next();
+        }
+        const username = sanitizeUsername(rawUsername);
+        if (!username) return jsonError(res, 400, 'Invalid username');
+        const db = await readAuthDb();
+        const users = Array.isArray(db.users) ? db.users : [];
+        const user = users.find((entry) => sanitizeUsername(entry?.username || '') === username);
+        if (!user) return jsonError(res, 404, 'User not found');
+        return res.json({ ok: true, profile: toProfileCardPublicView(db, user, Date.now()) });
+    } catch (error) {
+        return jsonError(res, 500, `Profile lookup failed: ${error.message}`);
+    }
+});
+
+app.get('/api/achievements/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const now = Date.now();
+        let achievements = [];
+        let stats = null;
+        await updateAuthDb((db) => {
+            const save = getUserSave(db, auth.user.id);
+            achievements = evaluateAchievements(save, { persist: true, now });
+            stats = computeSaveStats(save);
+            return db;
+        });
+        const unlocked = achievements.filter((entry) => entry.unlocked);
+        return res.json({
+            ok: true,
+            achievements,
+            summary: {
+                unlocked: unlocked.length,
+                total: achievements.length,
+                stats,
+            },
+        });
+    } catch (error) {
+        return jsonError(res, 500, `Achievements read failed: ${error.message}`);
+    }
+});
+
+app.get('/api/quests/daily/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const save = getUserSave(db, auth.user.id);
+        const now = Date.now();
+        const quests = computeDailyQuestRows(save, now);
+        const completed = quests.filter((row) => !!row.complete);
+        const xpReward = completed.reduce((sum, row) => sum + Number(row.xp || 0), 0);
+        return res.json({ ok: true, quests, summary: { completed: completed.length, total: quests.length, xpReward }, now });
+    } catch (error) {
+        return jsonError(res, 500, `Daily quests failed: ${error.message}`);
+    }
+});
+
+app.get('/api/season/current', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const save = getUserSave(db, auth.user.id);
+        const now = Date.now();
+        const season = getCurrentSeasonEvent(now);
+        const progression = computeProfileProgression(save, now);
+        return res.json({ ok: true, season, badges: progression.badges, now });
+    } catch (error) {
+        return jsonError(res, 500, `Season read failed: ${error.message}`);
+    }
+});
+
+app.get('/api/profile/customization/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const save = getUserSave(db, auth.user.id);
+        const now = Date.now();
+        const style = getProfileStyleForUser(save, now);
+        return res.json({
+            ok: true,
+            style,
+            themes: PROFILE_THEME_DEFS,
+            frameEffects: PROFILE_FRAME_EFFECTS,
+            accentAnimations: PROFILE_ACCENT_ANIMATIONS,
+            now,
+        });
+    } catch (error) {
+        return jsonError(res, 500, `Customization read failed: ${error.message}`);
+    }
+});
+
+app.put('/api/profile/customization/me', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const input = req.body?.style && typeof req.body.style === 'object'
+            ? req.body.style
+            : (req.body && typeof req.body === 'object' ? req.body : null);
+        if (!input) return jsonError(res, 400, 'style object is required');
+        let styleView = null;
+        await updateAuthDb((db) => {
+            const save = getUserSave(db, auth.user.id);
+            const now = Date.now();
+            const unlockedThemes = getUnlockedProfileThemeIds(save, now);
+            const next = normalizeProfileStyle({
+                themeId: input.themeId,
+                frameEffect: input.frameEffect,
+                accentAnimation: input.accentAnimation,
+                presetCode: input.presetCode,
+                updatedAt: now,
+            });
+            if (!unlockedThemes.includes(next.themeId)) {
+                throw new Error('THEME_LOCKED');
+            }
+            save.profileStyle = next;
+            if (input.accent) {
+                save.profile = normalizeProfileCard({
+                    ...save.profile,
+                    accent: normalizeHexColor(input.accent, save.profile?.accent || '#8ecbff'),
+                    updatedAt: now,
+                });
+            }
+            styleView = getProfileStyleForUser(save, now);
+            return db;
+        });
+        return res.json({ ok: true, style: styleView });
+    } catch (error) {
+        if (error.message === 'THEME_LOCKED') return jsonError(res, 403, 'Theme is locked');
+        return jsonError(res, 500, `Customization update failed: ${error.message}`);
+    }
+});
+
+app.get('/api/profile/presets', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const save = getUserSave(db, auth.user.id);
+        const ownedCodes = new Set((save.profilePresets || []).map((entry) => normalizePresetCode(entry)).filter(Boolean));
+        for (const builtIn of BUILTIN_PROFILE_PRESETS) {
+            const code = normalizePresetCode(builtIn.code);
+            if (code) ownedCodes.add(code);
+        }
+        const shared = getThemePresetMarket(db);
+        const rows = [...BUILTIN_PROFILE_PRESETS, ...shared]
+            .map((entry) => {
+                const code = normalizePresetCode(entry.code);
+                if (!code) return null;
+                return toThemePresetPublicView(entry, { owned: ownedCodes.has(code) });
+            })
+            .filter(Boolean)
+            .slice(0, PROFILE_PRESET_SHARE_LIMIT);
+        return res.json({ ok: true, presets: rows, ownedCodes: Array.from(ownedCodes) });
+    } catch (error) {
+        return jsonError(res, 500, `Preset list failed: ${error.message}`);
+    }
+});
+
+app.post('/api/profile/presets/share', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const name = sanitizeProfileShort(req.body?.name || '', 60);
+        if (!name) return jsonError(res, 400, 'Preset name is required');
+        const style = normalizeProfileStyle(req.body?.style || req.body);
+        const accent = normalizeHexColor(req.body?.accent || '#8ecbff', '#8ecbff');
+        let created = null;
+        await updateAuthDb((db) => {
+            const market = getThemePresetMarket(db);
+            if (market.length >= PROFILE_PRESET_SHARE_LIMIT) {
+                market.shift();
+            }
+            const existingCodes = new Set([
+                ...BUILTIN_PROFILE_PRESETS.map((entry) => normalizePresetCode(entry.code)),
+                ...market.map((entry) => normalizePresetCode(entry.code)),
+            ]);
+            let code = '';
+            for (let i = 0; i < 20; i += 1) {
+                const candidate = crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
+                if (existingCodes.has(candidate)) continue;
+                code = candidate;
+                break;
+            }
+            if (!code) code = crypto.randomBytes(5).toString('hex').toUpperCase().slice(0, 10);
+            created = {
+                id: crypto.randomUUID(),
+                code,
+                name,
+                creatorUserId: String(auth.user.id || ''),
+                creatorUsername: String(auth.user.username || 'user'),
+                style,
+                accent,
+                createdAt: Date.now(),
+            };
+            market.unshift(created);
+            db.themePresetMarket = market.slice(0, PROFILE_PRESET_SHARE_LIMIT);
+            const save = getUserSave(db, auth.user.id);
+            if (!save.profilePresets.includes(code)) save.profilePresets.push(code);
+            save.profilePresets = save.profilePresets.slice(0, 500);
+            return db;
+        });
+        return res.json({ ok: true, preset: toThemePresetPublicView(created, { owned: true }) });
+    } catch (error) {
+        return jsonError(res, 500, `Preset share failed: ${error.message}`);
+    }
+});
+
+app.post('/api/profile/presets/import', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const code = normalizePresetCode(req.body?.code || '');
+        if (!code) return jsonError(res, 400, 'Valid preset code is required');
+        let preset = null;
+        let style = null;
+        await updateAuthDb((db) => {
+            const market = getThemePresetMarket(db);
+            preset = [...BUILTIN_PROFILE_PRESETS, ...market].find((entry) => normalizePresetCode(entry.code) === code) || null;
+            if (!preset) throw new Error('PRESET_NOT_FOUND');
+            const save = getUserSave(db, auth.user.id);
+            const now = Date.now();
+            const nextStyle = normalizeProfileStyle({
+                ...preset.style,
+                presetCode: code,
+                updatedAt: now,
+            });
+            const unlocked = getUnlockedProfileThemeIds(save, now);
+            if (!unlocked.includes(nextStyle.themeId)) {
+                nextStyle.themeId = 'classic';
+            }
+            save.profileStyle = nextStyle;
+            if (preset.accent) {
+                save.profile = normalizeProfileCard({
+                    ...save.profile,
+                    accent: normalizeHexColor(preset.accent, save.profile?.accent || '#8ecbff'),
+                    updatedAt: now,
+                });
+            }
+            if (!save.profilePresets.includes(code)) save.profilePresets.push(code);
+            save.profilePresets = save.profilePresets.slice(0, 500);
+            style = getProfileStyleForUser(save, now);
+            return db;
+        });
+        return res.json({ ok: true, code, style, preset: toThemePresetPublicView(preset, { owned: true }) });
+    } catch (error) {
+        if (error.message === 'PRESET_NOT_FOUND') return jsonError(res, 404, 'Preset code not found');
+        return jsonError(res, 500, `Preset import failed: ${error.message}`);
+    }
+});
+
+app.get('/api/games/collections', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const save = getUserSave(db, auth.user.id);
+        return res.json({ ok: true, collections: normalizeCollections(save.collections) });
+    } catch (error) {
+        return jsonError(res, 500, `Collection list failed: ${error.message}`);
+    }
+});
+
+app.post('/api/games/collections', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const name = sanitizeCollectionName(req.body?.name);
+        if (!name) return jsonError(res, 400, 'Collection name is required');
+        let created = null;
+        await updateAuthDb((db) => {
+            const save = getUserSave(db, auth.user.id);
+            const collections = normalizeCollections(save.collections);
+            if (collections.length >= 80) throw new Error('COLLECTION_LIMIT');
+            const now = Date.now();
+            created = {
+                id: `col-${crypto.randomUUID().slice(0, 12)}`,
+                name,
+                createdAt: now,
+                updatedAt: now,
+                games: [],
+            };
+            save.collections = [created, ...collections];
+            return db;
+        });
+        return res.json({ ok: true, collection: created });
+    } catch (error) {
+        if (error.message === 'COLLECTION_LIMIT') return jsonError(res, 409, 'Collection limit reached (80)');
+        return jsonError(res, 500, `Collection create failed: ${error.message}`);
+    }
+});
+
+app.put('/api/games/collections/:collectionId', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const collectionId = normalizeCollectionId(req.params?.collectionId || '');
+        if (!collectionId) return jsonError(res, 400, 'Invalid collection id');
+        const nextName = sanitizeCollectionName(req.body?.name);
+        if (!nextName) return jsonError(res, 400, 'Collection name is required');
+        let updated = null;
+        await updateAuthDb((db) => {
+            const save = getUserSave(db, auth.user.id);
+            const collections = normalizeCollections(save.collections);
+            const collection = collections.find((entry) => entry.id === collectionId);
+            if (!collection) throw new Error('NOT_FOUND');
+            collection.name = nextName;
+            collection.updatedAt = Date.now();
+            save.collections = collections;
+            updated = collection;
+            return db;
+        });
+        return res.json({ ok: true, collection: updated });
+    } catch (error) {
+        if (error.message === 'NOT_FOUND') return jsonError(res, 404, 'Collection not found');
+        return jsonError(res, 500, `Collection update failed: ${error.message}`);
+    }
+});
+
+app.delete('/api/games/collections/:collectionId', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const collectionId = normalizeCollectionId(req.params?.collectionId || '');
+        if (!collectionId) return jsonError(res, 400, 'Invalid collection id');
+        await updateAuthDb((db) => {
+            const save = getUserSave(db, auth.user.id);
+            const collections = normalizeCollections(save.collections);
+            const next = collections.filter((entry) => entry.id !== collectionId);
+            if (next.length === collections.length) throw new Error('NOT_FOUND');
+            save.collections = next;
+            return db;
+        });
+        return res.json({ ok: true, deletedCollectionId: collectionId });
+    } catch (error) {
+        if (error.message === 'NOT_FOUND') return jsonError(res, 404, 'Collection not found');
+        return jsonError(res, 500, `Collection delete failed: ${error.message}`);
+    }
+});
+
+app.post('/api/games/collections/:collectionId/games', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const collectionId = normalizeCollectionId(req.params?.collectionId || '');
+        if (!collectionId) return jsonError(res, 400, 'Invalid collection id');
+        const gameId = normalizeCollectionGameId(req.body?.gameId);
+        if (!gameId) return jsonError(res, 400, 'gameId is required');
+        const gameName = sanitizeProfileShort(req.body?.gameName || '', 120);
+        let updated = null;
+        await updateAuthDb((db) => {
+            const save = getUserSave(db, auth.user.id);
+            const collections = normalizeCollections(save.collections);
+            const collection = collections.find((entry) => entry.id === collectionId);
+            if (!collection) throw new Error('NOT_FOUND');
+            const now = Date.now();
+            const existing = collection.games.find((entry) => entry.id === gameId);
+            if (existing) {
+                existing.name = gameName || existing.name || '';
+                existing.addedAt = now;
+            } else {
+                collection.games.unshift({
+                    id: gameId,
+                    name: gameName || '',
+                    addedAt: now,
+                });
+                if (collection.games.length > 300) collection.games = collection.games.slice(0, 300);
+            }
+            collection.updatedAt = now;
+            save.collections = collections;
+            updated = collection;
+            return db;
+        });
+        return res.json({ ok: true, collection: updated });
+    } catch (error) {
+        if (error.message === 'NOT_FOUND') return jsonError(res, 404, 'Collection not found');
+        return jsonError(res, 500, `Collection game add failed: ${error.message}`);
+    }
+});
+
+app.delete('/api/games/collections/:collectionId/games/:gameId', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const collectionId = normalizeCollectionId(req.params?.collectionId || '');
+        if (!collectionId) return jsonError(res, 400, 'Invalid collection id');
+        const gameId = normalizeCollectionGameId(req.params?.gameId || '');
+        if (!gameId) return jsonError(res, 400, 'Invalid game id');
+        let updated = null;
+        await updateAuthDb((db) => {
+            const save = getUserSave(db, auth.user.id);
+            const collections = normalizeCollections(save.collections);
+            const collection = collections.find((entry) => entry.id === collectionId);
+            if (!collection) throw new Error('NOT_FOUND');
+            const before = collection.games.length;
+            collection.games = collection.games.filter((entry) => entry.id !== gameId);
+            if (before === collection.games.length) throw new Error('GAME_NOT_FOUND');
+            collection.updatedAt = Date.now();
+            save.collections = collections;
+            updated = collection;
+            return db;
+        });
+        return res.json({ ok: true, collection: updated, removedGameId: gameId });
+    } catch (error) {
+        if (error.message === 'NOT_FOUND') return jsonError(res, 404, 'Collection not found');
+        if (error.message === 'GAME_NOT_FOUND') return jsonError(res, 404, 'Game not found in collection');
+        return jsonError(res, 500, `Collection game remove failed: ${error.message}`);
+    }
+});
+
+app.get('/api/party', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const party = getPartyForUser(db, auth.user.id);
+        const view = party ? toPartyPublicView(db, party, auth.user.id, Date.now()) : null;
+        return res.json({ ok: true, party: view });
+    } catch (error) {
+        return jsonError(res, 500, `Party read failed: ${error.message}`);
+    }
+});
+
+app.post('/api/party/create', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const name = sanitizePartyName(req.body?.name) || `${auth.user.username}'s party`;
+        const gameId = normalizeCollectionGameId(req.body?.gameId || '');
+        const gameName = sanitizeProfileShort(req.body?.gameName || '', 120);
+        const musicTrack = normalizePartyMusicTrack(req.body?.musicTrack || req.body?.track)
+            || normalizePartyMusicTrack({ title: gameName || '', trackId: gameId || '' });
+        let partyView = null;
+        await updateAuthDb((db) => {
+            const parties = getPartyMap(db);
+            const existing = getPartyForUser(db, auth.user.id);
+            if (existing && existing.id) {
+                leavePartyInternal(db, existing.id, auth.user.id);
+            }
+            const now = Date.now();
+            const id = `party-${crypto.randomUUID().slice(0, 12)}`;
+            const code = createPartyCode(parties);
+            parties[id] = {
+                id,
+                code,
+                name,
+                ownerUserId: String(auth.user.id || ''),
+                ownerUsername: String(auth.user.username || 'user'),
+                gameId: gameId || '',
+                gameName: gameName || '',
+                musicTrack: musicTrack || null,
+                createdAt: now,
+                updatedAt: now,
+                members: [{
+                    userId: String(auth.user.id || ''),
+                    username: String(auth.user.username || 'user'),
+                    joinedAt: now,
+                    lastSeenAt: now,
+                }],
+            };
+            const save = getUserSave(db, auth.user.id);
+            save.partyJoins = Number(save.partyJoins || 0) + 1;
+            partyView = toPartyPublicView(db, parties[id], auth.user.id, now);
+            return db;
+        });
+        return res.json({ ok: true, party: partyView });
+    } catch (error) {
+        return jsonError(res, 500, `Party create failed: ${error.message}`);
+    }
+});
+
+app.post('/api/party/join', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const code = sanitizePartyCode(req.body?.code);
+        if (!code) return jsonError(res, 400, 'Party code is required');
+        let partyView = null;
+        await updateAuthDb((db) => {
+            const parties = getPartyMap(db);
+            const target = Object.values(parties).find((party) => sanitizePartyCode(party?.code) === code);
+            if (!target || !target.id) throw new Error('PARTY_NOT_FOUND');
+            const now = Date.now();
+            const userId = String(auth.user.id || '');
+            const members = Array.isArray(target.members) ? target.members : [];
+            const existingMember = members.find((member) => String(member?.userId || '') === userId);
+            const current = getPartyForUser(db, userId);
+            if (current && current.id && current.id !== target.id) {
+                leavePartyInternal(db, current.id, userId);
+            }
+            if (existingMember) {
+                existingMember.lastSeenAt = now;
+            } else {
+                if (members.length >= 24) throw new Error('PARTY_FULL');
+                members.push({
+                    userId,
+                    username: String(auth.user.username || 'user'),
+                    joinedAt: now,
+                    lastSeenAt: now,
+                });
+                target.members = members;
+                const save = getUserSave(db, auth.user.id);
+                save.partyJoins = Number(save.partyJoins || 0) + 1;
+            }
+            target.updatedAt = now;
+            parties[target.id] = target;
+            partyView = toPartyPublicView(db, target, auth.user.id, now);
+            return db;
+        });
+        return res.json({ ok: true, party: partyView });
+    } catch (error) {
+        if (error.message === 'PARTY_NOT_FOUND') return jsonError(res, 404, 'Party not found');
+        if (error.message === 'PARTY_FULL') return jsonError(res, 409, 'Party is full');
+        return jsonError(res, 500, `Party join failed: ${error.message}`);
+    }
+});
+
+app.post('/api/party/leave', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        let left = false;
+        await updateAuthDb((db) => {
+            const current = getPartyForUser(db, auth.user.id);
+            if (!current || !current.id) return db;
+            left = true;
+            leavePartyInternal(db, current.id, auth.user.id);
+            return db;
+        });
+        return res.json({ ok: true, left });
+    } catch (error) {
+        return jsonError(res, 500, `Party leave failed: ${error.message}`);
+    }
+});
+
+app.put('/api/party/music', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const clear = req.body?.clear === true;
+        const musicTrack = clear
+            ? null
+            : normalizePartyMusicTrack(req.body?.musicTrack || req.body?.track || req.body);
+        if (!clear && !musicTrack) return jsonError(res, 400, 'musicTrack.title is required');
+        let partyView = null;
+        await updateAuthDb((db) => {
+            const current = getPartyForUser(db, auth.user.id);
+            if (!current || !current.id) throw new Error('PARTY_NOT_FOUND');
+            if (String(current.ownerUserId || '') !== String(auth.user.id || '')) {
+                throw new Error('OWNER_ONLY');
+            }
+            current.musicTrack = musicTrack;
+            current.gameName = sanitizeProfileShort(musicTrack?.title || '', 120);
+            current.gameId = normalizeCollectionGameId(musicTrack?.trackId || '');
+            current.updatedAt = Date.now();
+            partyView = toPartyPublicView(db, current, auth.user.id, Date.now());
+            return db;
+        });
+        return res.json({ ok: true, party: partyView });
+    } catch (error) {
+        if (error.message === 'PARTY_NOT_FOUND') return jsonError(res, 404, 'Party not found');
+        if (error.message === 'OWNER_ONLY') return jsonError(res, 403, 'Only party owner can set track');
+        return jsonError(res, 500, `Party track update failed: ${error.message}`);
+    }
+});
+
+app.put('/api/party/game', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const gameId = normalizeCollectionGameId(req.body?.gameId || '');
+        const gameName = sanitizeProfileShort(req.body?.gameName || '', 120);
+        let partyView = null;
+        await updateAuthDb((db) => {
+            const current = getPartyForUser(db, auth.user.id);
+            if (!current || !current.id) throw new Error('PARTY_NOT_FOUND');
+            if (String(current.ownerUserId || '') !== String(auth.user.id || '')) {
+                throw new Error('OWNER_ONLY');
+            }
+            current.gameId = gameId;
+            current.gameName = gameName;
+            current.musicTrack = normalizePartyMusicTrack({ title: gameName || '', trackId: gameId || '' });
+            current.updatedAt = Date.now();
+            partyView = toPartyPublicView(db, current, auth.user.id, Date.now());
+            return db;
+        });
+        return res.json({ ok: true, party: partyView });
+    } catch (error) {
+        if (error.message === 'PARTY_NOT_FOUND') return jsonError(res, 404, 'Party not found');
+        if (error.message === 'OWNER_ONLY') return jsonError(res, 403, 'Only party owner can set track');
+        return jsonError(res, 500, `Party game update failed: ${error.message}`);
     }
 });
 
@@ -3438,6 +5425,7 @@ app.put('/api/music/favorites', async (req, res) => {
                     music.favorites[existingIndex] = next;
                 } else {
                     music.favorites.unshift(next);
+                    applyActivityDelta(save, { musicActions: 1 }, Date.now());
                 }
                 finalFavoriteState = true;
             } else if (existingIndex >= 0) {
@@ -3623,6 +5611,94 @@ app.get('/api/music/playlists/public', async (req, res) => {
     }
 });
 
+app.get('/api/chat/friends', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const db = await readAuthDb();
+        const payload = getFriendPayloadForUser(db, auth.user.id, Date.now());
+        return res.json({ ok: true, ...payload });
+    } catch (error) {
+        return jsonError(res, 500, `Friend list failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/friends', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const action = String(req.body?.action || '').trim().toLowerCase();
+        const targetUserIdInput = String(req.body?.targetUserId || '').trim();
+        const targetUsernameInput = sanitizeUsername(req.body?.targetUsername);
+        if (!['add', 'remove', 'block', 'unblock'].includes(action)) {
+            return jsonError(res, 400, 'Invalid action');
+        }
+        if (!targetUserIdInput && !targetUsernameInput) {
+            return jsonError(res, 400, 'targetUserId or targetUsername is required');
+        }
+
+        await updateAuthDb((db) => {
+            const users = Array.isArray(db.users) ? db.users : [];
+            const targetUser = users.find((user) => {
+                if (!user || typeof user !== 'object') return false;
+                if (targetUserIdInput && String(user.id || '') === targetUserIdInput) return true;
+                if (targetUsernameInput && sanitizeUsername(user.username) === targetUsernameInput) return true;
+                return false;
+            });
+            if (!targetUser) throw new Error('TARGET_NOT_FOUND');
+
+            const meId = String(auth.user?.id || '');
+            const targetId = String(targetUser.id || '');
+            if (!meId || !targetId || meId === targetId) throw new Error('CANNOT_TARGET_SELF');
+
+            const meSave = getUserSave(db, meId);
+            const targetSave = getUserSave(db, targetId);
+            const meSocial = getUserSocial(meSave);
+            const targetSocial = getUserSocial(targetSave);
+
+            if (action === 'add') {
+                if (targetSocial.blocked.includes(meId)) throw new Error('BLOCKED_BY_TARGET');
+                meSocial.blocked = meSocial.blocked.filter((id) => id !== targetId);
+                if (!meSocial.friends.includes(targetId)) meSocial.friends.push(targetId);
+                if (!targetSocial.friends.includes(meId)) targetSocial.friends.push(meId);
+                meSocial.friends = normalizeSocialUserIds(meSocial.friends, 500);
+                targetSocial.friends = normalizeSocialUserIds(targetSocial.friends, 500);
+                return db;
+            }
+
+            if (action === 'remove') {
+                meSocial.friends = meSocial.friends.filter((id) => id !== targetId);
+                targetSocial.friends = targetSocial.friends.filter((id) => id !== meId);
+                return db;
+            }
+
+            if (action === 'block') {
+                if (!meSocial.blocked.includes(targetId)) meSocial.blocked.push(targetId);
+                meSocial.blocked = normalizeSocialUserIds(meSocial.blocked, 500);
+                meSocial.friends = meSocial.friends.filter((id) => id !== targetId);
+                targetSocial.friends = targetSocial.friends.filter((id) => id !== meId);
+                return db;
+            }
+
+            if (action === 'unblock') {
+                meSocial.blocked = meSocial.blocked.filter((id) => id !== targetId);
+                return db;
+            }
+
+            return db;
+        });
+
+        const dbAfter = await readAuthDb();
+        const payload = getFriendPayloadForUser(dbAfter, auth.user.id, Date.now());
+        return res.json({ ok: true, action, ...payload });
+    } catch (error) {
+        if (error.message === 'TARGET_NOT_FOUND') return jsonError(res, 404, 'Target user not found');
+        if (error.message === 'CANNOT_TARGET_SELF') return jsonError(res, 400, 'Cannot target yourself');
+        if (error.message === 'BLOCKED_BY_TARGET') return jsonError(res, 403, 'That user has blocked you');
+        return jsonError(res, 500, `Friend update failed: ${error.message}`);
+    }
+});
+
 app.get('/api/chat/messages', async (req, res) => {
     try {
         const auth = await getSessionFromRequest(req);
@@ -3635,10 +5711,30 @@ app.get('/api/chat/messages', async (req, res) => {
         const room = rooms[roomId];
         if (!room) return jsonError(res, 404, 'Room not found');
         if (!canAccessRoom(auth.user, room, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(db, room, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
         const rows = getRoomMessages(db, roomId);
         const filtered = since > 0 ? rows.filter((m) => Number(m.createdAt) > since) : rows;
-        const messages = filtered.slice(-120);
-        return res.json({ ok: true, room: toRoomPublicView(room), messages, now: Date.now() });
+        const tailCount = isDmRoom(room) ? 400 : 120;
+        const tail = filtered.slice(-tailCount);
+        const now = Date.now();
+        const pinnedMessageIds = normalizeRoomPinnedMessageIds(room);
+        const pinnedRows = rows.filter((entry) => pinnedMessageIds.includes(String(entry?.id || '')));
+        const userStatusesById = getEffectiveStatusesForUsers(
+            db,
+            collectChatUserIds([...tail, ...pinnedRows]),
+            now
+        );
+        const messages = tail.map((entry) => toChatMessagePublicView(entry, userStatusesById, auth.user.id)).filter(Boolean);
+        const pins = resolveRoomPinnedMessagesPublicView(db, room, userStatusesById, auth.user.id);
+        const roomPresenceContext = buildDmRoomPresenceContext(db, [room], auth.user.id, now);
+        return res.json({
+            ok: true,
+            room: toRoomPublicView(room, auth.user, roomPresenceContext),
+            messages,
+            pins,
+            canPin: canPinRoom(auth.user, room),
+            now,
+        });
     } catch (error) {
         return jsonError(res, 500, `Chat read failed: ${error.message}`);
     }
@@ -3651,21 +5747,127 @@ app.post('/api/chat/messages', async (req, res) => {
         const roomId = normalizeRoomName(req.body?.room || 'lobby') || 'lobby';
         const roomPassword = String(req.body?.password || '');
         const text = sanitizeChatText(req.body?.text);
+        const clientMode = normalizeChatClientMode(req.body?.clientMode);
+        const replyToId = normalizeChatReplyId(req.body?.replyToId);
         if (!text) return jsonError(res, 400, 'Message text required');
         const dbBefore = await readAuthDb();
         const roomsBefore = getChatRooms(dbBefore);
         const roomBefore = roomsBefore[roomId];
         if (!roomBefore) return jsonError(res, 404, 'Room not found');
         if (!canAccessRoom(auth.user, roomBefore, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(dbBefore, roomBefore, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+        let message = null;
 
-        const message = {
-            id: crypto.randomUUID(),
-            roomId,
-            userId: auth.user.id,
-            username: auth.user.username,
-            text,
-            createdAt: Date.now(),
-        };
+        await updateAuthDb((db) => {
+            const rooms = getChatRooms(db);
+            const room = rooms[roomId];
+            if (!room || !canAccessRoom(auth.user, room, roomPassword)) {
+                throw new Error('ROOM_ACCESS_DENIED');
+            }
+            if (isDmRoomBlockedForUser(db, room, auth.user.id)) {
+                throw new Error('DM_BLOCKED');
+            }
+            const rows = getRoomMessages(db, roomId);
+            let replyTo = null;
+            if (replyToId) {
+                const replyTarget = rows.find((entry) => String(entry.id || '') === replyToId);
+                if (!replyTarget) throw new Error('REPLY_NOT_FOUND');
+                replyTo = toChatReplyStub(replyTarget);
+            }
+            message = {
+                id: crypto.randomUUID(),
+                roomId,
+                userId: auth.user.id,
+                username: auth.user.username,
+                text,
+                createdAt: Date.now(),
+                clientMode,
+                replyTo,
+            };
+            rows.push(message);
+            const maxRows = isDmRoom(room) ? 5000 : 500;
+            if (rows.length > maxRows) {
+                getChatMessagesMap(db)[roomId] = rows.slice(-maxRows);
+            }
+            room.lastMessageAt = message.createdAt;
+            const senderSave = getUserSave(db, auth.user.id);
+            applyActivityDelta(senderSave, { chatMessages: 1 }, message.createdAt);
+            return db;
+        });
+
+        const dbAfter = await readAuthDb();
+        const messageUserIds = collectChatUserIds([message]);
+        const userStatusesById = getEffectiveStatusesForUsers(dbAfter, messageUserIds, Date.now());
+        setUserTypingState(roomId, auth.user, false, clientMode, 'offline', Date.now());
+        return res.json({ ok: true, message: toChatMessagePublicView(message, userStatusesById, auth.user.id) });
+    } catch (error) {
+        if (error.message === 'ROOM_ACCESS_DENIED') return jsonError(res, 403, 'Invalid room password');
+        if (error.message === 'DM_BLOCKED') return jsonError(res, 403, 'DM is blocked');
+        if (error.message === 'REPLY_NOT_FOUND') return jsonError(res, 404, 'Reply target not found');
+        return jsonError(res, 500, `Chat send failed: ${error.message}`);
+    }
+});
+
+app.get('/api/chat/typing', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.query?.room || 'lobby') || 'lobby';
+        const roomPassword = String(req.query?.password || '');
+        const db = await readAuthDb();
+        const rooms = getChatRooms(db);
+        const room = rooms[roomId];
+        if (!room) return jsonError(res, 404, 'Room not found');
+        if (!canAccessRoom(auth.user, room, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(db, room, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+        const typing = getRoomTypingPublicView(roomId, auth.user.id, Date.now());
+        return res.json({ ok: true, typing, now: Date.now() });
+    } catch (error) {
+        return jsonError(res, 500, `Typing read failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/typing', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.body?.room || 'lobby') || 'lobby';
+        const roomPassword = String(req.body?.password || '');
+        const typing = !!req.body?.typing;
+        const clientMode = normalizeChatClientMode(req.body?.clientMode);
+        const db = await readAuthDb();
+        const rooms = getChatRooms(db);
+        const room = rooms[roomId];
+        if (!room) return jsonError(res, 404, 'Room not found');
+        if (!canAccessRoom(auth.user, room, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(db, room, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+        const now = Date.now();
+        const status = getEffectiveUserStatus(db, auth.user.id, now);
+        setUserTypingState(roomId, auth.user, typing, clientMode, status, now);
+        return res.json({ ok: true, typing, now });
+    } catch (error) {
+        return jsonError(res, 500, `Typing update failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/reactions', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.body?.room || 'lobby') || 'lobby';
+        const roomPassword = String(req.body?.password || '');
+        const messageId = normalizeChatReplyId(req.body?.messageId);
+        const emoji = normalizeChatReactionEmoji(req.body?.emoji);
+        if (!messageId) return jsonError(res, 400, 'messageId is required');
+        if (!emoji) return jsonError(res, 400, 'Invalid reaction emoji');
+
+        const dbBefore = await readAuthDb();
+        const roomsBefore = getChatRooms(dbBefore);
+        const roomBefore = roomsBefore[roomId];
+        if (!roomBefore) return jsonError(res, 404, 'Room not found');
+        if (!canAccessRoom(auth.user, roomBefore, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(dbBefore, roomBefore, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+        let updatedMessage = null;
 
         await updateAuthDb((db) => {
             const rooms = getChatRooms(db);
@@ -3674,18 +5876,469 @@ app.post('/api/chat/messages', async (req, res) => {
                 throw new Error('ROOM_ACCESS_DENIED');
             }
             const rows = getRoomMessages(db, roomId);
-            rows.push(message);
-            if (rows.length > 500) {
-                getChatMessagesMap(db)[roomId] = rows.slice(-500);
+            const message = rows.find((entry) => String(entry?.id || '') === messageId);
+            if (!message) throw new Error('MESSAGE_NOT_FOUND');
+            const reactions = normalizeMessageReactions(message);
+            const users = Array.isArray(reactions[emoji]) ? reactions[emoji].map((id) => String(id || '').trim()).filter(Boolean) : [];
+            const meId = String(auth.user.id || '');
+            if (users.includes(meId)) {
+                reactions[emoji] = users.filter((id) => id !== meId);
+            } else {
+                reactions[emoji] = [...users, meId];
             }
-            room.lastMessageAt = message.createdAt;
+            if (!reactions[emoji].length) delete reactions[emoji];
+            message.reactions = reactions;
+            updatedMessage = message;
             return db;
         });
 
-        return res.json({ ok: true, message });
+        const dbAfter = await readAuthDb();
+        const userStatusesById = getEffectiveStatusesForUsers(dbAfter, collectChatUserIds([updatedMessage]), Date.now());
+        return res.json({ ok: true, message: toChatMessagePublicView(updatedMessage, userStatusesById, auth.user.id) });
     } catch (error) {
         if (error.message === 'ROOM_ACCESS_DENIED') return jsonError(res, 403, 'Invalid room password');
-        return jsonError(res, 500, `Chat send failed: ${error.message}`);
+        if (error.message === 'MESSAGE_NOT_FOUND') return jsonError(res, 404, 'Message not found');
+        return jsonError(res, 500, `Reaction update failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/pins', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.body?.room || 'lobby') || 'lobby';
+        const roomPassword = String(req.body?.password || '');
+        const messageId = normalizeChatReplyId(req.body?.messageId);
+        const actionRaw = String(req.body?.action || '').trim().toLowerCase();
+        const action = actionRaw === 'unpin' ? 'unpin' : 'pin';
+        if (!messageId) return jsonError(res, 400, 'messageId is required');
+
+        const dbBefore = await readAuthDb();
+        const roomsBefore = getChatRooms(dbBefore);
+        const roomBefore = roomsBefore[roomId];
+        if (!roomBefore) return jsonError(res, 404, 'Room not found');
+        if (!canAccessRoom(auth.user, roomBefore, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(dbBefore, roomBefore, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+        if (!canPinRoom(auth.user, roomBefore)) return jsonError(res, 403, 'Not allowed to pin in this room');
+
+        await updateAuthDb((db) => {
+            const rooms = getChatRooms(db);
+            const room = rooms[roomId];
+            if (!room || !canAccessRoom(auth.user, room, roomPassword)) {
+                throw new Error('ROOM_ACCESS_DENIED');
+            }
+            if (!canPinRoom(auth.user, room)) throw new Error('PIN_DENIED');
+            const rows = getRoomMessages(db, roomId);
+            const pins = normalizeRoomPinnedMessageIds(room);
+            if (action === 'pin') {
+                const messageExists = rows.some((entry) => String(entry?.id || '') === messageId);
+                if (!messageExists) throw new Error('MESSAGE_NOT_FOUND');
+                room.pinnedMessageIds = [messageId, ...pins.filter((id) => id !== messageId)].slice(0, CHAT_PIN_LIMIT);
+            } else {
+                room.pinnedMessageIds = pins.filter((id) => id !== messageId);
+            }
+            return db;
+        });
+
+        const dbAfter = await readAuthDb();
+        const roomAfter = getChatRooms(dbAfter)[roomId];
+        if (!roomAfter) return jsonError(res, 404, 'Room not found');
+        const pinnedRows = getRoomMessages(dbAfter, roomId).filter((entry) => normalizeRoomPinnedMessageIds(roomAfter).includes(String(entry?.id || '')));
+        const userStatusesById = getEffectiveStatusesForUsers(dbAfter, collectChatUserIds(pinnedRows), Date.now());
+        const pins = resolveRoomPinnedMessagesPublicView(dbAfter, roomAfter, userStatusesById, auth.user.id);
+        return res.json({ ok: true, action, pins, canPin: canPinRoom(auth.user, roomAfter), now: Date.now() });
+    } catch (error) {
+        if (error.message === 'ROOM_ACCESS_DENIED') return jsonError(res, 403, 'Invalid room password');
+        if (error.message === 'PIN_DENIED') return jsonError(res, 403, 'Not allowed to pin in this room');
+        if (error.message === 'MESSAGE_NOT_FOUND') return jsonError(res, 404, 'Message not found');
+        return jsonError(res, 500, `Pin update failed: ${error.message}`);
+    }
+});
+
+app.get('/api/chat/replies', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const since = Number.parseInt(String(req.query?.since || '0'), 10) || 0;
+        const db = await readAuthDb();
+        const rooms = getChatRooms(db);
+        const messagesMap = getChatMessagesMap(db);
+        const hits = [];
+        const hitRows = [];
+
+        for (const [roomId, rows] of Object.entries(messagesMap)) {
+            if (!Array.isArray(rows) || !rows.length) continue;
+            const room = rooms[roomId];
+            if (!room) continue;
+            if (isDmRoomBlockedForUser(db, room, auth.user.id)) continue;
+            for (const row of rows) {
+                if (!row || typeof row !== 'object') continue;
+                const createdAt = Number(row.createdAt) || 0;
+                if (createdAt <= since) continue;
+                if (String(row.userId || '') === String(auth.user.id || '')) continue;
+                const replyTo = row.replyTo && typeof row.replyTo === 'object' ? row.replyTo : null;
+                if (!replyTo) continue;
+                if (String(replyTo.userId || '') !== String(auth.user.id || '')) continue;
+
+                hitRows.push(row);
+                hits.push({ row, roomName: String(room.name || room.id || 'room') });
+            }
+        }
+
+        const userStatusesById = getEffectiveStatusesForUsers(db, collectChatUserIds(hitRows), Date.now());
+        const withMessages = hits
+            .map((entry) => {
+                const message = toChatMessagePublicView(entry.row, userStatusesById, auth.user.id);
+                if (!message) return null;
+                return {
+                    ...message,
+                    roomName: entry.roomName,
+                };
+            })
+            .filter(Boolean);
+
+        withMessages.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+        return res.json({ ok: true, replies: withMessages.slice(-120), now: Date.now() });
+    } catch (error) {
+        return jsonError(res, 500, `Reply feed failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/dm', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+
+        const targetUserIdInput = String(req.body?.targetUserId || '').trim();
+        const targetUsernameInput = sanitizeUsername(req.body?.targetUsername);
+        if (!targetUserIdInput && !targetUsernameInput) {
+            return jsonError(res, 400, 'targetUserId or targetUsername is required');
+        }
+
+        const dbBefore = await readAuthDb();
+        const users = Array.isArray(dbBefore.users) ? dbBefore.users : [];
+        const targetUser = users.find((user) => {
+            if (!user || typeof user !== 'object') return false;
+            if (targetUserIdInput && String(user.id || '') === targetUserIdInput) return true;
+            if (targetUsernameInput && sanitizeUsername(user.username) === targetUsernameInput) return true;
+            return false;
+        });
+
+        if (!targetUser) return jsonError(res, 404, 'Target user not found');
+        if (String(targetUser.id || '') === String(auth.user.id || '')) {
+            return jsonError(res, 400, 'Cannot DM yourself');
+        }
+        if (areUsersBlockedEitherDirection(dbBefore, auth.user.id, targetUser.id)) {
+            return jsonError(res, 403, 'DM is blocked');
+        }
+
+        const roomId = buildDmRoomId(auth.user.id, targetUser.id);
+        if (!roomId) return jsonError(res, 400, 'Failed to create DM room id');
+        const now = Date.now();
+        let room = null;
+
+        await updateAuthDb((db) => {
+            const rooms = getChatRooms(db);
+            if (!rooms[roomId]) {
+                rooms[roomId] = {
+                    id: roomId,
+                    name: `dm-${sanitizeUsername(targetUser.username)}`,
+                    ownerUserId: 'system',
+                    ownerUsername: 'system',
+                    isPrivate: false,
+                    kind: 'dm',
+                    dmUserIds: [String(auth.user.id), String(targetUser.id)].sort(),
+                    dmUsernames: {
+                        [String(auth.user.id)]: String(auth.user.username || 'user'),
+                        [String(targetUser.id)]: String(targetUser.username || 'user'),
+                    },
+                    createdAt: now,
+                    lastMessageAt: now,
+                };
+                getRoomMessages(db, roomId);
+            }
+
+            const existing = rooms[roomId];
+            if (!existing.kind) existing.kind = 'dm';
+            if (!Array.isArray(existing.dmUserIds) || existing.dmUserIds.length < 2) {
+                existing.dmUserIds = [String(auth.user.id), String(targetUser.id)].sort();
+            }
+            if (!existing.dmUsernames || typeof existing.dmUsernames !== 'object') {
+                existing.dmUsernames = {};
+            }
+            existing.dmUsernames[String(auth.user.id)] = String(auth.user.username || 'user');
+            existing.dmUsernames[String(targetUser.id)] = String(targetUser.username || 'user');
+            room = existing;
+            return db;
+        });
+
+        const roomPresenceContext = buildDmRoomPresenceContext(dbBefore, [room], auth.user.id, Date.now());
+        return res.json({ ok: true, room: toRoomPublicView(room, auth.user, roomPresenceContext) });
+    } catch (error) {
+        return jsonError(res, 500, `DM create failed: ${error.message}`);
+    }
+});
+
+app.get('/api/chat/call/state', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.query?.room || '');
+        const roomPassword = String(req.query?.password || '');
+        if (!roomId) return jsonError(res, 400, 'Room is required');
+        const rooms = getChatRooms(auth.db);
+        const room = rooms[roomId];
+        if (!room) return jsonError(res, 404, 'Room not found');
+        if (!canAccessRoom(auth.user, room, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(auth.db, room, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+
+        pruneChatCallRooms();
+        const callRoom = chatCallRooms.get(roomId);
+        const members = callRoom ? toChatCallMembersPublicView(callRoom) : [];
+        return res.json({
+            ok: true,
+            room: toRoomPublicView(room, auth.user, buildDmRoomPresenceContext(auth.db, [room], auth.user.id, Date.now())),
+            call: {
+                active: !!callRoom,
+                mode: callRoom?.mode || 'voice',
+                members,
+            },
+            now: Date.now(),
+        });
+    } catch (error) {
+        return jsonError(res, 500, `Call state failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/call/join', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.body?.room || '');
+        const roomPassword = String(req.body?.password || '');
+        const wantsVideo = Boolean(req.body?.video);
+        const clientMode = normalizeChatClientMode(req.body?.clientMode);
+        if (!roomId) return jsonError(res, 400, 'Room is required');
+
+        const rooms = getChatRooms(auth.db);
+        const room = rooms[roomId];
+        if (!room) return jsonError(res, 404, 'Room not found');
+        if (!canAccessRoom(auth.user, room, roomPassword)) return jsonError(res, 403, 'Invalid room password');
+        if (isDmRoomBlockedForUser(auth.db, room, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+        if (wantsVideo && !isDmRoom(room)) return jsonError(res, 400, 'Video calls are only available in DMs');
+
+        pruneChatCallRooms();
+        const now = Date.now();
+        const callRoom = getOrCreateChatCallRoom(roomId);
+        callRoom.members[String(auth.user.id)] = {
+            userId: String(auth.user.id),
+            username: String(auth.user.username || 'user'),
+            clientMode,
+            joinedAt: Number(callRoom.members[String(auth.user.id)]?.joinedAt || now),
+            lastSeenAt: now,
+            wantsVideo: wantsVideo && isDmRoom(room),
+        };
+        const anyVideo = Object.values(callRoom.members).some((entry) => !!entry?.wantsVideo);
+        callRoom.mode = anyVideo && isDmRoom(room) ? 'video' : 'voice';
+        callRoom.updatedAt = now;
+
+        return res.json({
+            ok: true,
+            room: toRoomPublicView(room, auth.user, buildDmRoomPresenceContext(auth.db, [room], auth.user.id, now)),
+            call: {
+                active: true,
+                mode: callRoom.mode,
+                members: toChatCallMembersPublicView(callRoom),
+            },
+            now,
+        });
+    } catch (error) {
+        return jsonError(res, 500, `Call join failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/call/ping', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.body?.room || '');
+        if (!roomId) return jsonError(res, 400, 'Room is required');
+        pruneChatCallRooms();
+        const callRoom = chatCallRooms.get(roomId);
+        if (!callRoom || !callRoom.members[String(auth.user.id)]) {
+            return res.json({ ok: true, joined: false, now: Date.now() });
+        }
+        callRoom.members[String(auth.user.id)].lastSeenAt = Date.now();
+        callRoom.updatedAt = Date.now();
+        return res.json({ ok: true, joined: true, now: Date.now() });
+    } catch (error) {
+        return jsonError(res, 500, `Call ping failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/call/leave', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.body?.room || '');
+        if (!roomId) return jsonError(res, 400, 'Room is required');
+        pruneChatCallRooms();
+        const callRoom = chatCallRooms.get(roomId);
+        if (!callRoom) return res.json({ ok: true, now: Date.now() });
+        delete callRoom.members[String(auth.user.id)];
+        callRoom.updatedAt = Date.now();
+        pruneChatCallRooms();
+        return res.json({ ok: true, now: Date.now() });
+    } catch (error) {
+        return jsonError(res, 500, `Call leave failed: ${error.message}`);
+    }
+});
+
+app.post('/api/chat/call/signal', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.body?.room || '');
+        const toUserId = String(req.body?.toUserId || '').trim();
+        const signalType = sanitizeCallSignalType(req.body?.type);
+        const payload = sanitizeCallSignalPayload(req.body?.payload);
+        if (!roomId) return jsonError(res, 400, 'Room is required');
+        if (!toUserId) return jsonError(res, 400, 'toUserId is required');
+        if (!signalType) return jsonError(res, 400, 'Invalid signal type');
+        if (!payload && signalType !== 'hangup') return jsonError(res, 400, 'Signal payload is required');
+
+        pruneChatCallRooms();
+        const callRoom = chatCallRooms.get(roomId);
+        if (!callRoom) return jsonError(res, 404, 'Call room not found');
+        const rooms = getChatRooms(auth.db);
+        const room = rooms[roomId];
+        if (!room) return jsonError(res, 404, 'Room not found');
+        if (!canAccessRoom(auth.user, room, '')) return jsonError(res, 403, 'Invalid room access');
+        if (isDmRoomBlockedForUser(auth.db, room, auth.user.id)) return jsonError(res, 403, 'DM is blocked');
+        const fromId = String(auth.user.id || '');
+        if (!callRoom.members[fromId]) return jsonError(res, 403, 'Join the call first');
+        const targetInCall = !!callRoom.members[toUserId];
+        const targetIsDmPeer = isDmRoom(room) && getDmUserIds(room).includes(toUserId);
+        const canSignalOfflineDmPeer = targetIsDmPeer && (signalType === 'offer' || signalType === 'hangup');
+        if (!targetInCall && !canSignalOfflineDmPeer) {
+            return jsonError(res, 404, 'Target user is not in call');
+        }
+
+        const now = Date.now();
+        callRoom.members[fromId].lastSeenAt = now;
+        const signal = {
+            id: crypto.randomUUID(),
+            roomId,
+            fromUserId: fromId,
+            fromUsername: String(auth.user.username || 'user'),
+            fromClientMode: normalizeChatClientMode(callRoom.members[fromId].clientMode),
+            toUserId,
+            type: signalType,
+            payload: payload || null,
+            createdAt: now,
+            expiresAt: now + CHAT_CALL_SIGNAL_TTL_MS,
+        };
+        callRoom.signals.push(signal);
+        if (callRoom.signals.length > 500) {
+            callRoom.signals = callRoom.signals.slice(-500);
+        }
+        callRoom.updatedAt = now;
+
+        return res.json({ ok: true, signalId: signal.id, now });
+    } catch (error) {
+        return jsonError(res, 500, `Call signal failed: ${error.message}`);
+    }
+});
+
+app.get('/api/chat/call/incoming', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const since = Number.parseInt(String(req.query?.since || '0'), 10) || 0;
+        pruneChatCallRooms();
+        const rooms = getChatRooms(auth.db);
+        const userId = String(auth.user.id || '');
+        const hits = [];
+
+        for (const callRoom of chatCallRooms.values()) {
+            if (!callRoom || typeof callRoom !== 'object') continue;
+            const roomId = String(callRoom.roomId || '');
+            const room = rooms[roomId];
+            if (!room) continue;
+            if (!canAccessRoom(auth.user, room, '')) continue;
+            if (isDmRoomBlockedForUser(auth.db, room, auth.user.id)) continue;
+            const members = toChatCallMembersPublicView(callRoom);
+            for (const signal of Array.isArray(callRoom.signals) ? callRoom.signals : []) {
+                if (!signal || typeof signal !== 'object') continue;
+                const createdAt = Number(signal.createdAt || 0);
+                if (createdAt <= since) continue;
+                if (String(signal.toUserId || '') !== userId) continue;
+                const type = sanitizeCallSignalType(signal.type);
+                if (!type) continue;
+                hits.push({
+                    id: String(signal.id || ''),
+                    roomId,
+                    room: toRoomPublicView(room, auth.user, buildDmRoomPresenceContext(auth.db, [room], auth.user.id, Date.now())),
+                    fromUserId: String(signal.fromUserId || ''),
+                    fromUsername: String(signal.fromUsername || 'user'),
+                    fromClientMode: normalizeChatClientMode(signal.fromClientMode),
+                    toUserId: userId,
+                    type,
+                    payload: signal.payload || null,
+                    createdAt,
+                    callMode: String(callRoom.mode || 'voice') === 'video' ? 'video' : 'voice',
+                    callMembers: members,
+                });
+            }
+        }
+
+        hits.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+        return res.json({ ok: true, signals: hits.slice(-180), now: Date.now() });
+    } catch (error) {
+        return jsonError(res, 500, `Call incoming poll failed: ${error.message}`);
+    }
+});
+
+app.get('/api/chat/call/signals', async (req, res) => {
+    try {
+        const auth = await getSessionFromRequest(req);
+        if (!auth) return jsonError(res, 401, 'Unauthorized');
+        const roomId = normalizeRoomName(req.query?.room || '');
+        const since = Number.parseInt(String(req.query?.since || '0'), 10) || 0;
+        if (!roomId) return jsonError(res, 400, 'Room is required');
+
+        pruneChatCallRooms();
+        const callRoom = chatCallRooms.get(roomId);
+        if (!callRoom) return res.json({ ok: true, signals: [], now: Date.now() });
+        const room = getChatRooms(auth.db)[roomId];
+        if (!room) return res.json({ ok: true, signals: [], now: Date.now() });
+        if (isDmRoomBlockedForUser(auth.db, room, auth.user.id)) {
+            return res.json({ ok: true, signals: [], now: Date.now() });
+        }
+        const userId = String(auth.user.id || '');
+        if (!callRoom.members[userId]) return res.json({ ok: true, signals: [], now: Date.now() });
+
+        const signals = callRoom.signals
+            .filter((signal) => {
+                if (!signal || typeof signal !== 'object') return false;
+                if (Number(signal.createdAt || 0) <= since) return false;
+                return String(signal.toUserId || '') === userId;
+            })
+            .map((signal) => ({
+                id: String(signal.id || ''),
+                roomId: String(signal.roomId || ''),
+                fromUserId: String(signal.fromUserId || ''),
+                fromUsername: String(signal.fromUsername || 'user'),
+                fromClientMode: normalizeChatClientMode(signal.fromClientMode),
+                toUserId: String(signal.toUserId || ''),
+                type: sanitizeCallSignalType(signal.type),
+                payload: signal.payload || null,
+                createdAt: Number(signal.createdAt || Date.now()),
+            }));
+
+        return res.json({ ok: true, signals, now: Date.now() });
+    } catch (error) {
+        return jsonError(res, 500, `Call signal poll failed: ${error.message}`);
     }
 });
 
@@ -3694,8 +6347,16 @@ app.get('/api/chat/rooms', async (req, res) => {
         const auth = await getSessionFromRequest(req);
         if (!auth) return jsonError(res, 401, 'Unauthorized');
         const db = await readAuthDb();
-        const rooms = Object.values(getChatRooms(db))
-            .map((room) => toRoomPublicView(room))
+        const visibleRooms = Object.values(getChatRooms(db))
+            .filter((room) => {
+                if (!isDmRoom(room)) return true;
+                if (!canAccessRoom(auth.user, room, '')) return false;
+                if (isDmRoomBlockedForUser(db, room, auth.user.id)) return false;
+                return true;
+            });
+        const roomPresenceContext = buildDmRoomPresenceContext(db, visibleRooms, auth.user.id, Date.now());
+        const rooms = visibleRooms
+            .map((room) => toRoomPublicView(room, auth.user, roomPresenceContext))
             .sort(sortChatRoomsForList);
         return res.json({ ok: true, rooms });
     } catch (error) {
@@ -3712,6 +6373,9 @@ app.post('/api/chat/rooms', async (req, res) => {
         const password = String(req.body?.password || '');
         if (!roomId || roomId.length < 3) {
             return jsonError(res, 400, 'Room name must be at least 3 characters.');
+        }
+        if (roomId.startsWith('dm-')) {
+            return jsonError(res, 400, 'Room name cannot start with dm-.');
         }
         if (SYSTEM_CHAT_ROOM_IDS.has(roomId)) return jsonError(res, 409, 'Room name already exists.');
         if (isPrivate && password.length < 4) {
@@ -3741,7 +6405,7 @@ app.post('/api/chat/rooms', async (req, res) => {
             return db;
         });
 
-        return res.json({ ok: true, room: toRoomPublicView(room) });
+        return res.json({ ok: true, room: toRoomPublicView(room, auth.user) });
     } catch (error) {
         if (error.message === 'ROOM_EXISTS') return jsonError(res, 409, 'Room name already exists.');
         return jsonError(res, 500, `Room create failed: ${error.message}`);

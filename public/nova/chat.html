@@ -9,9 +9,9 @@
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
         gtag('config', 'G-W1SEMRGLRR');
-    </script><title>Rift Chat</title>
+    </script><title>Nova Chat</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="/global/css/global.css">
+    <link rel="stylesheet" href="/nova/global/css/global.css">
     <style>
         .chat-shell {
             width: min(94vw, 1080px);
@@ -734,7 +734,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>rift chat</h1>
+            <h1>nova chat</h1>
             <p class="page-subtitle">public + private rooms</p>
         </header>
 
@@ -849,7 +849,7 @@
         <button class="nav-button" onclick="location.href='/music'">
             <span class="material-icons">library_music</span>
         </button>
-        <button class="nav-button active" onclick="location.href='/chat'">
+        <button class="nav-button active" onclick="location.href='/chat?rx=nova'">
             <span class="material-icons">forum</span>
         </button>
         <button class="nav-button" onclick="location.href='/browser'">
@@ -866,17 +866,17 @@
         </button>
     </nav>
 
-    <script src="/config.js"></script>
-    <script src="/global/js/ads.js"></script>
-    <script src="/global/js/global.js"></script>
+    <script src="/nova/config.js"></script>
+    <script src="/nova/global/js/ads.js"></script>
+    <script src="/nova/global/js/global.js"></script>
     <script src="/global/js/riftx-gate.js"></script>
-    <script src="/components/cloaker.js"></script>
-    <script src="/components/overlay.js"></script>
-    <script src="/components/components.js"></script>
-    <script src="/components/404.js"></script>
+    <script src="/nova/components/cloaker.js"></script>
+    <script src="/nova/components/overlay.js"></script>
+    <script src="/nova/components/components.js"></script>
+    <script src="/nova/components/404.js"></script>
      <script src="https://laptopchoose.com/09/96/f1/0996f1fd6e5014f3da662d494fbfe224.js"></script>
     <script>
-        document.body.classList.add('nav-pos-' + (localStorage.getItem('rift__nav-position') || 'bottom'));
+        document.body.classList.add('nav-pos-' + (localStorage.getItem('nova__nav-position') || 'bottom'));
 
         const roomListRoomsEl = document.getElementById('roomListRooms');
         const roomListDmsEl = document.getElementById('roomListDms');
@@ -1563,7 +1563,7 @@
             try {
                 const cachedAuthPromise = window.__riftAuthMeCacheV1?.promise;
                 let me = cachedAuthPromise ? await cachedAuthPromise : null;
-                if (!me) me = await window.RiftAuth.me();
+                if (!me) me = await window.NovaAuth.me();
                 if (!me.authenticated) {
                     location.href = '/account';
                     return false;
