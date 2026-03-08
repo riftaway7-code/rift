@@ -101,6 +101,123 @@
       z-index: 10;
     }
 
+    .continue-section {
+      max-width: 1400px;
+      margin: 0 auto 26px;
+      padding: 0 40px;
+      position: relative;
+      z-index: 10;
+      display: none;
+    }
+
+    .continue-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .continue-title {
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
+      color: #fff;
+    }
+
+    #clearContinue {
+      background: transparent;
+      color: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(136, 136, 136, 0.35);
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
+      transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #clearContinue:hover {
+      color: #fff;
+      border-color: var(--rift-gray);
+      box-shadow: 0 0 12px rgba(136, 136, 136, 0.25);
+    }
+
+    .continue-card {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 120px 1fr auto;
+      gap: 16px;
+      align-items: center;
+      border: 1px solid rgba(136, 136, 136, 0.22);
+      background: rgba(0, 0, 0, 0.62);
+      border-radius: 14px;
+      padding: 12px;
+      transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+      text-align: left;
+    }
+
+    .continue-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(136, 136, 136, 0.45);
+      box-shadow: 0 12px 30px rgba(136, 136, 136, 0.14);
+    }
+
+    .continue-card img {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 2 / 3;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(136, 136, 136, 0.25);
+      display: block;
+    }
+
+    .continue-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .continue-media-type {
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .continue-name {
+      color: #fff;
+      font-size: 17px;
+      line-height: 1.25;
+      letter-spacing: 0.04em;
+      text-transform: lowercase;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .continue-details {
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: lowercase;
+      line-height: 1.35;
+    }
+
+    .continue-cta {
+      color: #fff;
+      border: 1px solid rgba(136, 136, 136, 0.45);
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
+      white-space: nowrap;
+    }
+
     .search-wrap {
       display: flex;
       align-items: center;
@@ -446,6 +563,17 @@
 
     @media (max-width: 768px) {
       header h1 { font-size: 32px; letter-spacing: 0.1em; }
+      .continue-section { padding: 0 20px; }
+      .continue-card {
+        grid-template-columns: 84px 1fr;
+        gap: 12px;
+      }
+      .continue-name { font-size: 14px; }
+      .continue-cta {
+        grid-column: 1 / -1;
+        justify-self: start;
+        margin-top: 4px;
+      }
       #main { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; padding: 0 20px; }
       .card-image { height: auto; }
       #iframeWrap { height: 300px; }
@@ -473,6 +601,13 @@
       </select>
     </div>
   </div>
+  <section id="continueSection" class="continue-section">
+    <div class="continue-head">
+      <h2 class="continue-title">continue watching</h2>
+      <button id="clearContinue" type="button">clear</button>
+    </div>
+    <button id="continueCard" class="continue-card" type="button" aria-label="Continue watching"></button>
+  </section>
   <div id="main"></div>
   <div id="loadingIndicator">
     <div class="text">loading data</div>
@@ -591,13 +726,19 @@
     const episodeSelect = document.getElementById('episodeSelect');
     const loadingIndicator = document.getElementById('loadingIndicator');
     const shatterContainer = document.getElementById('shatterContainer');
+    const continueSection = document.getElementById('continueSection');
+    const continueCard = document.getElementById('continueCard');
+    const clearContinueBtn = document.getElementById('clearContinue');
     const FALLBACK_POSTER = 'https://via.placeholder.com/500x750/000/888888?text=No+Image';
+    const CONTINUE_KEY = 'rift_media_continue_v1';
+    const MIN_CONTINUE_SECONDS = 3;
 
     let currentItem = null;
     let currentPage = 1;
     let loading = false;
     let inSearch = false;
     let annotatedCache = [];
+    let playbackSession = null;
 
     function triggerShatter(x, y, callback) {
       const shards = [];
@@ -673,6 +814,170 @@
 
     function showLoading(show) {
       loadingIndicator.style.display = show ? 'flex' : 'none';
+    }
+
+    function getMediaType(item) {
+      return (item && ((item.media_type === 'tv') || item.first_air_date)) ? 'tv' : 'movie';
+    }
+
+    function getPosterUrl(item) {
+      return item && item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : FALLBACK_POSTER;
+    }
+
+    function formatTimeLabel(seconds) {
+      const total = Math.max(0, Math.floor(Number(seconds) || 0));
+      const hrs = Math.floor(total / 3600);
+      const mins = Math.floor((total % 3600) / 60);
+      const secs = total % 60;
+      if (hrs > 0) return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function parseContinueState() {
+      try {
+        const raw = localStorage.getItem(CONTINUE_KEY);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data || !data.id || !data.media_type) return null;
+        return data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveContinueState(data) {
+      try {
+        localStorage.setItem(CONTINUE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    function clearContinueState() {
+      try {
+        localStorage.removeItem(CONTINUE_KEY);
+      } catch (e) {}
+    }
+
+    function buildItemFromContinueState(state) {
+      return {
+        id: state.id,
+        media_type: state.media_type,
+        title: state.title || '',
+        name: state.name || '',
+        poster_path: state.poster_path || null,
+        _cert: state._cert || null,
+        first_air_date: state.media_type === 'tv' ? 'resume' : undefined
+      };
+    }
+
+    function renderContinueWatching() {
+      const state = parseContinueState();
+      if (!state) {
+        continueSection.style.display = 'none';
+        continueCard.innerHTML = '';
+        continueCard.onclick = null;
+        return;
+      }
+      continueSection.style.display = 'block';
+      const title = (state.title || state.name || 'untitled').toLowerCase();
+      const mediaLabel = state.media_type === 'tv' ? 'show' : 'movie';
+      const details = [];
+      if (state.media_type === 'tv' && Number.isFinite(Number(state.season)) && Number.isFinite(Number(state.episode))) {
+        details.push(`season ${Number(state.season)} episode ${Number(state.episode)}`);
+      }
+      details.push(`resume at ${formatTimeLabel(state.resume_seconds || 0)}`);
+      continueCard.innerHTML = `
+        <img src="${getPosterUrl(state)}" alt="${title || 'Poster'}">
+        <div class="continue-meta">
+          <div class="continue-media-type">${mediaLabel}</div>
+          <div class="continue-name">${title}</div>
+          <div class="continue-details">${details.join(' • ')}</div>
+        </div>
+        <div class="continue-cta">resume now</div>
+      `;
+      continueCard.onclick = () => {
+        openModal(buildItemFromContinueState(state), { resume: state });
+      };
+    }
+
+    function getSessionProgressSeconds() {
+      if (!playbackSession) return 0;
+      const elapsed = Math.max(0, Math.floor((Date.now() - playbackSession.started_at) / 1000));
+      return Math.max(0, (Number(playbackSession.resume_seconds) || 0) + elapsed);
+    }
+
+    function persistPlaybackProgress(opts = {}) {
+      if (!playbackSession) return;
+      const progress = getSessionProgressSeconds();
+      if (progress >= MIN_CONTINUE_SECONDS) {
+        saveContinueState({
+          id: playbackSession.id,
+          media_type: playbackSession.media_type,
+          title: playbackSession.title || '',
+          name: playbackSession.name || '',
+          poster_path: playbackSession.poster_path || null,
+          _cert: playbackSession._cert || null,
+          season: playbackSession.media_type === 'tv' ? playbackSession.season : null,
+          episode: playbackSession.media_type === 'tv' ? playbackSession.episode : null,
+          source_index: playbackSession.source_index,
+          resume_seconds: progress,
+          saved_at: Date.now()
+        });
+      }
+      renderContinueWatching();
+      if (opts.reset) {
+        playbackSession = null;
+      } else {
+        playbackSession.resume_seconds = progress;
+        playbackSession.started_at = Date.now();
+      }
+    }
+
+    function withResumeTime(url, resumeSeconds) {
+      const seconds = Math.max(0, Math.floor(Number(resumeSeconds) || 0));
+      if (!seconds) return url;
+      try {
+        const parsed = new URL(url, window.location.origin);
+        parsed.searchParams.set('t', String(seconds));
+        return parsed.toString();
+      } catch (e) {
+        return url;
+      }
+    }
+
+    function setPlaybackSource(url, details) {
+      if (playbackSession) persistPlaybackProgress();
+      const resumeSeconds = Math.max(0, Math.floor(Number(details.resume_seconds) || 0));
+      modalIframe.src = withResumeTime(url, resumeSeconds);
+      playbackSession = {
+        id: details.id,
+        media_type: details.media_type,
+        title: details.title || '',
+        name: details.name || '',
+        poster_path: details.poster_path || null,
+        _cert: details._cert || null,
+        season: details.season ?? null,
+        episode: details.episode ?? null,
+        source_index: details.source_index ?? 0,
+        resume_seconds: resumeSeconds,
+        started_at: Date.now()
+      };
+      renderContinueWatching();
+    }
+
+    function buildPlaybackDetails(item, extra = {}) {
+      return {
+        id: item.id,
+        media_type: getMediaType(item),
+        title: item.title || '',
+        name: item.name || '',
+        poster_path: item.poster_path || null,
+        _cert: item._cert || null,
+        season: null,
+        episode: null,
+        source_index: 0,
+        resume_seconds: 0,
+        ...extra
+      };
     }
 
     async function fetchItems(type = 'movie', page = 1) {
@@ -756,9 +1061,7 @@
     function createCard(item) {
       const card = document.createElement('div');
       card.className = 'card';
-      const imgPath = item.poster_path 
-        ? `https://image.tmdb.org/t/p/w500${item.poster_path}` 
-        : FALLBACK_POSTER;
+      const imgPath = getPosterUrl(item);
       card.innerHTML = `
         <div class="card-image">
           <img src="${imgPath}" alt="${(item.title || item.name) || 'Poster'}">
@@ -838,8 +1141,12 @@
       })();
     }
 
-    function openModal(item) {
+    function openModal(item, options = {}) {
+      const resume = options.resume || null;
+      const resumeSourceIndex = Math.max(0, Math.floor(Number(resume?.source_index) || 0));
+      const resumeSeconds = Math.max(0, Math.floor(Number(resume?.resume_seconds) || 0));
       currentItem = item;
+      playbackSession = null;
       modal.classList.add('active');
       modalTitle.textContent = item.title || item.name || '';
       seasonSelect.style.display = 'none';
@@ -861,9 +1168,12 @@
             });
             if (seasonSelect.options.length) {
               seasonSelect.style.display = 'inline-block';
-              seasonSelect.onchange = () => loadEpisodes(item.id, seasonSelect.value);
-              seasonSelect.selectedIndex = 0;
-              seasonSelect.dispatchEvent(new Event('change'));
+              seasonSelect.onchange = () => loadEpisodes(item.id, seasonSelect.value, null);
+              const preferredSeason = resume?.media_type === 'tv' ? String(resume.season ?? '') : '';
+              const seasonExists = Array.from(seasonSelect.options).some(opt => opt.value === preferredSeason);
+              if (seasonExists) seasonSelect.value = preferredSeason;
+              else seasonSelect.selectedIndex = 0;
+              loadEpisodes(item.id, seasonSelect.value, resume);
             }
           }).catch(() => { modalIframe.src = ''; });
       } else {
@@ -874,16 +1184,25 @@
           sourceSelect.appendChild(opt);
         });
         if (sourceSelect.options.length) {
-          sourceSelect.selectedIndex = 0;
-          modalIframe.src = sourceSelect.value;
+          sourceSelect.selectedIndex = Math.min(resumeSourceIndex, sourceSelect.options.length - 1);
+          setPlaybackSource(sourceSelect.value, buildPlaybackDetails(item, {
+            source_index: sourceSelect.selectedIndex,
+            resume_seconds: resumeSeconds
+          }));
         } else {
           modalIframe.src = '';
         }
+        sourceSelect.onchange = () => {
+          const carry = getSessionProgressSeconds();
+          setPlaybackSource(sourceSelect.value, buildPlaybackDetails(item, {
+            source_index: sourceSelect.selectedIndex,
+            resume_seconds: carry
+          }));
+        };
       }
-      sourceSelect.onchange = () => { modalIframe.src = sourceSelect.value; };
     }
 
-    function loadEpisodes(tvId, seasonNum) {
+    function loadEpisodes(tvId, seasonNum, resume = null) {
       fetch(`${baseURL}/tv/${tvId}/season/${seasonNum}?api_key=${API_KEY}`)
         .then(res => res.json())
         .then(data => {
@@ -896,16 +1215,21 @@
           });
           if (episodeSelect.options.length) {
             episodeSelect.style.display = 'inline-block';
-            episodeSelect.onchange = () => updateTvIframe(tvId, seasonNum, episodeSelect.value);
-            episodeSelect.selectedIndex = 0;
-            episodeSelect.dispatchEvent(new Event('change'));
+            episodeSelect.onchange = () => updateTvIframe(tvId, seasonSelect.value, episodeSelect.value, null);
+            const preferredEpisode = (resume && resume.media_type === 'tv' && String(resume.season) === String(seasonNum))
+              ? String(resume.episode ?? '')
+              : '';
+            const episodeExists = Array.from(episodeSelect.options).some(opt => opt.value === preferredEpisode);
+            if (episodeExists) episodeSelect.value = preferredEpisode;
+            else episodeSelect.selectedIndex = 0;
+            updateTvIframe(tvId, seasonNum, episodeSelect.value, resume);
           } else {
             modalIframe.src = '';
           }
         }).catch(() => { modalIframe.src = ''; });
     }
 
-    function updateTvIframe(id, season, episode) {
+    function updateTvIframe(id, season, episode, resume = null) {
       sourceSelect.innerHTML = '';
       tvSources.forEach(link => {
         const opt = document.createElement('option');
@@ -914,19 +1238,47 @@
         sourceSelect.appendChild(opt);
       });
       if (sourceSelect.options.length) {
-        sourceSelect.selectedIndex = 0;
-        modalIframe.src = sourceSelect.value;
+        const preferredIndex = (resume && resume.media_type === 'tv' &&
+          String(resume.season) === String(season) &&
+          String(resume.episode) === String(episode))
+          ? Math.max(0, Math.floor(Number(resume.source_index) || 0))
+          : 0;
+        sourceSelect.selectedIndex = Math.min(preferredIndex, sourceSelect.options.length - 1);
+        const resumeSeconds = (resume && resume.media_type === 'tv' &&
+          String(resume.season) === String(season) &&
+          String(resume.episode) === String(episode))
+          ? Math.max(0, Math.floor(Number(resume.resume_seconds) || 0))
+          : getSessionProgressSeconds();
+        setPlaybackSource(sourceSelect.value, buildPlaybackDetails(currentItem, {
+          media_type: 'tv',
+          season: Number(season),
+          episode: Number(episode),
+          source_index: sourceSelect.selectedIndex,
+          resume_seconds: resumeSeconds
+        }));
+        sourceSelect.onchange = () => {
+          const carry = getSessionProgressSeconds();
+          setPlaybackSource(sourceSelect.value, buildPlaybackDetails(currentItem, {
+            media_type: 'tv',
+            season: Number(seasonSelect.value || season),
+            episode: Number(episodeSelect.value || episode),
+            source_index: sourceSelect.selectedIndex,
+            resume_seconds: carry
+          }));
+        };
       } else {
         modalIframe.src = '';
       }
     }
 
     function closeModal() {
+      persistPlaybackProgress({ reset: true });
       modal.classList.remove('active');
       setTimeout(() => {
         modalIframe.src = '';
       }, 300);
       if (document.fullscreenElement) document.exitFullscreen?.();
+      currentItem = null;
     }
 
     let searchTimeout = null;
@@ -994,7 +1346,21 @@
       }
     });
 
+    clearContinueBtn.addEventListener('click', () => {
+      clearContinueState();
+      renderContinueWatching();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      persistPlaybackProgress({ reset: true });
+    });
+
+    window.addEventListener('pagehide', () => {
+      persistPlaybackProgress({ reset: true });
+    });
+
     async function init() {
+      renderContinueWatching();
       await loadItems();
       await ensureMinRows(4);
     }
