@@ -284,6 +284,8 @@ if (document.readyState === 'loading') {
 document.addEventListener('DOMContentLoaded', function () {
     const typingText = document.getElementById('typingText');
     const performanceMode = localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true';
+    const cursorFxEnabled = localStorage.getItem('rift__cursor-fx') === 'true';
+    const navToggleEnabled = localStorage.getItem('rift__nav-toggle') === 'true';
 
     const quotes = [
         "the quiet keeps rifting wider",
@@ -328,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    if (!performanceMode) {
+    if (!performanceMode && cursorFxEnabled) {
         const cursorLight = document.createElement('div');
         cursorLight.className = 'cursor-light';
         document.body.appendChild(cursorLight);
@@ -375,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const nav = document.querySelector('.bottom-nav');
-    if (nav) {
+    if (nav && navToggleEnabled) {
         const toggle = document.createElement('button');
         toggle.className = 'nav-toggle';
         toggle.title = 'Toggle navigation';
