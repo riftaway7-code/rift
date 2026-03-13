@@ -2555,6 +2555,28 @@ function isSafeHostname(hostname) {
     );
 }
 
+const LOGIN_RATE_WINDOW_MS = 1000 * 60 * 15; // 15 minutes
+const LOGIN_RATE_MAX_ATTEMPTS = 10;
+const loginAttemptMap = new Map(); // key: ip|username -> { count, resetAt }
+
+function checkLoginRateLimit(ip, username) {
+    const now = Date.now();
+    const key = `${String(ip || '').trim()}|${String(username || '').trim()}`;
+    const entry = loginAttemptMap.get(key);
+    if (!entry || now >= entry.resetAt) {
+        loginAttemptMap.set(key, { count: 1, resetAt: now + LOGIN_RATE_WINDOW_MS });
+        return true;
+    }
+    entry.count += 1;
+    if (entry.count > LOGIN_RATE_MAX_ATTEMPTS) return false;
+    return true;
+}
+
+function clearLoginRateLimit(ip, username) {
+    const key = `${String(ip || '').trim()}|${String(username || '').trim()}`;
+    loginAttemptMap.delete(key);
+}
+
 function hasJamendoClientId() {
     return JAMENDO_CLIENT_ID.length >= 6;
 }
@@ -2604,18 +2626,24 @@ function parseCookies(req) {
     return out;
 }
 
+function isSecureContext() {
+    return !!(process.env.VERCEL || process.env.NODE_ENV === 'production' || process.env.HTTPS);
+}
+
 function setSessionCookie(res, token, expiresAt) {
     const expires = new Date(expiresAt).toUTCString();
+    const secure = isSecureContext() ? '; Secure' : '';
     res.setHeader(
         'Set-Cookie',
-        `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Expires=${expires}`
+        `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax${secure}; Expires=${expires}`
     );
 }
 
 function clearSessionCookie(res) {
+    const secure = isSecureContext() ? '; Secure' : '';
     res.setHeader(
         'Set-Cookie',
-        `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
+        `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax${secure}; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
     );
 }
 
@@ -3032,6 +3060,9 @@ async function updateAuthDb(mutator) {
             try {
                 const db = await readAuthDb();
                 const updated = await mutator(db);
+                if (updated === undefined) {
+                    console.warn('[auth-db] updateAuthDb: mutator returned undefined; changes may have been lost. Ensure every code path returns db.');
+                }
                 await writeAuthDb(updated || db);
             } finally {
                 await releaseAuthDbLock(lockHandle);
@@ -3855,8 +3886,8 @@ function pruneInactiveChatRooms(db) {
 function sortChatRoomsForList(a, b) {
     if (a.id === 'lobby') return -1;
     if (b.id === 'lobby') return 1;
-    if (a.id === 'links') return -1;
-    if (b.id === 'links') return 1;
+    if (a.id === 'links' && b.id !== 'lobby') return -1;
+    if (b.id === 'links' && a.id !== 'lobby') return 1;
     return (b.lastMessageAt || 0) - (a.lastMessageAt || 0);
 }
 
@@ -4351,6 +4382,11 @@ app.post('/api/auth/login', async (req, res) => {
         const password = String(req.body?.password || '');
         if (!username || !password) return jsonError(res, 400, 'Username and password are required.');
 
+        const clientIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+        if (!checkLoginRateLimit(clientIp, username)) {
+            return jsonError(res, 429, 'Too many login attempts. Please try again later.');
+        }
+
         const db = await readAuthDb();
         const user = db.users.find((u) => u.username === username);
         if (!user) return jsonError(res, 401, 'Invalid username or password.');
@@ -4360,11 +4396,12 @@ app.post('/api/auth/login', async (req, res) => {
             return jsonError(res, 401, 'Invalid username or password.');
         }
 
+        clearLoginRateLimit(clientIp, username);
         const now = Date.now();
         const token = createToken();
         const expiresAt = now + SESSION_TTL_MS;
         await updateAuthDb((nextDb) => {
-            nextDb.sessions = nextDb.sessions.filter((s) => s.expiresAt > now && s.userId !== user.id);
+            nextDb.sessions = nextDb.sessions.filter((s) => s.expiresAt > now);
             nextDb.sessions.push({
                 token,
                 userId: user.id,
@@ -7804,7 +7841,7 @@ app.all('/proxy', async (req, res) => {
                 const stored = save.games?.[storageGameId]?.localStorage;
                 const initialStorage = stored && typeof stored === 'object' ? stored : {};
 
-                const storageScript = `<script id="rift-proxy-storage">(function(){try{if(window.__riftProxyStorageInit)return;window.__riftProxyStorageInit=true;var scope=${safeJsonForInlineScript(scope)};var gameId=${safeJsonForInlineScript(storageGameId)};var seed=${safeJsonForInlineScript(initialStorage)};for(var k in seed){if(Object.prototype.hasOwnProperty.call(seed,k)&&localStorage.getItem(k)===null){try{localStorage.setItem(k,String(seed[k]));}catch(_e){}}}var pending=null;var saveNow=function(){try{var out={};for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key!=null){out[key]=localStorage.getItem(key);}}fetch('/api/save/games/'+encodeURIComponent(gameId),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({progress:{localStorage:out,lastSyncedAt:Date.now(),scope:scope}}}).catch(function(){});}catch(_e){}};var schedule=function(){if(pending)clearTimeout(pending);pending=setTimeout(saveNow,600);};var sp=Storage.prototype;var _set=sp.setItem,_remove=sp.removeItem,_clear=sp.clear;sp.setItem=function(a,b){var r=_set.call(this,a,b);if(this===localStorage)schedule();return r;};sp.removeItem=function(a){var r=_remove.call(this,a);if(this===localStorage)schedule();return r;};sp.clear=function(){var r=_clear.call(this);if(this===localStorage)schedule();return r;};window.addEventListener('pagehide',saveNow);window.addEventListener('beforeunload',saveNow);}catch(_e){}})();</script>`;
+                const storageScript = `<script id="rift-proxy-storage">(function(){try{if(window.__riftProxyStorageInit)return;window.__riftProxyStorageInit=true;var scope=${safeJsonForInlineScript(scope)};var gameId=${safeJsonForInlineScript(storageGameId)};var seed=${safeJsonForInlineScript(initialStorage)};for(var k in seed){if(Object.prototype.hasOwnProperty.call(seed,k)&&localStorage.getItem(k)===null){try{localStorage.setItem(k,String(seed[k]));}catch(_e){}}}var pending=null;var saveNow=function(){try{var out={};for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key!=null){out[key]=localStorage.getItem(key);}}fetch('/api/save/games/'+encodeURIComponent(gameId),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({progress:{localStorage:out,lastSyncedAt:Date.now(),scope:scope}})}).catch(function(){});}catch(_e){}};var schedule=function(){if(pending)clearTimeout(pending);pending=setTimeout(saveNow,600);};var sp=Storage.prototype;var _set=sp.setItem,_remove=sp.removeItem,_clear=sp.clear;sp.setItem=function(a,b){var r=_set.call(this,a,b);if(this===localStorage)schedule();return r;};sp.removeItem=function(a){var r=_remove.call(this,a);if(this===localStorage)schedule();return r;};sp.clear=function(){var r=_clear.call(this);if(this===localStorage)schedule();return r;};window.addEventListener('pagehide',saveNow);window.addEventListener('beforeunload',saveNow);}catch(_e){}})();</script>`;
 
                 if (/<head[^>]*>/i.test(modifiedContent)) {
                     modifiedContent = modifiedContent.replace(/<head[^>]*>/i, `$&${storageScript}`);
