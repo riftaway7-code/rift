@@ -52,7 +52,7 @@ const RIFT_UI = {
         { href: '/os', label: 'rift os', icon: 'desktop_windows', section: 'system', keywords: 'desktop os launcher shell' },
     ],
     PAGE_META: {
-        '/': { subtitle: 'workspace, recent launches, and quick actions', kicker: 'workspace', accent: 'home' },
+        '/': { subtitle: '', kicker: 'workspace', accent: 'home' },
         '/games': { subtitle: 'jump straight into the arcade stack', kicker: 'arcade', accent: 'games' },
         '/apps': { subtitle: 'tools, utilities, and helper surfaces', kicker: 'tools', accent: 'apps' },
         '/music': { subtitle: 'tracks, playlists, and saved listening', kicker: 'media', accent: 'music' },

@@ -4043,6 +4043,24 @@ body.rift-ui-ready .rift-reveal {
   body.nav-pos-top .container {
     padding-top: 102px;
   }
+
+  body.route-home #rift-home-workspace {
+    grid-template-columns: 1fr;
+    max-width: 320px;
+    margin: -10px 0 10px auto;
+  }
+
+  body.route-home #rift-home-workspace .rift-home-panel {
+    min-height: 132px;
+  }
+
+  body.route-home .home-cards {
+    margin-top: -4px;
+  }
+
+  body.route-home .rift-page-header {
+    margin-bottom: 10px;
+  }
 }
 
 @media (max-width: 1239px) {
