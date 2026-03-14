@@ -465,6 +465,8 @@ header h1 {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 20px;
   max-width: min(96vw, 1120px);
   overflow-x: auto;
@@ -2705,6 +2707,8 @@ header h1 {
   transform: translateX(-50%);
   width: min(96vw, 1080px);
   max-width: none;
+  justify-content: center;
+  align-items: center;
   padding: 8px 10px;
   gap: 6px;
   border-radius: 16px;
