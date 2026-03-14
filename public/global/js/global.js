@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.4',
+    version: '2.3.5',
     notes: [
+        'restored a real embed shell so in-rift cloud play uses scramjet instead of the plain proxy',
         'added in-rift cloud play so nowgg sessions can launch inside Rift',
         'changed cloud launches to open direct nowgg sessions instead of truffled wrappers',
         'added a dedicated cloud launcher page for nowgg-backed games',
