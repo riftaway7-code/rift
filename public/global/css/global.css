@@ -1905,15 +1905,17 @@ body.nav-pos-top .nav-toggle.nav-is-hidden {
 /* Left position */
 body.nav-pos-left .bottom-nav {
     left: 30px;
-    top: 50%;
-    bottom: auto;
-    transform: translateY(-50%);
+    top: auto;
+    bottom: 18px;
+    transform: none;
     flex-direction: column;
     padding: 20px 15px;
+    max-height: calc(100dvh - 36px);
+    overflow-y: auto;
 }
 
 body.nav-pos-left .bottom-nav.hidden {
-    transform: translateX(-150%) translateY(-50%);
+    transform: translateX(-150%);
 }
 
 body.nav-pos-left .nav-toggle {
@@ -1938,15 +1940,17 @@ body.nav-pos-left .nav-toggle.nav-is-hidden {
 body.nav-pos-right .bottom-nav {
     left: auto;
     right: 30px;
-    top: 50%;
-    bottom: auto;
-    transform: translateY(-50%);
+    top: auto;
+    bottom: 18px;
+    transform: none;
     flex-direction: column;
     padding: 20px 15px;
+    max-height: calc(100dvh - 36px);
+    overflow-y: auto;
 }
 
 body.nav-pos-right .bottom-nav.hidden {
-    transform: translateX(150%) translateY(-50%);
+    transform: translateX(150%);
 }
 
 body.nav-pos-right .nav-toggle {

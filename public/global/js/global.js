@@ -376,6 +376,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
+    document.body.classList.add('nav-pos-' + savedPosition);
+
     const nav = document.querySelector('.bottom-nav');
     if (nav && navToggleEnabled) {
         const toggle = document.createElement('button');
@@ -388,11 +391,6 @@ document.addEventListener('DOMContentLoaded', function () {
             toggle.classList.toggle('nav-is-hidden');
         });
     }
-
-document.addEventListener('DOMContentLoaded', () => {
-    const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
-    document.body.classList.add('nav-pos-' + savedPosition);
-});
 
 });
 
