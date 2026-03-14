@@ -78,7 +78,7 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.2.9',
+    version: '2.3.2',
     notes: [
         'removed the grub startup and made welcome to rift tap-friendly on mobile',
         'removed the old whats new popup from home',
