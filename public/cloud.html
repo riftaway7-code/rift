@@ -281,7 +281,7 @@
     <div class="container">
         <header>
             <h1>rift cloud</h1>
-            <p class="page-subtitle">launch nowgg-backed cloud sessions through Rift</p>
+            <p class="page-subtitle">launch direct nowgg cloud sessions from Rift</p>
         </header>
 
         <section class="cloud-shell">
@@ -290,7 +290,7 @@
                     <div class="cloud-banner-copy">
                         <div class="cloud-kicker">cloud gaming</div>
                         <div class="cloud-hero">heavy games without a heavy device</div>
-                        <div class="cloud-copy">This page uses Rift's existing nowgg wrappers so users can jump into cloud-backed sessions faster. Start with the featured set, filter by what plays best on your device, then launch in Rift or go straight to nowgg.</div>
+                        <div class="cloud-copy">This page launches straight to nowgg.fun. No Truffled wrapper path and no local mirror dependency. Start with the featured set, filter by what fits your device, then open the direct nowgg session from here.</div>
                     </div>
                     <div class="cloud-stat-row">
                         <div class="cloud-stat"><span class="material-icons">cloud</span><span>nowgg powered</span></div>
@@ -313,16 +313,16 @@
                         <div class="cloud-kicker">selected session</div>
                         <div id="cloudDetailTitle" class="cloud-side-title">pick a cloud game</div>
                         <div id="cloudDetailSub" class="cloud-side-sub">ready when you are</div>
-                        <div id="cloudDetailCopy" class="cloud-side-copy">Select a game from the launcher and Rift will show the launch path, tags, and device fit here.</div>
+                        <div id="cloudDetailCopy" class="cloud-side-copy">Select a game from the launcher and Rift will show the direct nowgg path, tags, and device fit here.</div>
                         <div id="cloudDetailTags" class="cloud-tags"></div>
                         <div class="cloud-side-actions">
-                            <a id="cloudLaunchRift" class="cloud-action primary" href="/games">
+                            <a id="cloudLaunchNowggPrimary" class="cloud-action primary" href="https://nowgg.fun/">
                                 <span class="material-icons">play_arrow</span>
-                                <span>play in rift</span>
+                                <span>launch nowgg</span>
                             </a>
-                            <a id="cloudLaunchNowgg" class="cloud-action" href="https://nowgg.fun/" target="_blank" rel="noopener noreferrer">
+                            <a id="cloudLaunchNowggTab" class="cloud-action" href="https://nowgg.fun/" target="_blank" rel="noopener noreferrer">
                                 <span class="material-icons">open_in_new</span>
-                                <span>open nowgg</span>
+                                <span>open in new tab</span>
                             </a>
                         </div>
                     </section>
@@ -332,7 +332,7 @@
                     </section>
                     <section class="cloud-side-card">
                         <div class="cloud-kicker">notes</div>
-                        <div class="cloud-detail-note">If a game needs the raw nowgg domain, use <strong>open nowgg</strong>. If you want the Rift wrapper and embed path, use <strong>play in Rift</strong>.</div>
+                        <div class="cloud-detail-note">Every launcher action here points directly at <strong>nowgg.fun</strong>. The primary button opens the session in this tab. The secondary action keeps Rift open and launches the session in a new tab.</div>
                     </section>
                 </aside>
             </div>
@@ -402,9 +402,8 @@
                     tags: ['mobile', 'social', 'touch'],
                     quality: 'balanced',
                     fit: 'best on low-power devices',
-                    route: '/roblox',
                     directUrl: 'https://nowgg.fun/apps/a/19900/b.html',
-                    summary: 'Launch the existing Rift nowgg wrapper for Roblox when the local device cannot handle the native client well.'
+                    summary: 'Launch Roblox straight on nowgg when the local device cannot handle the native client well.'
                 },
                 {
                     id: 'fortnite',
@@ -413,7 +412,6 @@
                     tags: ['fps', 'competitive', 'heavy'],
                     quality: 'high',
                     fit: 'best on solid wifi',
-                    route: '/fortnite',
                     directUrl: 'https://nowgg.fun/apps/a/10004/b.html',
                     summary: 'Use the cloud route for faster drop-in sessions without depending on the local GPU.'
                 },
@@ -424,7 +422,6 @@
                     tags: ['fps', 'mobile', 'squad'],
                     quality: 'balanced',
                     fit: 'good on phones and school laptops',
-                    route: '/pubg',
                     directUrl: 'https://nowgg.fun/apps/proxima-beta/2609/pubg-mobile-resistance.html',
                     summary: 'A practical cloud pick for multiplayer sessions when local installs are blocked or too heavy.'
                 },
@@ -435,7 +432,6 @@
                     tags: ['social', 'touch', 'light'],
                     quality: 'low data',
                     fit: 'great on weak devices',
-                    route: '/amongus',
                     directUrl: 'https://nowgg.fun/apps/innersloth-llc/4047/among-us.html',
                     summary: 'Easy cloud launch for fast party sessions and classroom-safe hardware.'
                 },
@@ -446,7 +442,6 @@
                     tags: ['heavy', 'rpg', 'touch'],
                     quality: 'high',
                     fit: 'best on stable internet',
-                    route: '/genshin',
                     directUrl: 'https://nowgg.fun/apps/cognosphere-pte-ltd-/1773/genshin-impact.html',
                     summary: 'Use cloud launch for one of the heaviest mobile titles in the library.'
                 },
@@ -457,7 +452,6 @@
                     tags: ['fps', 'competitive', 'touch'],
                     quality: 'high',
                     fit: 'works best with good latency',
-                    route: '/cod',
                     directUrl: 'https://nowgg.fun/apps/a/10008/b.html',
                     summary: 'Cloud-backed shooter sessions for users who need fast access over local installs.'
                 },
@@ -468,7 +462,6 @@
                     tags: ['social', 'light', 'mobile'],
                     quality: 'low data',
                     fit: 'very forgiving on weak hardware',
-                    route: '/stumble',
                     directUrl: 'https://nowgg.fun/apps/a/10011/b.html',
                     summary: 'A lighter instant-play option that makes the cloud page feel fast even on weak devices.'
                 },
@@ -479,7 +472,6 @@
                     tags: ['precision', 'mobile', 'light'],
                     quality: 'balanced',
                     fit: 'good for short sessions',
-                    route: '/gd',
                     directUrl: 'https://nowgg.fun/apps/robtop-games/1400/geometry-dash.html',
                     summary: 'Cloud access for quick run attempts without installing the game locally.'
                 },
@@ -490,7 +482,6 @@
                     tags: ['fps', 'fast', 'browser'],
                     quality: 'balanced',
                     fit: 'works best with low latency',
-                    route: '/krunker',
                     directUrl: 'https://nowgg.fun/apps/yendis-entertainment/51644/krunker.html',
                     summary: 'A fast cloud shooter option that still benefits from Rift as the launcher surface.'
                 },
@@ -501,7 +492,6 @@
                     tags: ['fps', 'fast', 'multiplayer'],
                     quality: 'balanced',
                     fit: 'best on low-latency wifi',
-                    route: '/shell',
                     directUrl: 'https://nowgg.fun/apps/blue-wizard-digital/51615/shell-shockers.html',
                     summary: 'Cloud shooter sessions with a quick queue-to-match flow.'
                 },
@@ -512,7 +502,6 @@
                     tags: ['touch', 'grind', 'mobile'],
                     quality: 'balanced',
                     fit: 'best for mobile-first users',
-                    route: '/crk',
                     directUrl: 'https://nowgg.fun/apps/a/10019/b.html',
                     summary: 'Keep long-running mobile account games available through Rift cloud.'
                 },
@@ -523,9 +512,8 @@
                     tags: ['story', 'heavy', 'touch'],
                     quality: 'high',
                     fit: 'better with stronger connection',
-                    route: '/poppyplaytime',
                     directUrl: 'https://nowgg.fun/apps/a/10019/b.html',
-                    summary: 'A heavier story game that benefits from the same launch path as other nowgg-backed sessions.'
+                    summary: 'A heavier story game that still opens through the same direct nowgg path as the rest of the cloud catalog.'
                 }
             ];
 
@@ -552,8 +540,8 @@
             const copy = document.getElementById('cloudDetailCopy');
             const tags = document.getElementById('cloudDetailTags');
             const stats = document.getElementById('cloudDetailStats');
-            const launchRift = document.getElementById('cloudLaunchRift');
-            const launchNowgg = document.getElementById('cloudLaunchNowgg');
+            const launchNowggPrimary = document.getElementById('cloudLaunchNowggPrimary');
+            const launchNowggTab = document.getElementById('cloudLaunchNowggTab');
 
             function getSelectedGame() {
                 return catalog.find((entry) => entry.id === state.selectedId) || catalog[0] || null;
@@ -596,8 +584,8 @@
                         <div class="cloud-tags">${entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('')}</div>
                         <div class="cloud-card-copy">${entry.summary}</div>
                         <div class="cloud-card-actions">
-                            <a class="cloud-action primary" href="${entry.route}">play in rift</a>
-                            <a class="cloud-action" href="${entry.directUrl}" target="_blank" rel="noopener noreferrer">open nowgg</a>
+                            <a class="cloud-action primary" href="${entry.directUrl}">launch nowgg</a>
+                            <a class="cloud-action" href="${entry.directUrl}" target="_blank" rel="noopener noreferrer">open in new tab</a>
                         </div>
                     </article>
                 `).join('');
@@ -611,7 +599,7 @@
                 copy.textContent = entry.summary;
                 tags.innerHTML = entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('');
                 stats.innerHTML = [
-                    ['launch path', entry.route],
+                    ['host', 'nowgg.fun'],
                     ['quality', entry.quality],
                     ['device fit', entry.fit],
                     ['genre', entry.genre]
@@ -621,8 +609,8 @@
                         <strong>${row[1]}</strong>
                     </div>
                 `).join('');
-                launchRift.href = entry.route;
-                launchNowgg.href = entry.directUrl;
+                launchNowggPrimary.href = entry.directUrl;
+                launchNowggTab.href = entry.directUrl;
             }
 
             function sync() {
