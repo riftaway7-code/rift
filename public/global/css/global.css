@@ -1909,7 +1909,11 @@ body.nav-pos-left .bottom-nav {
     bottom: 18px;
     transform: none;
     flex-direction: column;
+    width: auto;
+    max-width: none;
     padding: 20px 15px;
+    align-items: center;
+    justify-content: center;
     max-height: calc(100dvh - 36px);
     overflow-y: auto;
 }
@@ -1944,7 +1948,11 @@ body.nav-pos-right .bottom-nav {
     bottom: 18px;
     transform: none;
     flex-direction: column;
+    width: auto;
+    max-width: none;
     padding: 20px 15px;
+    align-items: center;
+    justify-content: center;
     max-height: calc(100dvh - 36px);
     overflow-y: auto;
 }
