@@ -77,6 +77,20 @@ const RiftUiState = {
     auth: { authenticated: false, username: '', clientMode: 'rift' },
 };
 
+const RIFT_RELEASE = {
+    version: '2.2.9',
+    notes: [
+        'added a global command palette and quick settings drawer',
+        'added saved page editing so users can move controls around per page',
+        'added a custom right-click menu with Rift actions',
+        'added a desktop context shell with live current-page and session info',
+        'added a workspace home layout with better shared UI structure',
+        'added the dedicated soundboard page and broader nav access',
+        'improved browser tools with the side console panel',
+        'improved startup performance handling and reduced-effects controls',
+    ],
+};
+
 function normalizeHexColor(value, fallback = '#8ecbff') {
     const raw = String(value || '').trim().toLowerCase();
     const short = raw.match(/^#([0-9a-f]{3})$/i);
@@ -1114,15 +1128,9 @@ function ensureRiftUiShell() {
                 <div id="rift-context-auth" class="rift-context-chip is-skeleton">checking...</div>
             </div>
             <div class="rift-context-card">
-                <div class="rift-context-row-head">
-                    <div class="rift-context-kicker">pinned</div>
-                    <button type="button" class="rift-inline-action" data-rift-action="pin-current">toggle current</button>
-                </div>
-                <div id="rift-context-pinned" class="rift-link-stack rift-is-loading"></div>
-            </div>
-            <div class="rift-context-card">
-                <div class="rift-context-kicker">recent</div>
-                <div id="rift-context-recent" class="rift-link-stack rift-is-loading"></div>
+                <div class="rift-context-kicker">rift update ${RIFT_RELEASE.version}</div>
+                <div class="rift-context-title">what shipped</div>
+                <div id="rift-context-release" class="rift-release-list"></div>
             </div>
         </aside>
         <div id="rift-context-menu" class="rift-context-menu" hidden>
@@ -1402,6 +1410,15 @@ function renderRiftLinkStack(host, paths, emptyText) {
         : `<div class="rift-context-empty">${emptyText}</div>`;
 }
 
+function renderRiftReleaseNotes() {
+    const host = document.getElementById('rift-context-release');
+    if (!host) return;
+    const notes = Array.isArray(RIFT_RELEASE.notes) ? RIFT_RELEASE.notes : [];
+    host.innerHTML = notes.length
+        ? notes.map((note) => `<div class="rift-release-item">${note}</div>`).join('')
+        : '<div class="rift-context-empty">no release notes were added for this update.</div>';
+}
+
 function syncRiftContextRail() {
     const meta = getRouteMeta();
     const page = document.getElementById('rift-context-page');
@@ -1415,12 +1432,7 @@ function syncRiftContextRail() {
             ? `${RiftUiState.auth.username || 'signed in'} · ${RiftUiState.auth.clientMode || 'rift'}`
             : 'guest session';
     }
-    renderRiftLinkStack(document.getElementById('rift-context-pinned'), readPinnedRoutes(), 'pin pages to keep them here.');
-    renderRiftLinkStack(
-        document.getElementById('rift-context-recent'),
-        readRecentRoutes().map((entry) => entry.href).filter((href) => href !== getCurrentPath()),
-        'open more pages to build recent history.'
-    );
+    renderRiftReleaseNotes();
 }
 
 function syncRiftPinnedDock() {

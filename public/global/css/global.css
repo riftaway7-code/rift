@@ -3915,6 +3915,33 @@ body {
   gap: 8px;
 }
 
+.rift-release-list {
+  display: grid;
+  gap: 8px;
+}
+
+.rift-release-item {
+  position: relative;
+  padding: 0 0 0 14px;
+  color: rgba(235, 242, 250, 0.78);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+}
+
+.rift-release-item::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--rift-section-accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--rift-section-accent) 65%, transparent);
+}
+
 .rift-route-link,
 .rift-mini-link,
 .rift-dock-link {
