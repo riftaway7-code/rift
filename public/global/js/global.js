@@ -80,6 +80,8 @@ const RiftUiState = {
 const RIFT_RELEASE = {
     version: '2.2.9',
     notes: [
+        'removed the grub startup and made welcome to rift tap-friendly on mobile',
+        'removed the old whats new popup from home',
         'added a global command palette and quick settings drawer',
         'added saved page editing so users can move controls around per page',
         'added a custom right-click menu with Rift actions',
@@ -282,64 +284,6 @@ const RIFT_BOOT = {
     FADE_MS: 520,
 };
 
-function runRiftBootTerminal(bootRoot, onLoadingShown) {
-    const output = bootRoot.querySelector('.rift-boot-terminal-output');
-    if (!output) return () => {};
-
-    const lines = [
-        'grub rescue> ls',
-        '(hd0) (hd0,gpt1)',
-        'grub rescue> set prefix=(hd0,gpt1)/boot/grub',
-        'grub rescue> set root=(hd0,gpt1)',
-        'grub rescue> insmod normal',
-        'grub rescue> normal',
-        'booting rift kernel...',
-        'rift loading...'
-    ];
-
-    let stopped = false;
-    let loadingNotified = false;
-    const timers = [];
-    let lineIndex = 0;
-    let charIndex = 0;
-
-    function schedule(fn, delay) {
-        const timer = window.setTimeout(() => {
-            if (!stopped) fn();
-        }, delay);
-        timers.push(timer);
-    }
-
-    function step() {
-        if (lineIndex >= lines.length) return;
-
-        const current = lines[lineIndex];
-        if (charIndex < current.length) {
-            output.textContent += current.charAt(charIndex);
-            charIndex += 1;
-            schedule(step, 20 + Math.floor(Math.random() * 16));
-            return;
-        }
-
-        output.textContent += '\n';
-        output.scrollTop = output.scrollHeight;
-        if (!loadingNotified && current === 'rift loading...') {
-            loadingNotified = true;
-            if (typeof onLoadingShown === 'function') onLoadingShown();
-        }
-        lineIndex += 1;
-        charIndex = 0;
-        schedule(step, 190);
-    }
-
-    schedule(step, 220);
-
-    return () => {
-        stopped = true;
-        for (const timer of timers) window.clearTimeout(timer);
-    };
-}
-
 function mountRiftBootScreen() {
     if (!document.body) return;
     if (localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true') return;
@@ -352,52 +296,38 @@ function mountRiftBootScreen() {
     boot.innerHTML = `
         <div class="rift-boot-grid"></div>
         <div class="rift-boot-content">
-            <div class="rift-boot-stage rift-boot-stage-terminal is-active">
-                <div class="rift-boot-terminal-title">grub rescue mode</div>
-                <div class="rift-boot-terminal" aria-hidden="true">
-                    <pre class="rift-boot-terminal-output"></pre>
-                    <span class="rift-boot-terminal-caret"></span>
-                </div>
-            </div>
-            <div class="rift-boot-stage rift-boot-stage-welcome">
+            <div class="rift-boot-stage rift-boot-stage-welcome is-active">
                 <div class="rift-boot-logo">Welcome to Rift</div>
                 <div class="rift-boot-subtitle">powered by scramjet</div>
                 <div class="rift-boot-subtitle">inspired by infamous</div>
-                <div class="rift-boot-cta">press space to jump in</div>
+                <div class="rift-boot-cta">tap, click, or press space to jump in</div>
             </div>
         </div>
     `;
 
     document.body.classList.add('rift-boot-active');
     document.body.appendChild(boot);
-    const terminalStage = boot.querySelector('.rift-boot-stage-terminal');
-    const welcomeStage = boot.querySelector('.rift-boot-stage-welcome');
-    let inWelcomeStage = false;
-    const stopTerminal = runRiftBootTerminal(boot, () => {
-        if (!terminalStage || !welcomeStage) return;
-        terminalStage.classList.remove('is-active');
-        welcomeStage.classList.add('is-active');
-        inWelcomeStage = true;
-    });
     let dismissed = false;
 
     function onBootKeyDown(event) {
-        if (event.key === 'Tab') {
-            event.preventDefault();
-            dismiss();
-            return;
-        }
-        if ((event.key === ' ' || event.code === 'Space') && inWelcomeStage) {
+        if ((event.key === ' ' || event.code === 'Space' || event.key === 'Enter') && !event.repeat) {
             event.preventDefault();
             dismiss();
         }
     }
 
+    function onBootPointer(event) {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+        if (target.closest('a, button, input, textarea, select')) return;
+        dismiss();
+    }
+
     function dismiss() {
         if (dismissed) return;
         dismissed = true;
-        stopTerminal();
         document.removeEventListener('keydown', onBootKeyDown, true);
+        boot.removeEventListener('pointerup', onBootPointer, true);
         boot.classList.add('is-exiting');
         document.body.classList.remove('rift-boot-active');
         window.setTimeout(() => boot.remove(), RIFT_BOOT.FADE_MS);
@@ -408,6 +338,7 @@ function mountRiftBootScreen() {
     });
 
     document.addEventListener('keydown', onBootKeyDown, true);
+    boot.addEventListener('pointerup', onBootPointer, true);
 }
 
 if (document.readyState === 'loading') {

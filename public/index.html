@@ -171,62 +171,6 @@
         </button>
     </nav>
 
-    <!-- What's New Popup -->
-<div id="whats-new-popup" class="modal">
-    <div class="modal-content">
-        <h3>Rift Major Update</h3>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="display: flex; align-items: start; gap: 10px;">
-                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">swap_horiz</span>
-                <div>
-                    <strong style="color: white; font-size: 13px;">Rift x Nova mode selector</strong>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Choose Rift or Nova on the same URL. Choice is kept per tab session (not every section click).</p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: start; gap: 10px;">
-                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">forum</span>
-                <div>
-                    <strong style="color: white; font-size: 13px;">Upgraded chat system</strong>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Cross-client labels (username | rift/nova), replies, reply notifications, DM threads, and friends/block controls.</p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: start; gap: 10px;">
-                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">person_search</span>
-                <div>
-                    <strong style="color: white; font-size: 13px;">Full user profiles</strong>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Click a username to open a full profile modal before DM: stats, achievements, quests, season, badges, and style.</p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: start; gap: 10px;">
-                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">call</span>
-                <div>
-                    <strong style="color: white; font-size: 13px;">Voice and video calls</strong>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">User and group calls, incoming call alerts, in-page call dock, and active speaker indicators.</p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: start; gap: 10px;">
-                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">workspace_premium</span>
-                <div>
-                    <strong style="color: white; font-size: 13px;">Progression and customization</strong>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Daily quests, seasonal events, profile themes/effects, and a shared preset marketplace on account pages.</p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: start; gap: 10px;">
-                <span class="material-icons" style="color: rgba(94, 234, 212, 0.9);">shield</span>
-                <div>
-                    <strong style="color: white; font-size: 13px;">Safety and polish</strong>
-                    <p style="margin: 4px 0 0; font-size: 12px; color: rgba(214, 232, 255, 0.72);">Bad-word masking, status controls (auto/online/idle/dnd), and account layout improvements.</p>
-                </div>
-            </div>
-            <a href="https://discord.gg/ZhPjR7vy4E" target="_blank" rel="noopener noreferrer" class="save-btn" style="display: block; text-align: center; text-decoration: none;">join discord: discord.gg/ZhPjR7vy4E</a>
-        </div>
-        <div class="modal-buttons" style="margin-top: 16px;">
-            <button id="whats-new-close" class="save-btn" style="flex: 1;" disabled>continue to rift (5)</button>
-        </div>
-    </div>
-</div>
-
-
     <script src="/config.js"></script>
     <script src="/global/js/ads.js"></script>
     <script src="/global/js/global.js"></script>
@@ -241,52 +185,6 @@
     <script>
     const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
     document.body.classList.add('nav-pos-' + savedPosition);
-</script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const WHATS_NEW_KEY = 'rift__whats-new-seen-v2-major';
-        const popup = document.getElementById('whats-new-popup');
-        const closeBtn = document.getElementById('whats-new-close');
-        const LOCK_SECONDS = 5;
-        if (!popup || !closeBtn) return;
-        const seenThisSession = sessionStorage.getItem(WHATS_NEW_KEY);
-        let unlocked = false;
-
-        function closePopup() {
-            if (!unlocked) return;
-            sessionStorage.setItem(WHATS_NEW_KEY, 'true');
-            popup.classList.remove('active');
-        }
-
-        function startCountdown() {
-            let remaining = LOCK_SECONDS;
-            closeBtn.disabled = true;
-            closeBtn.textContent = `continue to rift (${remaining})`;
-            const timer = setInterval(() => {
-                remaining -= 1;
-                if (remaining > 0) {
-                    closeBtn.textContent = `continue to rift (${remaining})`;
-                    return;
-                }
-                clearInterval(timer);
-                unlocked = true;
-                closeBtn.disabled = false;
-                closeBtn.textContent = 'continue to rift';
-            }, 1000);
-        }
-
-        closeBtn.addEventListener('click', closePopup);
-        popup.addEventListener('click', (e) => {
-            if (e.target === popup) closePopup();
-        });
-
-        if (seenThisSession) return;
-        setTimeout(() => {
-            popup.classList.add('active');
-            startCountdown();
-        }, 500);
-    });
 </script>
 
 <script>
