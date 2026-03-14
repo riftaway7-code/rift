@@ -363,6 +363,12 @@
             max-height: min(58vh, 640px);
             overflow: auto;
         }
+        .soundboard-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+            gap: 14px;
+            min-height: min(58vh, 640px);
+        }
         .sound-card {
             border: 1px solid rgba(255,255,255,.12);
             border-radius: 14px;
@@ -399,6 +405,45 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+        }
+        .sound-preview {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 14px;
+            background: rgba(255,255,255,.04);
+            overflow: hidden;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+        }
+        .sound-preview-head {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            display: grid;
+            gap: 8px;
+        }
+        .sound-preview-title {
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.35;
+        }
+        .sound-preview-sub {
+            color: rgba(255,255,255,.6);
+            font-size: 10px;
+            text-transform: lowercase;
+            letter-spacing: .05em;
+        }
+        .sound-preview-frame {
+            width: 100%;
+            height: 100%;
+            min-height: 420px;
+            border: 0;
+            background: rgba(0,0,0,.25);
+        }
+        .sound-preview-empty {
+            padding: 24px;
+            color: rgba(255,255,255,.64);
+            font-size: 12px;
+            text-align: center;
         }
         .sound-btn,
         .sound-link {
@@ -439,6 +484,9 @@
                 grid-template-columns: 1fr;
             }
             .soundboard-toolbar {
+                grid-template-columns: 1fr;
+            }
+            .soundboard-layout {
                 grid-template-columns: 1fr;
             }
             .playlist-create {
@@ -536,12 +584,28 @@
                 <section id="soundboardTabPanel" class="media-tab-panel" hidden>
                     <div class="soundboard-shell">
                         <form id="soundboardSearchForm" class="soundboard-toolbar">
-                            <input id="soundboardSearchInput" class="field" placeholder="search myinstants sounds" autocomplete="off">
+                            <input id="soundboardSearchInput" class="field" placeholder="filter loaded sound buttons" autocomplete="off">
                             <button id="soundboardTrendingBtn" class="btn" type="button">trending</button>
-                            <button class="btn" type="submit">search</button>
+                            <button class="btn" type="submit">filter</button>
                         </form>
-                        <div id="soundboardStatus" class="status">Open the soundboard tab to load current Myinstants sounds.</div>
-                        <div id="soundboardResults" class="soundboard-grid"></div>
+                        <div id="soundboardStatus" class="status">Open the soundboard tab to load Sound Buttons World.</div>
+                        <div class="soundboard-layout">
+                            <div id="soundboardResults" class="soundboard-grid"></div>
+                            <aside class="sound-preview">
+                                <div class="sound-preview-head">
+                                    <div id="soundPreviewTitle" class="sound-preview-title">No sound selected</div>
+                                    <div id="soundPreviewMeta" class="sound-preview-sub">select a sound card to open its page here</div>
+                                    <div class="sound-card-actions">
+                                        <a id="soundPreviewOpen" class="sound-link" href="https://soundbuttonsworld.com/" target="_blank" rel="noopener noreferrer">
+                                            <span class="material-icons">open_in_new</span>
+                                            <span>open source</span>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div id="soundPreviewEmpty" class="sound-preview-empty">Pick a sound from the list and Rift will load the sound page here.</div>
+                                <iframe id="soundPreviewFrame" class="sound-preview-frame" title="Soundboard preview" hidden></iframe>
+                            </aside>
+                        </div>
                     </div>
                 </section>
             </article>
@@ -631,12 +695,14 @@
         const soundboardTrendingBtn = document.getElementById('soundboardTrendingBtn');
         const soundboardStatus = document.getElementById('soundboardStatus');
         const soundboardResults = document.getElementById('soundboardResults');
+        const soundPreviewTitle = document.getElementById('soundPreviewTitle');
+        const soundPreviewMeta = document.getElementById('soundPreviewMeta');
+        const soundPreviewOpen = document.getElementById('soundPreviewOpen');
+        const soundPreviewEmpty = document.getElementById('soundPreviewEmpty');
+        const soundPreviewFrame = document.getElementById('soundPreviewFrame');
         const mini = window.RiftMiniPlayer;
-        const SOUND_AUDIO = new Audio();
         const MUSIC_ACTIVE_TAB_KEY = 'rift__music-active-tab';
-        const MYINSTANTS_BASE = 'https://www.myinstants.com';
-
-        SOUND_AUDIO.preload = 'none';
+        const SOUNDBOARD_SOURCE_BASE = 'https://soundbuttonsworld.com';
 
         const state = {
             tracks: [],
@@ -649,7 +715,8 @@
             soundboard: {
                 clips: [],
                 loaded: false,
-                currentClipId: '',
+                filteredClips: [],
+                selectedClipId: '',
             },
         };
 
@@ -672,25 +739,11 @@
             return `/proxy?url=${encodeURIComponent(target)}`;
         }
 
-        function unwrapProxyUrl(raw) {
+        function normalizeSoundboardUrl(raw) {
             const value = String(raw || '').trim();
             if (!value) return '';
             try {
-                const absolute = new URL(value, window.location.origin);
-                if (absolute.pathname === '/proxy') {
-                    return absolute.searchParams.get('url') || '';
-                }
-                return absolute.href;
-            } catch {
-                return value;
-            }
-        }
-
-        function normalizeMyinstantsUrl(raw) {
-            const unwrapped = unwrapProxyUrl(raw);
-            if (!unwrapped) return '';
-            try {
-                return new URL(unwrapped, MYINSTANTS_BASE).href;
+                return new URL(value, SOUNDBOARD_SOURCE_BASE).href;
             } catch {
                 return '';
             }
@@ -951,21 +1004,22 @@
         }
 
         function renderSoundboardResults() {
-            if (!state.soundboard.clips.length) {
-                soundboardResults.innerHTML = '<div class="sound-empty">No soundboard clips loaded yet.</div>';
+            const clips = Array.isArray(state.soundboard.filteredClips) ? state.soundboard.filteredClips : [];
+            if (!clips.length) {
+                soundboardResults.innerHTML = `<div class="sound-empty">${state.soundboard.loaded ? 'No loaded sounds match that filter.' : 'No soundboard clips loaded yet.'}</div>`;
                 return;
             }
 
-            soundboardResults.innerHTML = state.soundboard.clips.map((clip, index) => `
-                <article class="sound-card ${clip.id === state.soundboard.currentClipId ? 'active' : ''}">
+            soundboardResults.innerHTML = clips.map((clip, index) => `
+                <article class="sound-card ${clip.id === state.soundboard.selectedClipId ? 'active' : ''}">
                     <div class="sound-card-top">
                         <div>
                             <div class="sound-card-title">${escapeHtml(clip.title)}</div>
-                            <div class="sound-card-sub">myinstants soundboard</div>
+                            <div class="sound-card-sub">${escapeHtml(clip.section || 'sound buttons world')}</div>
                         </div>
-                        <button class="sound-btn primary" type="button" data-sound-play="${index}">
-                            <span class="material-icons">${clip.id === state.soundboard.currentClipId ? 'stop' : 'play_arrow'}</span>
-                            <span>${clip.id === state.soundboard.currentClipId ? 'stop' : 'play'}</span>
+                        <button class="sound-btn primary" type="button" data-sound-open="${index}">
+                            <span class="material-icons">${clip.id === state.soundboard.selectedClipId ? 'visibility' : 'open_in_browser'}</span>
+                            <span>${clip.id === state.soundboard.selectedClipId ? 'viewing' : 'open'}</span>
                         </button>
                     </div>
                     <div class="sound-card-actions">
@@ -977,28 +1031,12 @@
                 </article>
             `).join('');
 
-            soundboardResults.querySelectorAll('[data-sound-play]').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const index = Number(button.getAttribute('data-sound-play'));
-                    const clip = state.soundboard.clips[index];
+            soundboardResults.querySelectorAll('[data-sound-open]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const index = Number(button.getAttribute('data-sound-open'));
+                    const clip = clips[index];
                     if (!clip) return;
-                    if (state.soundboard.currentClipId === clip.id) {
-                        SOUND_AUDIO.pause();
-                        SOUND_AUDIO.currentTime = 0;
-                        state.soundboard.currentClipId = '';
-                        renderSoundboardResults();
-                        setSoundboardStatus('Playback stopped.');
-                        return;
-                    }
-                    try {
-                        SOUND_AUDIO.src = clip.streamUrl || clip.mediaUrl || '';
-                        await SOUND_AUDIO.play();
-                        state.soundboard.currentClipId = clip.id;
-                        renderSoundboardResults();
-                        setSoundboardStatus(`Now playing: ${clip.title}`);
-                    } catch (error) {
-                        setSoundboardStatus(error.message || 'clip playback failed');
-                    }
+                    selectSoundboardClip(clip);
                 });
             });
         }
@@ -1015,83 +1053,89 @@
             return new DOMParser().parseFromString(String(html || ''), 'text/html');
         }
 
-        function collectMyinstantsCandidates(html) {
+        function collectSoundboardWorldCandidates(html) {
             const doc = parseHtml(html);
             const seen = new Set();
             const items = [];
             doc.querySelectorAll('a[href]').forEach((anchor) => {
                 const href = String(anchor.getAttribute('href') || '').trim();
-                const absolute = normalizeMyinstantsUrl(href);
-                if (!absolute || !/\/en\/instant\//i.test(absolute) || seen.has(absolute)) return;
+                const absolute = normalizeSoundboardUrl(href);
+                if (!absolute || !/\/sound-button\//i.test(absolute) || seen.has(absolute)) return;
                 seen.add(absolute);
                 const title = String(anchor.textContent || '').replace(/\s+/g, ' ').trim();
                 if (!title) return;
+                const sectionHeading = anchor.closest('section, div, article')?.previousElementSibling?.textContent || '';
                 items.push({
                     title,
                     pageUrl: absolute,
-                    proxiedPageUrl: href.startsWith('/proxy?url=') ? href : proxyUrlFor(absolute),
+                    proxiedPageUrl: proxyUrlFor(absolute),
+                    section: String(sectionHeading || '').replace(/\s+/g, ' ').trim().toLowerCase() || 'sound buttons world',
                 });
             });
-            return items.slice(0, 16);
+            return items.slice(0, 48);
         }
 
-        function extractMyinstantsClip(html, candidate, index) {
-            const doc = parseHtml(html);
-            const directLink = doc.querySelector('a[href*="/media/sounds/"], a[href*="media/sounds/"]');
-            const rawHref = String(directLink?.getAttribute('href') || '').trim();
-            const mediaUrl = normalizeMyinstantsUrl(rawHref);
-            const proxiedHref = rawHref.startsWith('/proxy?url=') ? rawHref : (mediaUrl ? proxyUrlFor(mediaUrl) : '');
-            if (!proxiedHref) return null;
+        function applySoundboardFilter(query) {
+            const normalized = String(query || '').trim().toLowerCase();
+            state.soundboard.filteredClips = state.soundboard.clips.filter((clip) => {
+                if (!normalized) return true;
+                const hay = `${clip.title || ''} ${clip.section || ''}`.toLowerCase();
+                return hay.includes(normalized);
+            });
+            if (!state.soundboard.filteredClips.some((clip) => clip.id === state.soundboard.selectedClipId)) {
+                state.soundboard.selectedClipId = '';
+            }
+            renderSoundboardResults();
+        }
 
-            return {
-                id: `myinstants:${index}:${candidate.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || index}`,
-                title: candidate.title,
-                pageUrl: candidate.pageUrl,
-                mediaUrl,
-                streamUrl: proxiedHref,
-            };
+        function selectSoundboardClip(clip) {
+            if (!clip) return;
+            state.soundboard.selectedClipId = clip.id;
+            soundPreviewTitle.textContent = clip.title || 'Sound preview';
+            soundPreviewMeta.textContent = clip.section || 'sound buttons world';
+            soundPreviewOpen.href = clip.pageUrl || `${SOUNDBOARD_SOURCE_BASE}/`;
+            soundPreviewEmpty.hidden = true;
+            soundPreviewFrame.hidden = false;
+            soundPreviewFrame.src = clip.proxiedPageUrl || proxyUrlFor(clip.pageUrl);
+            renderSoundboardResults();
+            setSoundboardStatus(`Opened ${clip.title} from Sound Buttons World.`);
         }
 
         async function loadSoundboardViaProxy(query) {
-            const normalized = String(query || '').trim();
-            const listingUrl = normalized
-                ? `${MYINSTANTS_BASE}/en/search/?name=${encodeURIComponent(normalized)}`
-                : `${MYINSTANTS_BASE}/en/`;
-            const listingHtml = await fetchHtml(proxyUrlFor(listingUrl));
-            const candidates = collectMyinstantsCandidates(listingHtml);
-            if (!candidates.length) return [];
-
-            const clips = [];
-            for (let i = 0; i < candidates.length; i += 1) {
-                const candidate = candidates[i];
-                try {
-                    const detailHtml = await fetchHtml(candidate.proxiedPageUrl);
-                    const clip = extractMyinstantsClip(detailHtml, candidate, i);
-                    if (clip) clips.push(clip);
-                } catch {
-                }
-            }
-            return clips;
+            const listingHtml = await fetchHtml(proxyUrlFor(`${SOUNDBOARD_SOURCE_BASE}/`));
+            const clips = collectSoundboardWorldCandidates(listingHtml).map((clip, index) => ({
+                id: `soundbuttonsworld:${index}:${clip.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 36) || index}`,
+                ...clip,
+            }));
+            const normalized = String(query || '').trim().toLowerCase();
+            if (!normalized) return clips;
+            return clips.filter((clip) => `${clip.title || ''} ${clip.section || ''}`.toLowerCase().includes(normalized));
         }
 
         async function loadSoundboard(query) {
             const normalized = String(query || '').trim();
-            setSoundboardStatus(normalized ? `Searching Myinstants for "${normalized}"...` : 'Loading current Myinstants sounds...');
+            setSoundboardStatus(normalized ? `Filtering Sound Buttons World for "${normalized}"...` : 'Loading Sound Buttons World sounds...');
             try {
                 const clips = await loadSoundboardViaProxy(normalized);
                 state.soundboard.clips = clips;
+                state.soundboard.filteredClips = clips.slice();
                 state.soundboard.loaded = true;
-                state.soundboard.currentClipId = '';
-                SOUND_AUDIO.pause();
-                SOUND_AUDIO.currentTime = 0;
+                state.soundboard.selectedClipId = '';
+                soundPreviewTitle.textContent = 'No sound selected';
+                soundPreviewMeta.textContent = 'select a sound card to open its page here';
+                soundPreviewOpen.href = `${SOUNDBOARD_SOURCE_BASE}/`;
+                soundPreviewFrame.hidden = true;
+                soundPreviewFrame.src = 'about:blank';
+                soundPreviewEmpty.hidden = false;
                 renderSoundboardResults();
-                setSoundboardStatus(state.soundboard.clips.length
-                    ? `Loaded ${state.soundboard.clips.length} clips from Myinstants.`
-                    : 'No clips found from Myinstants.');
+                setSoundboardStatus(clips.length
+                    ? `Loaded ${clips.length} sounds from Sound Buttons World.`
+                    : 'No sounds matched that filter.');
             } catch (error) {
                 state.soundboard.clips = [];
+                state.soundboard.filteredClips = [];
                 renderSoundboardResults();
-                setSoundboardStatus(error.message || 'soundboard load failed');
+                setSoundboardStatus(String(error?.message || 'soundboard load failed'));
             }
         }
 
@@ -1195,7 +1239,14 @@
 
         soundboardSearchForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            await loadSoundboard(soundboardSearchInput.value);
+            if (!state.soundboard.loaded) {
+                await loadSoundboard(soundboardSearchInput.value);
+                return;
+            }
+            applySoundboardFilter(soundboardSearchInput.value);
+            setSoundboardStatus(state.soundboard.filteredClips.length
+                ? `Showing ${state.soundboard.filteredClips.length} filtered sounds.`
+                : 'No loaded sounds matched that filter.');
         });
 
         soundboardTrendingBtn.addEventListener('click', async () => {
@@ -1305,12 +1356,6 @@
         }
 
         window.addEventListener((mini && mini.updateEvent) || 'rift-mini-player-update', syncFromMini);
-        SOUND_AUDIO.addEventListener('ended', () => {
-            state.soundboard.currentClipId = '';
-            renderSoundboardResults();
-            setSoundboardStatus('Clip finished.');
-        });
-
         (async () => {
             await checkAuth();
             await refreshLibrary();

@@ -12,7 +12,7 @@ async function handleRequest(event) {
     try {
         const url = new URL(request.url);
         if (!/^https?:$/i.test(url.protocol)) {
-            return fetch(request);
+            return await fetch(request);
         }
 
         const isInternalRoute = url.origin === self.location.origin && (
@@ -23,16 +23,20 @@ async function handleRequest(event) {
             url.pathname.startsWith("/api/")
         );
         if (isInternalRoute) {
-            return fetch(request);
+            return await fetch(request);
         }
 
         if (scramjet.route({ request })) {
             return await scramjet.fetch({ request });
         }
 
-        return fetch(request);
+        return await fetch(request);
     } catch (error) {
-        console.error("[Rift SW] proxy fetch failed", error);
+        const failedUrl = String(request?.url || '');
+        const isAdScript = /highperformanceformat\.com|preferencenail\.com|pixel\/purst|laptopchoose\.com/i.test(failedUrl);
+        if (!isAdScript) {
+            console.error("[Rift SW] proxy fetch failed", error);
+        }
         try {
             return await fetch(request);
         } catch {
