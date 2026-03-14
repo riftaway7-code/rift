@@ -1087,16 +1087,18 @@ function ensureRiftUiShell() {
     shell.addEventListener('click', (event) => {
         const target = event.target instanceof HTMLElement ? event.target : null;
         if (!target) return;
+        const closeCommand = target.closest('[data-rift-command-close="1"]');
+        const closeDrawer = target.closest('[data-rift-drawer-close="1"]');
 
         const action = target.getAttribute('data-rift-action') || target.closest('[data-rift-action]')?.getAttribute('data-rift-action') || '';
         if (action === 'open-palette') openRiftCommandPalette();
         if (action === 'open-drawer') openRiftQuickSettings();
         if (action === 'pin-current') togglePinnedRoute(getCurrentPath());
 
-        if (target.id === 'rift-command-shade' || target.id === 'rift-drawer-shade' || target.getAttribute('data-rift-command-close') === '1') {
+        if (target.id === 'rift-command-shade' || closeCommand) {
             closeRiftCommandPalette();
         }
-        if (target.getAttribute('data-rift-drawer-close') === '1') {
+        if (target.id === 'rift-drawer-shade' || closeDrawer) {
             closeRiftQuickSettings();
         }
     });
