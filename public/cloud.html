@@ -470,7 +470,8 @@
                     quality: 'balanced',
                     fit: 'best on low-power devices',
                     directUrl: 'https://nowgg.fun/apps/a/19900/b.html',
-                    riftUrl: 'https://108.ip.nowgg.fun/apps/a/19900/b.html',
+                    launchUrl: 'https://now.gg/play/roblox-corporation/5349/roblox',
+                    riftTarget: 'https://108.ip.nowgg.fun/apps/a/19900/b.html',
                     summary: 'Launch Roblox straight on nowgg when the local device cannot handle the native client well.'
                 },
                 {
@@ -616,8 +617,10 @@
             const closePlayer = document.getElementById('cloudClosePlayer');
 
             function toRiftPlayerUrl(entry) {
-                const target = entry.riftUrl || entry.directUrl;
-                return `/browser?url=${encodeURIComponent(target)}&forceProxy=1`;
+                const launch = entry.launchUrl || entry.directUrl;
+                const target = entry.riftTarget || '';
+                const targetQuery = target ? `&target=${encodeURIComponent(target)}` : '';
+                return `/browser?url=${encodeURIComponent(launch)}${targetQuery}&forceProxy=1`;
             }
 
             function getSelectedGame() {

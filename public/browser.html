@@ -529,6 +529,32 @@
                 return url;
             }
 
+            function mergeTargetUrl(targetUrl, explicitTarget) {
+                if (!targetUrl) return targetUrl;
+                if (!explicitTarget) return targetUrl;
+
+                try {
+                    const target = new URL(targetUrl, window.location.origin);
+                    if (!/^https?:$/i.test(target.protocol)) return target.toString();
+                    if (target.searchParams.has('target')) return target.toString();
+
+                    const host = (target.hostname || '').toLowerCase();
+                    const path = (target.pathname || '').toLowerCase();
+                    const isNowggLaunch =
+                        (host === 'now.gg' || host.endsWith('.now.gg') || host === 'nowgg.fun' || host.endsWith('.nowgg.fun')) &&
+                        path.startsWith('/play/');
+
+                    if (!isNowggLaunch) return target.toString();
+
+                    const resolvedTarget = toTarget(explicitTarget);
+                    if (!resolvedTarget) return target.toString();
+                    target.searchParams.set('target', resolvedTarget);
+                    return target.toString();
+                } catch {
+                    return targetUrl;
+                }
+            }
+
             function updateButtons() {
                 const panel = panels[activePanel];
                 back.disabled = panel.historyIndex <= 0;
@@ -936,7 +962,8 @@
 
             const query = new URLSearchParams(window.location.search);
             const initialUrlParam = query.get('url');
-            const initialTarget = initialUrlParam ? toTarget(initialUrlParam) : null;
+            const initialNowggTarget = query.get('target');
+            const initialTarget = initialUrlParam ? mergeTargetUrl(toTarget(initialUrlParam), initialNowggTarget) : null;
             const forceProxy = query.get('forceProxy') === '1';
             const autoPopout = query.get('popout') === '1';
             if (initialTarget && !shouldForcePlainProxy(initialTarget) && !shouldOpenDirect(initialTarget, { forceProxy })) await ensureScramjetReady();

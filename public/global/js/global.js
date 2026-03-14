@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.8',
+    version: '2.3.9',
     notes: [
+        'changed roblox cloud launch to pass both the nowgg launcher url and session target through the Rift browser runner',
         'changed roblox cloud launch to use the Rift browser proxy runner instead of the blocked nowgg embed path',
         'made the wisp transport probe more tolerant on hosted deployments by using a longer socket check and http fallback',
         'wired a real node-side wisp websocket server onto /wisp/ for Rift deployments that support upgrades',
