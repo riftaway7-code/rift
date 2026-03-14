@@ -8259,10 +8259,16 @@ app.get('/validate', async (req, res) => {
     return res.sendStatus(allowed ? 200 : 403);
 });
 
+app.get('/wisp/', (_req, res) => {
+    res.status(426);
+    res.setHeader('Upgrade', 'websocket');
+    res.setHeader('Connection', 'Upgrade');
+    return res.type('text/plain').send('Wisp websocket endpoint is available at this path via websocket upgrade.');
+});
+
 if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`Rift running on http://localhost:${PORT}`);
-    });
+    const { startRiftServer } = require('./start-server');
+    startRiftServer(app, { port: PORT });
 }
 
 module.exports = app;

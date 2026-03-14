@@ -1,11 +1,10 @@
 const app = require('./server (1).js');
+const { startRiftServer } = require('./start-server');
 
 const PORT = process.env.PORT || 3000;
 
 if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`Rift running on http://localhost:${PORT}`);
-    });
+    startRiftServer(app, { port: PORT });
 }
 
 module.exports = app;
