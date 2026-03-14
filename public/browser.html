@@ -70,6 +70,33 @@
                     loading="eager"
                     referrerpolicy="strict-origin-when-cross-origin"
                 ></iframe>
+
+                <section id="browser-console" class="browser-console" hidden aria-label="Browser console">
+                    <div class="browser-console-header">
+                        <div class="browser-console-title-wrap">
+                            <span class="material-icons">terminal</span>
+                            <div>
+                                <strong>browser console</strong>
+                                <p id="browser-console-status">attach to a page to inspect logs and run JavaScript.</p>
+                            </div>
+                        </div>
+                        <div class="browser-console-actions">
+                            <button type="button" id="browser-console-clear" class="browser-console-action">Clear</button>
+                            <button type="button" id="browser-console-close" class="browser-console-action">Close</button>
+                        </div>
+                    </div>
+                    <div id="browser-console-output" class="browser-console-output" aria-live="polite"></div>
+                    <div class="browser-console-runner">
+                        <textarea
+                            id="browser-console-input"
+                            class="browser-console-input"
+                            rows="3"
+                            placeholder="Run JavaScript in the current browser page"
+                            aria-label="Run JavaScript in the current browser page"
+                        ></textarea>
+                        <button type="button" id="browser-console-run" class="browser-console-run">Run JS</button>
+                    </div>
+                </section>
             </div>
         </section>
     </div>
@@ -143,13 +170,22 @@
             const moreMenu = document.getElementById('browser-more-menu');
             const popout = document.getElementById('browser-popout');
             const panelSwitcher = document.getElementById('panel-switcher');
+            const browserView = document.querySelector('.browser-view');
+            const browserHome = document.getElementById('browser-home');
+            const consolePanel = document.getElementById('browser-console');
+            const consoleStatus = document.getElementById('browser-console-status');
+            const consoleOutput = document.getElementById('browser-console-output');
+            const consoleInput = document.getElementById('browser-console-input');
+            const consoleRun = document.getElementById('browser-console-run');
+            const consoleClear = document.getElementById('browser-console-clear');
+            const consoleClose = document.getElementById('browser-console-close');
             const HOME_TARGET = 'about:blank';
             let proxyMode = 'scramjet';
             const connection = window.BareMux?.BareMuxConnection
                 ? new BareMux.BareMuxConnection('/baremux/worker.js')
                 : null;
 
-            if (!form || !input || !frame || !back || !forward || !reload || !more || !moreMenu || !popout || !panelSwitcher) return;
+            if (!form || !input || !frame || !back || !forward || !reload || !more || !moreMenu || !popout || !panelSwitcher || !browserView || !browserHome || !consolePanel || !consoleStatus || !consoleOutput || !consoleInput || !consoleRun || !consoleClear || !consoleClose) return;
 
             const MAX_PANELS = 3;
             const modeKey = window.location.pathname.startsWith('/nova/') ? 'nova' : 'rift';
@@ -159,10 +195,152 @@
             const BOOKMARKS_KEY = `${modeKey}__browser-bookmarks-v1`;
             const MAX_GLOBAL_HISTORY = 160;
             const MAX_BOOKMARKS = 120;
+            const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug'];
             const panels = [{ history: [], historyIndex: -1 }];
             let activePanel = 0;
             let browserHistory = [];
             let browserBookmarks = [];
+            let consoleOpen = false;
+            let consoleUrl = HOME_TARGET;
+
+            function formatConsoleValue(value, depth = 0, seen = new WeakSet()) {
+                if (value === undefined) return 'undefined';
+                if (value === null) return 'null';
+                if (typeof value === 'string') return value;
+                if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+                if (typeof value === 'symbol') return value.toString();
+                if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`;
+                if (value instanceof Error) return value.stack || `${value.name}: ${value.message}`;
+                if (typeof Element !== 'undefined' && value instanceof Element) {
+                    const id = value.id ? `#${value.id}` : '';
+                    const classes = value.classList?.length ? `.${Array.from(value.classList).join('.')}` : '';
+                    return `<${String(value.tagName || 'element').toLowerCase()}${id}${classes}>`;
+                }
+                if (typeof value === 'object') {
+                    if (seen.has(value)) return '[Circular]';
+                    if (depth >= 2) {
+                        if (Array.isArray(value)) return `[Array(${value.length})]`;
+                        return `[${value.constructor?.name || 'Object'}]`;
+                    }
+                    seen.add(value);
+                    try {
+                        if (Array.isArray(value)) {
+                            return `[${value.map((item) => formatConsoleValue(item, depth + 1, seen)).join(', ')}]`;
+                        }
+                        const entries = Object.entries(value).slice(0, 8).map(([key, entry]) => `${key}: ${formatConsoleValue(entry, depth + 1, seen)}`);
+                        const suffix = Object.keys(value).length > 8 ? ', ...' : '';
+                        return `{ ${entries.join(', ')}${suffix} }`;
+                    } catch {
+                        return `[${value.constructor?.name || 'Object'}]`;
+                    }
+                }
+                return String(value);
+            }
+
+            function appendConsoleEntry(kind, values, source = '') {
+                const row = document.createElement('div');
+                row.className = `browser-console-entry ${kind}`;
+                const label = source ? `${source}: ` : '';
+                const payload = Array.isArray(values)
+                    ? values.map((value) => formatConsoleValue(value)).join(' ')
+                    : formatConsoleValue(values);
+                row.textContent = `${label}${payload}`;
+                consoleOutput.appendChild(row);
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+
+            function setConsoleStatus(message, tone = 'neutral') {
+                consoleStatus.textContent = message;
+                consoleStatus.dataset.tone = tone;
+            }
+
+            function setConsoleOpen(open) {
+                consoleOpen = !!open;
+                consolePanel.hidden = !consoleOpen;
+                browserView.classList.toggle('browser-console-open', consoleOpen);
+            }
+
+            function clearConsoleOutput() {
+                consoleOutput.innerHTML = '';
+            }
+
+            function getFrameExecutionWindow() {
+                const currentSrc = String(frame.getAttribute('src') || frame.src || '');
+                if (!currentSrc || currentSrc.includes('about:blank')) return null;
+                try {
+                    const win = frame.contentWindow;
+                    const doc = frame.contentDocument;
+                    if (!win || !doc) return null;
+                    void doc.body;
+                    return win;
+                } catch {
+                    return null;
+                }
+            }
+
+            function attachBrowserConsole() {
+                const panel = panels[activePanel];
+                const current = panel.history[panel.historyIndex] || HOME_TARGET;
+                consoleUrl = current;
+                if (current === HOME_TARGET) {
+                    setConsoleStatus('open a page first, then the console can attach.', 'neutral');
+                    return false;
+                }
+                const targetWindow = getFrameExecutionWindow();
+                if (!targetWindow) {
+                    setConsoleStatus('console access is unavailable on this page.', 'warn');
+                    appendConsoleEntry('warn', ['Console access is blocked for this page. Use proxied pages for inspection.'], 'rift');
+                    return false;
+                }
+                if (targetWindow.__riftBrowserConsoleAttached) {
+                    setConsoleStatus(`attached to ${labelForUrl(current)}`, 'ok');
+                    return true;
+                }
+
+                const sourceConsole = targetWindow.console || {};
+                const patchedConsole = targetWindow.console = sourceConsole;
+                CONSOLE_METHODS.forEach((method) => {
+                    const original = typeof sourceConsole[method] === 'function'
+                        ? sourceConsole[method].bind(sourceConsole)
+                        : () => {};
+                    patchedConsole[method] = (...args) => {
+                        appendConsoleEntry(method, args, 'page');
+                        return original(...args);
+                    };
+                });
+
+                targetWindow.addEventListener('error', (event) => {
+                    appendConsoleEntry('error', [event.message || 'Script error'], 'page');
+                });
+                targetWindow.addEventListener('unhandledrejection', (event) => {
+                    appendConsoleEntry('error', [event.reason || 'Unhandled promise rejection'], 'page');
+                });
+                targetWindow.__riftBrowserConsoleAttached = true;
+                setConsoleStatus(`attached to ${labelForUrl(current)}`, 'ok');
+                appendConsoleEntry('info', [`Console attached to ${current}`], 'rift');
+                return true;
+            }
+
+            async function runConsoleCode() {
+                const code = String(consoleInput.value || '').trim();
+                if (!code) return;
+                appendConsoleEntry('command', code, 'you');
+                const targetWindow = getFrameExecutionWindow();
+                if (!targetWindow) {
+                    setConsoleStatus('cannot run JavaScript on this page.', 'warn');
+                    appendConsoleEntry('error', ['JavaScript runner is unavailable for this page.'], 'rift');
+                    return;
+                }
+                try {
+                    const result = targetWindow.eval(code);
+                    const awaited = result && typeof result.then === 'function' ? await result : result;
+                    appendConsoleEntry('result', [awaited], 'result');
+                    setConsoleStatus(`attached to ${labelForUrl(consoleUrl)}`, 'ok');
+                } catch (error) {
+                    appendConsoleEntry('error', [error], 'result');
+                    setConsoleStatus('last run failed. check the console output.', 'warn');
+                }
+            }
 
             function readJson(key, fallback) {
                 try {
@@ -377,6 +555,10 @@
             ensureMoreItem('browser-open-bookmarks', 'bookmarks', 'bookmarks', () => {
                 pickAndOpen(browserBookmarks, 'bookmarks');
             });
+            ensureMoreItem('browser-toggle-console', 'terminal', 'console', () => {
+                setConsoleOpen(!consoleOpen);
+                if (consoleOpen) attachBrowserConsole();
+            });
             ensureMoreItem('browser-open-history', 'history', 'history', () => {
                 pickAndOpen(browserHistory, 'history');
             });
@@ -530,7 +712,8 @@
                     frame.src = 'about:blank';
                     input.value = '';
                     setLoading(false);
-                    document.getElementById('browser-home')?.classList.add('active');
+                    browserHome.classList.add('active');
+                    setConsoleStatus('open a page first, then the console can attach.', 'neutral');
                 } else {
                     if (shouldOpenDirect(resolvedTarget)) {
                         const popup = window.open(resolvedTarget, '_blank', 'noopener,noreferrer');
@@ -539,12 +722,14 @@
                         }
                         input.value = resolvedTarget;
                         setLoading(false);
-                        document.getElementById('browser-home')?.classList.remove('active');
+                        browserHome.classList.remove('active');
+                        setConsoleStatus('direct-open pages cannot be inspected in the embedded console.', 'warn');
                     } else {
-                    frame.src = buildProxyUrl(resolvedTarget);
-                    input.value = resolvedTarget;
-                    setLoading(true);
-                    document.getElementById('browser-home')?.classList.remove('active');
+                        frame.src = buildProxyUrl(resolvedTarget);
+                        input.value = resolvedTarget;
+                        setLoading(true);
+                        browserHome.classList.remove('active');
+                        setConsoleStatus(`connecting to ${labelForUrl(resolvedTarget)}...`, 'neutral');
                     }
                 }
 
@@ -657,6 +842,26 @@
                 loadTarget(panel.history[panel.historyIndex], false);
             });
 
+            consoleRun.addEventListener('click', () => {
+                runConsoleCode();
+            });
+
+            consoleInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault();
+                    runConsoleCode();
+                }
+            });
+
+            consoleClear.addEventListener('click', () => {
+                clearConsoleOutput();
+                attachBrowserConsole();
+            });
+
+            consoleClose.addEventListener('click', () => {
+                setConsoleOpen(false);
+            });
+
             more.addEventListener('click', (event) => {
                 event.stopPropagation();
                 moreMenu.hidden = !moreMenu.hidden;
@@ -692,11 +897,16 @@
 
             frame.addEventListener('load', () => {
                 if (frame.src.includes('about:blank')) {
-                    document.getElementById('browser-home')?.classList.add('active');
+                    browserHome.classList.add('active');
                 } else {
-                    document.getElementById('browser-home')?.classList.remove('active');
+                    browserHome.classList.remove('active');
                 }
                 setLoading(false);
+                if (consoleOpen) {
+                    setTimeout(() => {
+                        attachBrowserConsole();
+                    }, 120);
+                }
             });
 
             const query = new URLSearchParams(window.location.search);
@@ -723,6 +933,7 @@
             renderPanelSwitcher();
             updateBookmarkToggleLabel();
             persistSession();
+            setConsoleStatus('open a page first, then the console can attach.', 'neutral');
         })();
     </script>
 
