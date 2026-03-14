@@ -207,7 +207,7 @@
                     <button id="soundboardReloadBtn" class="btn" type="button">reload</button>
                     <button class="btn" type="submit">filter</button>
                 </form>
-                <div id="soundboardStatus" class="status">Load sound buttons from Sound Buttons World.</div>
+                <div id="soundboardStatus" class="status">Load sound buttons from Sound Buttons World and SoundButtonsPro.</div>
                 <div class="soundboard-layout">
                     <div id="soundboardResults" class="soundboard-grid"></div>
                     <aside class="sound-preview">
@@ -292,19 +292,48 @@
         const soundPreviewEmpty = document.getElementById('soundPreviewEmpty');
         const soundPreviewFrame = document.getElementById('soundPreviewFrame');
 
-        const SOUNDBOARD_SOURCE_BASE = 'https://soundbuttonsworld.com';
-        const SOUNDBOARD_SOURCE_PAGES = [
-            { path: '/', section: 'home' },
-            { path: '/trends', section: 'trending' },
-            { path: '/new', section: 'new' },
-            { path: '/categories/memes%20soundboard', section: 'memes' },
-            { path: '/categories/movies%20soundboard', section: 'movies' },
-            { path: '/categories/reactions%20soundboard', section: 'reactions' },
-            { path: '/categories/sound%20effects%20soundboard', section: 'sound effects' },
-            { path: '/categories/voice%20record%20soundboard', section: 'voice record' },
-            { path: '/categories/creativity%20soundboard', section: 'creativity' },
-            { path: '/categories/anime%20soundboard', section: 'anime' },
-            { path: '/categories/games%20soundboard', section: 'games' },
+        const SOUNDBOARD_SOURCES = [
+            {
+                key: 'world',
+                name: 'Sound Buttons World',
+                base: 'https://soundbuttonsworld.com',
+                entryPattern: /\/sound-button\//i,
+                pages: [
+                    { path: '/', section: 'home' },
+                    { path: '/trends', section: 'trending' },
+                    { path: '/new', section: 'new' },
+                    { path: '/categories/memes%20soundboard', section: 'memes' },
+                    { path: '/categories/movies%20soundboard', section: 'movies' },
+                    { path: '/categories/reactions%20soundboard', section: 'reactions' },
+                    { path: '/categories/sound%20effects%20soundboard', section: 'sound effects' },
+                    { path: '/categories/voice%20record%20soundboard', section: 'voice record' },
+                    { path: '/categories/creativity%20soundboard', section: 'creativity' },
+                    { path: '/categories/anime%20soundboard', section: 'anime' },
+                    { path: '/categories/games%20soundboard', section: 'games' },
+                ],
+            },
+            {
+                key: 'pro',
+                name: 'SoundButtonsPro',
+                base: 'https://soundbuttonspro.com',
+                entryPattern: /-soundboard\/?$/i,
+                pages: [
+                    { path: '/', section: 'home' },
+                    { path: '/new-sound-buttons/', section: 'new' },
+                    { path: '/popular-sound-buttons/', section: 'popular' },
+                    { path: '/trending-sound-buttons/', section: 'trending' },
+                    { path: '/memes-sound-buttons/', section: 'memes' },
+                    { path: '/pranks-sound-buttons/', section: 'pranks' },
+                    { path: '/movies-television-sound-buttons/', section: 'movies & television' },
+                    { path: '/games-sound-buttons/', section: 'games' },
+                    { path: '/sound-effects-sound-buttons/', section: 'sound effects' },
+                    { path: '/tiktok-sound-buttons/', section: 'tiktok' },
+                    { path: '/anime-sound-buttons/', section: 'anime' },
+                    { path: '/reactions-sound-buttons/', section: 'reactions' },
+                    { path: '/politics-sound-buttons/', section: 'politics' },
+                    { path: '/sports-sound-buttons/', section: 'sports' },
+                ],
+            },
         ];
 
         const state = {
@@ -345,11 +374,11 @@
             }
         }
 
-        function normalizeSoundboardUrl(raw) {
+        function normalizeSoundboardUrl(raw, base) {
             const value = unwrapProxyUrl(raw);
             if (!value) return '';
             try {
-                return new URL(value, SOUNDBOARD_SOURCE_BASE).href;
+                return new URL(value, base).href;
             } catch {
                 return '';
             }
@@ -365,14 +394,14 @@
             return new DOMParser().parseFromString(String(html || ''), 'text/html');
         }
 
-        function collectSoundboardWorldCandidates(html, fallbackSection = 'sound buttons world') {
+        function collectSoundboardCandidates(html, source, fallbackSection) {
             const doc = parseHtml(html);
             const seen = new Set();
             const items = [];
             doc.querySelectorAll('a[href]').forEach((anchor) => {
                 const href = String(anchor.getAttribute('href') || '').trim();
-                const absolute = normalizeSoundboardUrl(href);
-                if (!absolute || !/\/sound-button\//i.test(absolute) || seen.has(absolute)) return;
+                const absolute = normalizeSoundboardUrl(href, source.base);
+                if (!absolute || !source.entryPattern.test(absolute) || seen.has(absolute)) return;
                 seen.add(absolute);
                 const title = String(anchor.textContent || '').replace(/\s+/g, ' ').trim();
                 if (!title) return;
@@ -382,6 +411,8 @@
                     pageUrl: absolute,
                     proxiedPageUrl: proxyUrlFor(absolute),
                     section: String(sectionHeading || '').replace(/\s+/g, ' ').trim().toLowerCase() || fallbackSection,
+                    source: source.name,
+                    sourceKey: source.key,
                 });
             });
             return items.slice(0, 48);
@@ -398,7 +429,7 @@
                     <div class="sound-card-top">
                         <div>
                             <div class="sound-card-title">${escapeHtml(clip.title)}</div>
-                            <div class="sound-card-sub">${escapeHtml(clip.section || 'sound buttons world')}</div>
+                            <div class="sound-card-sub">${escapeHtml(`${clip.source || 'soundboard'} · ${clip.section || 'collection'}`)}</div>
                         </div>
                         <button class="sound-btn primary" type="button" data-sound-open="${index}">
                             <span class="material-icons">${clip.id === state.selectedClipId ? 'visibility' : 'open_in_browser'}</span>
@@ -427,8 +458,8 @@
         function selectClip(clip) {
             state.selectedClipId = clip.id;
             soundPreviewTitle.textContent = clip.title || 'Sound preview';
-            soundPreviewMeta.textContent = clip.section || 'sound buttons world';
-            soundPreviewOpen.href = clip.pageUrl || `${SOUNDBOARD_SOURCE_BASE}/`;
+            soundPreviewMeta.textContent = `${clip.source || 'soundboard'} · ${clip.section || 'collection'}`;
+            soundPreviewOpen.href = clip.pageUrl || SOUNDBOARD_SOURCES[0].base;
             soundPreviewEmpty.hidden = true;
             soundPreviewFrame.hidden = false;
             soundPreviewFrame.src = clip.proxiedPageUrl || proxyUrlFor(clip.pageUrl);
@@ -440,7 +471,7 @@
             const normalized = String(query || '').trim().toLowerCase();
             state.filteredClips = state.clips.filter((clip) => {
                 if (!normalized) return true;
-                const hay = `${clip.title || ''} ${clip.section || ''}`.toLowerCase();
+                const hay = `${clip.title || ''} ${clip.section || ''} ${clip.source || ''}`.toLowerCase();
                 return hay.includes(normalized);
             });
             if (!state.filteredClips.some((clip) => clip.id === state.selectedClipId)) {
@@ -454,11 +485,13 @@
             setSoundboardStatus(normalized ? `Searching Sound Buttons World pages for "${normalized}"...` : 'Loading Sound Buttons World sounds...');
 
             const settled = await Promise.allSettled(
-                SOUNDBOARD_SOURCE_PAGES.map(async (source) => {
-                    const absoluteUrl = `${SOUNDBOARD_SOURCE_BASE}${source.path}`;
-                    const html = await fetchHtml(proxyUrlFor(absoluteUrl));
-                    return collectSoundboardWorldCandidates(html, source.section);
-                })
+                SOUNDBOARD_SOURCES.flatMap((source) =>
+                    source.pages.map(async (page) => {
+                        const absoluteUrl = `${source.base}${page.path}`;
+                        const html = await fetchHtml(proxyUrlFor(absoluteUrl));
+                        return collectSoundboardCandidates(html, source, page.section);
+                    })
+                )
             );
 
             const deduped = [];
@@ -474,21 +507,21 @@
             }
 
             state.clips = deduped.map((clip, index) => ({
-                id: `soundbuttonsworld:${index}:${clip.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 36) || index}`,
+                id: `${clip.sourceKey || 'sound'}:${index}:${clip.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 36) || index}`,
                 ...clip,
             }));
             state.loaded = true;
             state.selectedClipId = '';
             soundPreviewTitle.textContent = 'No sound selected';
             soundPreviewMeta.textContent = 'select a sound card to open its page here';
-            soundPreviewOpen.href = `${SOUNDBOARD_SOURCE_BASE}/`;
+            soundPreviewOpen.href = SOUNDBOARD_SOURCES[0].base;
             soundPreviewFrame.hidden = true;
             soundPreviewFrame.src = 'about:blank';
             soundPreviewEmpty.hidden = false;
 
             applyFilter(normalized);
             setSoundboardStatus(state.filteredClips.length
-                ? `Loaded ${state.filteredClips.length} sounds from Sound Buttons World pages.`
+                ? `Loaded ${state.filteredClips.length} sounds from both soundboard sources.`
                 : 'No sounds matched that filter.');
         }
 
