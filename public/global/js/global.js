@@ -72,6 +72,8 @@ const RiftUiState = {
     shellReady: false,
     paletteOpen: false,
     drawerOpen: false,
+    contextMenuOpen: false,
+    contextMenuPayload: null,
     auth: { authenticated: false, username: '', clientMode: 'rift' },
 };
 
@@ -969,6 +971,54 @@ function togglePinnedRoute(pathname) {
     return pinned;
 }
 
+function hasStoredPageLayout() {
+    return Object.keys(readStoredPageLayout()).length > 0;
+}
+
+function isEditableTextTarget(target) {
+    return target instanceof HTMLElement && !!target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"], [contenteditable]:not([contenteditable="false"])');
+}
+
+function getClosestRouteHref(target) {
+    const anchor = target instanceof HTMLElement ? target.closest('a[href]') : null;
+    if (!(anchor instanceof HTMLAnchorElement)) return '';
+    try {
+        const url = new URL(anchor.href, window.location.origin);
+        if (url.origin !== window.location.origin) return url.href;
+        return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+        return anchor.getAttribute('href') || '';
+    }
+}
+
+async function copyTextToClipboard(value) {
+    const text = String(value || '');
+    if (!text) return false;
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+        }
+    }
+    const helper = document.createElement('textarea');
+    helper.value = text;
+    helper.setAttribute('readonly', 'readonly');
+    helper.style.position = 'fixed';
+    helper.style.opacity = '0';
+    helper.style.pointerEvents = 'none';
+    document.body.appendChild(helper);
+    helper.select();
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } catch {
+        copied = false;
+    }
+    helper.remove();
+    return copied;
+}
+
 function createRouteLinkHtml(route, className = 'rift-route-link') {
     const href = String(route?.href || '#').trim();
     const icon = String(route?.icon || 'dashboard').trim();
@@ -1075,6 +1125,13 @@ function ensureRiftUiShell() {
                 <div id="rift-context-recent" class="rift-link-stack rift-is-loading"></div>
             </div>
         </aside>
+        <div id="rift-context-menu" class="rift-context-menu" hidden>
+            <div class="rift-context-menu-head">
+                <div id="rift-context-menu-title" class="rift-context-menu-title">page</div>
+                <div id="rift-context-menu-subtitle" class="rift-context-menu-subtitle">quick actions</div>
+            </div>
+            <div id="rift-context-menu-items" class="rift-context-menu-items"></div>
+        </div>
         <div id="rift-pinned-dock" class="rift-pinned-dock"></div>
     `;
     document.body.appendChild(shell);
@@ -1089,17 +1146,24 @@ function ensureRiftUiShell() {
         if (!target) return;
         const closeCommand = target.closest('[data-rift-command-close="1"]');
         const closeDrawer = target.closest('[data-rift-drawer-close="1"]');
+        const contextAction = target.closest('[data-rift-context-action]');
 
         const action = target.getAttribute('data-rift-action') || target.closest('[data-rift-action]')?.getAttribute('data-rift-action') || '';
         if (action === 'open-palette') openRiftCommandPalette();
         if (action === 'open-drawer') openRiftQuickSettings();
         if (action === 'pin-current') togglePinnedRoute(getCurrentPath());
+        if (contextAction instanceof HTMLElement) {
+            handleRiftContextMenuAction(contextAction);
+        }
 
         if (target.id === 'rift-command-shade' || closeCommand) {
             closeRiftCommandPalette();
         }
         if (target.id === 'rift-drawer-shade' || closeDrawer) {
             closeRiftQuickSettings();
+        }
+        if (RiftUiState.contextMenuOpen && !target.closest('#rift-context-menu')) {
+            closeRiftContextMenu();
         }
     });
 
@@ -1164,6 +1228,7 @@ function ensureRiftUiShell() {
             return;
         }
         if (String(event.key || '') === 'Escape') {
+            if (RiftUiState.contextMenuOpen) closeRiftContextMenu();
             if (RiftUiState.paletteOpen) closeRiftCommandPalette();
             if (RiftUiState.drawerOpen) closeRiftQuickSettings();
         }
@@ -1176,6 +1241,30 @@ function ensureRiftUiShell() {
             }
         }
     });
+
+    document.addEventListener('contextmenu', (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+        if (event.shiftKey || isEditableTextTarget(target)) {
+            closeRiftContextMenu();
+            return;
+        }
+        if (target.closest('#rift-command-palette, #rift-quick-drawer, #rift-context-menu, #rift-layout-menu, #rift-layout-banner')) {
+            return;
+        }
+        event.preventDefault();
+        openRiftContextMenu(event);
+    });
+
+    document.addEventListener('pointerdown', (event) => {
+        if (!RiftUiState.contextMenuOpen) return;
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target || target.closest('#rift-context-menu')) return;
+        closeRiftContextMenu();
+    }, true);
+
+    window.addEventListener('resize', closeRiftContextMenu);
+    window.addEventListener('scroll', closeRiftContextMenu, true);
 }
 
 function buildRiftCommandItems(query = '') {
@@ -1518,6 +1607,166 @@ function syncRiftUiShell() {
     syncRiftPinnedDock();
     syncPageHeaderActions();
     syncHomeWorkspace();
+}
+
+function buildRiftContextMenuPayload(target) {
+    const selection = String(window.getSelection?.()?.toString() || '').trim();
+    const href = getClosestRouteHref(target);
+    const route = href ? getRouteCatalog().find((entry) => entry.href === href) : null;
+    const current = getRouteMeta();
+    return {
+        href,
+        label: route?.label || (href ? 'link' : current.label),
+        subtitle: href ? (route?.section || href) : (current.subtitle || `${current.kicker} actions`),
+        selection,
+        pinned: isPinnedRoute(getCurrentPath()),
+        layoutActive: !!RiftLayoutState.active,
+        hasLayout: hasStoredPageLayout(),
+    };
+}
+
+function renderRiftContextMenu(payload) {
+    const menu = document.getElementById('rift-context-menu');
+    const title = document.getElementById('rift-context-menu-title');
+    const subtitle = document.getElementById('rift-context-menu-subtitle');
+    const items = document.getElementById('rift-context-menu-items');
+    if (!menu || !title || !subtitle || !items) return;
+
+    title.textContent = payload.label || 'page';
+    subtitle.textContent = payload.subtitle || 'quick actions';
+
+    const actions = [];
+    if (payload.href) {
+        actions.push(
+            { action: 'open-link', icon: 'open_in_new', label: 'open link' },
+            { action: 'copy-link', icon: 'link', label: 'copy link' }
+        );
+    }
+    if (payload.selection) {
+        actions.push({ action: 'copy-selection', icon: 'content_copy', label: 'copy selection' });
+    } else {
+        actions.push({ action: 'copy-page-link', icon: 'link', label: 'copy page link' });
+    }
+    actions.push(
+        { action: 'back', icon: 'arrow_back', label: 'go back' },
+        { action: 'forward', icon: 'arrow_forward', label: 'go forward' },
+        { action: 'reload', icon: 'refresh', label: 'reload page' },
+        { action: 'toggle-layout', icon: 'draw', label: payload.layoutActive ? 'finish editing page' : 'edit this page' },
+        { action: 'reset-layout', icon: 'restart_alt', label: 'reset page layout', disabled: !payload.hasLayout },
+        { action: 'toggle-pin', icon: 'push_pin', label: payload.pinned ? 'unpin current page' : 'pin current page' },
+        { action: 'open-palette', icon: 'search', label: 'open command palette' },
+        { action: 'open-drawer', icon: 'tune', label: 'open quick settings' },
+    );
+
+    items.innerHTML = actions.map((item) => `
+        <button type="button" class="rift-context-menu-item" data-rift-context-action="${item.action}" ${payload.href ? `data-rift-context-href="${payload.href}"` : ''} ${item.disabled ? 'disabled' : ''}>
+            <span class="material-icons">${item.icon}</span>
+            <span>${item.label}</span>
+        </button>
+    `).join('');
+}
+
+function openRiftContextMenu(event) {
+    ensureRiftUiShell();
+    const menu = document.getElementById('rift-context-menu');
+    if (!menu) return;
+    const payload = buildRiftContextMenuPayload(event.target instanceof HTMLElement ? event.target : null);
+    RiftUiState.contextMenuOpen = true;
+    RiftUiState.contextMenuPayload = payload;
+    renderRiftContextMenu(payload);
+    menu.hidden = false;
+    menu.style.visibility = 'hidden';
+
+    requestAnimationFrame(() => {
+        const padding = 12;
+        const width = menu.offsetWidth || 240;
+        const height = menu.offsetHeight || 320;
+        const maxLeft = window.innerWidth - width - padding;
+        const maxTop = window.innerHeight - height - padding;
+        const left = Math.max(padding, Math.min(event.clientX, maxLeft));
+        const top = Math.max(padding, Math.min(event.clientY, maxTop));
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.style.visibility = 'visible';
+    });
+}
+
+function closeRiftContextMenu() {
+    const menu = document.getElementById('rift-context-menu');
+    if (menu) {
+        menu.hidden = true;
+        menu.style.visibility = 'hidden';
+    }
+    RiftUiState.contextMenuOpen = false;
+    RiftUiState.contextMenuPayload = null;
+}
+
+function handleRiftContextMenuAction(trigger) {
+    const action = String(trigger.getAttribute('data-rift-context-action') || '').trim();
+    const href = String(trigger.getAttribute('data-rift-context-href') || RiftUiState.contextMenuPayload?.href || '').trim();
+    if (!action) return;
+
+    const finish = () => {
+        syncRiftUiShell();
+        closeRiftContextMenu();
+    };
+
+    if (action === 'open-link' && href) {
+        window.location.assign(href);
+        return;
+    }
+    if (action === 'copy-link' && href) {
+        copyTextToClipboard(new URL(href, window.location.origin).href).finally(finish);
+        return;
+    }
+    if (action === 'copy-page-link') {
+        copyTextToClipboard(window.location.href).finally(finish);
+        return;
+    }
+    if (action === 'copy-selection') {
+        copyTextToClipboard(RiftUiState.contextMenuPayload?.selection || '').finally(finish);
+        return;
+    }
+    if (action === 'back') {
+        window.history.back();
+        closeRiftContextMenu();
+        return;
+    }
+    if (action === 'forward') {
+        window.history.forward();
+        closeRiftContextMenu();
+        return;
+    }
+    if (action === 'reload') {
+        window.location.reload();
+        return;
+    }
+    if (action === 'toggle-layout') {
+        setLayoutEditMode(!RiftLayoutState.active);
+        finish();
+        return;
+    }
+    if (action === 'reset-layout') {
+        resetStoredPageLayout();
+        finish();
+        return;
+    }
+    if (action === 'toggle-pin') {
+        togglePinnedRoute(getCurrentPath());
+        finish();
+        return;
+    }
+    if (action === 'open-palette') {
+        closeRiftContextMenu();
+        openRiftCommandPalette();
+        return;
+    }
+    if (action === 'open-drawer') {
+        closeRiftContextMenu();
+        openRiftQuickSettings();
+        return;
+    }
+    closeRiftContextMenu();
 }
 
 function detectSlowEnvironment() {
