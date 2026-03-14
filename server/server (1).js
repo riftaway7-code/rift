@@ -61,6 +61,8 @@ const SERAPH_BASE = 'https://raw.githubusercontent.com/a456pur/seraph/main/';
 const AUDIUS_API_BASE = 'https://discoveryprovider.audius.co';
 const JAMENDO_API_BASE = 'https://api.jamendo.com/v3.0';
 const JAMENDO_CLIENT_ID = String(process.env.JAMENDO_CLIENT_ID || '').trim();
+const MYINSTANTS_BASE = 'https://www.myinstants.com';
+const MYINSTANTS_RESULT_LIMIT = 18;
 const AUTH_DB_PATH = process.env.AUTH_DB_PATH
     ? path.resolve(process.env.AUTH_DB_PATH)
     : (process.env.VERCEL
@@ -5298,6 +5300,122 @@ app.put('/api/party/game', async (req, res) => {
     }
 });
 
+function decodeHtmlEntities(text) {
+    return String(text || '')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&#(\d+);/g, (_, num) => {
+            const code = Number.parseInt(num, 10);
+            return Number.isFinite(code) ? String.fromCharCode(code) : '';
+        });
+}
+
+function stripHtmlTags(text) {
+    return decodeHtmlEntities(String(text || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+}
+
+function buildMyinstantsAudioProxy(url) {
+    const raw = String(url || '').trim();
+    if (!raw) return '';
+    return `/proxy?url=${encodeURIComponent(raw)}`;
+}
+
+function extractMyinstantsCandidates(html) {
+    const candidates = [];
+    const seen = new Set();
+    const anchorRe = /<a\b([^>]*?)href=(["'])(\/en\/instant\/[^"'?#<>]+\/?)\2([^>]*)>([\s\S]*?)<\/a>/gi;
+    let match;
+    while ((match = anchorRe.exec(String(html || '')))) {
+        const beforeAttrs = String(match[1] || '');
+        const href = String(match[3] || '').trim();
+        const afterAttrs = String(match[4] || '');
+        const innerHtml = String(match[5] || '');
+        const absoluteUrl = new URL(href, MYINSTANTS_BASE).href;
+        if (seen.has(absoluteUrl)) continue;
+        seen.add(absoluteUrl);
+
+        const titleAttr = (beforeAttrs + afterAttrs).match(/\btitle=(["'])(.*?)\1/i);
+        const label = stripHtmlTags(innerHtml) || stripHtmlTags(titleAttr?.[2] || '') || href.split('/').filter(Boolean).pop() || 'instant';
+        candidates.push({
+            pageUrl: absoluteUrl,
+            title: label,
+        });
+    }
+    return candidates;
+}
+
+function extractMyinstantsMediaUrl(html, pageUrl) {
+    const source = String(html || '');
+    const patterns = [
+        /href=(["'])(\/media\/sounds\/[^"'<>]+?\.(?:mp3|wav|ogg)(?:\?[^"'<>]*)?)\1/i,
+        /(?:play|Play|new\s+Audio)\((["'])(\/media\/sounds\/[^"'<>]+?\.(?:mp3|wav|ogg)(?:\?[^"'<>]*)?)\1/i,
+        /(?:src|data-src)=(["'])(https?:\/\/[^"'<>]+\/media\/sounds\/[^"'<>]+?\.(?:mp3|wav|ogg)(?:\?[^"'<>]*)?)\1/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = source.match(pattern);
+        if (!match?.[2]) continue;
+        try {
+            return new URL(match[2], pageUrl || MYINSTANTS_BASE).href;
+        } catch {
+        }
+    }
+
+    return '';
+}
+
+async function fetchMyinstantsButtons(query) {
+    const trimmedQuery = String(query || '').trim().slice(0, 80);
+    const sourceUrl = trimmedQuery
+        ? `${MYINSTANTS_BASE}/en/search/?name=${encodeURIComponent(trimmedQuery)}`
+        : `${MYINSTANTS_BASE}/en/`;
+
+    const listingRes = await fetch(sourceUrl, {
+        headers: {
+            'User-Agent': 'Rift-Soundboard/1.0',
+            'Accept-Language': 'en-US,en;q=0.9',
+        },
+    });
+    if (!listingRes.ok) {
+        throw new Error(`Myinstants listing failed (${listingRes.status})`);
+    }
+
+    const listingHtml = await listingRes.text();
+    const candidates = extractMyinstantsCandidates(listingHtml).slice(0, MYINSTANTS_RESULT_LIMIT);
+    const resolved = await Promise.allSettled(candidates.map(async (candidate, index) => {
+        const pageRes = await fetch(candidate.pageUrl, {
+            headers: {
+                'User-Agent': 'Rift-Soundboard/1.0',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+        });
+        if (!pageRes.ok) {
+            throw new Error(`page lookup failed (${pageRes.status})`);
+        }
+        const pageHtml = await pageRes.text();
+        const mediaUrl = extractMyinstantsMediaUrl(pageHtml, candidate.pageUrl);
+        if (!mediaUrl) {
+            throw new Error('no media file found');
+        }
+        return {
+            id: `myinstants:${index}:${Buffer.from(candidate.pageUrl).toString('base64').replace(/[+=/]/g, '').slice(0, 16)}`,
+            provider: 'myinstants',
+            title: candidate.title,
+            pageUrl: candidate.pageUrl,
+            mediaUrl,
+            streamUrl: buildMyinstantsAudioProxy(mediaUrl),
+        };
+    }));
+
+    return resolved
+        .filter((entry) => entry.status === 'fulfilled' && entry.value?.mediaUrl)
+        .map((entry) => entry.value);
+}
+
 app.get('/api/music/search', async (req, res) => {
     try {
         const query = String(req.query?.q || '').trim().slice(0, 120);
@@ -5388,6 +5506,25 @@ app.get('/api/music/search', async (req, res) => {
         });
     } catch (error) {
         return jsonError(res, 500, `Music search failed: ${error.message}`);
+    }
+});
+
+app.get('/api/music/soundboard/myinstants', async (req, res) => {
+    try {
+        const query = String(req.query?.q || '').trim().slice(0, 80);
+        const clips = await fetchMyinstantsButtons(query);
+        res.setHeader('Cache-Control', 'private, max-age=120');
+        return res.json({
+            ok: true,
+            provider: 'myinstants',
+            query,
+            clips,
+            sourceUrl: query
+                ? `${MYINSTANTS_BASE}/en/search/?name=${encodeURIComponent(query)}`
+                : `${MYINSTANTS_BASE}/en/`,
+        });
+    } catch (error) {
+        return jsonError(res, 500, `Myinstants soundboard failed: ${error.message}`);
     }
 });
 
