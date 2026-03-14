@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-W1SEMRGLRR"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-W1SEMRGLRR');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rift Cloud</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="/global/css/global.css">
+    <style>
+        body.cloud-page .container {
+            width: min(98vw, 1380px);
+            max-width: 1380px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .cloud-shell {
+            display: grid;
+            gap: 14px;
+            width: min(96vw, 1320px);
+            margin: 0 auto;
+        }
+        .cloud-banner,
+        .cloud-panel,
+        .cloud-side-card {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 18px;
+            background: rgba(255,255,255,.04);
+            backdrop-filter: blur(10px);
+        }
+        .cloud-banner {
+            padding: 18px;
+            display: grid;
+            gap: 14px;
+            background:
+                radial-gradient(circle at top right, rgba(159,214,255,.16), transparent 38%),
+                rgba(255,255,255,.04);
+        }
+        .cloud-banner-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .cloud-banner-copy {
+            display: grid;
+            gap: 8px;
+            max-width: 720px;
+        }
+        .cloud-kicker {
+            color: rgba(159,214,255,.84);
+            font-size: 10px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+        .cloud-hero {
+            color: #fff;
+            font-size: clamp(24px, 4vw, 40px);
+            line-height: 1.05;
+            text-transform: lowercase;
+        }
+        .cloud-copy {
+            color: rgba(226,235,246,.72);
+            font-size: 12px;
+            line-height: 1.6;
+            max-width: 58ch;
+        }
+        .cloud-stat-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cloud-stat {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.1);
+            background: rgba(255,255,255,.05);
+            color: rgba(243,248,255,.84);
+            font-size: 11px;
+            text-transform: lowercase;
+            letter-spacing: .05em;
+        }
+        .cloud-toolbar {
+            display: grid;
+            grid-template-columns: minmax(240px, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+        }
+        .cloud-search,
+        .cloud-filter {
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.16);
+            background: rgba(255,255,255,.05);
+            color: #fff;
+            padding: 11px 12px;
+            font-family: "Run", Arial, sans-serif;
+            font-size: 12px;
+            outline: none;
+        }
+        .cloud-filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cloud-filter-btn,
+        .cloud-action {
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.07);
+            color: #fff;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-family: "Run", Arial, sans-serif;
+            font-size: 11px;
+            text-transform: lowercase;
+            letter-spacing: .05em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .cloud-filter-btn.active,
+        .cloud-action.primary {
+            background: rgba(159,214,255,.16);
+            border-color: rgba(159,214,255,.28);
+        }
+        .cloud-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+            gap: 14px;
+            min-height: min(72vh, 820px);
+        }
+        .cloud-panel {
+            padding: 14px;
+            min-height: 0;
+        }
+        .cloud-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+            align-content: start;
+            max-height: min(72vh, 820px);
+            overflow: auto;
+        }
+        .cloud-card {
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 16px;
+            background: rgba(255,255,255,.04);
+            padding: 14px;
+            display: grid;
+            gap: 12px;
+            min-height: 176px;
+            cursor: pointer;
+            transition: transform .18s ease, border-color .18s ease, background .18s ease;
+        }
+        .cloud-card:hover,
+        .cloud-card.active {
+            transform: translateY(-2px);
+            border-color: rgba(159,214,255,.28);
+            background: rgba(255,255,255,.08);
+        }
+        .cloud-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .cloud-card-title {
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.35;
+            text-transform: lowercase;
+        }
+        .cloud-card-meta {
+            margin-top: 4px;
+            color: rgba(255,255,255,.58);
+            font-size: 10px;
+            letter-spacing: .05em;
+            text-transform: lowercase;
+        }
+        .cloud-chip {
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.06);
+            color: rgba(244,248,255,.8);
+            padding: 6px 8px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            white-space: nowrap;
+        }
+        .cloud-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .cloud-card-copy,
+        .cloud-side-copy,
+        .cloud-detail-note {
+            color: rgba(228,236,246,.72);
+            font-size: 11px;
+            line-height: 1.55;
+        }
+        .cloud-card-actions,
+        .cloud-side-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cloud-side {
+            display: grid;
+            gap: 12px;
+            min-height: 0;
+        }
+        .cloud-side-card {
+            padding: 16px;
+            display: grid;
+            gap: 12px;
+        }
+        .cloud-side-title {
+            color: #fff;
+            font-size: 18px;
+            line-height: 1.15;
+            text-transform: lowercase;
+        }
+        .cloud-side-sub {
+            color: rgba(255,255,255,.58);
+            font-size: 10px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .cloud-side-stats {
+            display: grid;
+            gap: 8px;
+        }
+        .cloud-side-stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+            color: rgba(244,248,255,.84);
+            font-size: 11px;
+            text-transform: lowercase;
+        }
+        .cloud-empty {
+            border: 1px dashed rgba(255,255,255,.16);
+            border-radius: 16px;
+            padding: 24px;
+            color: rgba(255,255,255,.62);
+            font-size: 12px;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+        @media (max-width: 980px) {
+            .cloud-toolbar,
+            .cloud-layout {
+                grid-template-columns: 1fr;
+            }
+            .cloud-grid {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body class="cloud-page">
+    <div class="container">
+        <header>
+            <h1>rift cloud</h1>
+            <p class="page-subtitle">launch nowgg-backed cloud sessions through Rift</p>
+        </header>
+
+        <section class="cloud-shell">
+            <article class="cloud-banner">
+                <div class="cloud-banner-top">
+                    <div class="cloud-banner-copy">
+                        <div class="cloud-kicker">cloud gaming</div>
+                        <div class="cloud-hero">heavy games without a heavy device</div>
+                        <div class="cloud-copy">This page uses Rift's existing nowgg wrappers so users can jump into cloud-backed sessions faster. Start with the featured set, filter by what plays best on your device, then launch in Rift or go straight to nowgg.</div>
+                    </div>
+                    <div class="cloud-stat-row">
+                        <div class="cloud-stat"><span class="material-icons">cloud</span><span>nowgg powered</span></div>
+                        <div class="cloud-stat"><span class="material-icons">phone_iphone</span><span>mobile friendly</span></div>
+                        <div class="cloud-stat"><span class="material-icons">rocket_launch</span><span>instant launch</span></div>
+                    </div>
+                </div>
+                <div class="cloud-toolbar">
+                    <input id="cloudSearch" class="cloud-search" type="text" placeholder="search cloud games, genres, or tags" autocomplete="off">
+                    <div id="cloudFilters" class="cloud-filter-row"></div>
+                </div>
+            </article>
+
+            <div class="cloud-layout">
+                <article class="cloud-panel">
+                    <div id="cloudGrid" class="cloud-grid"></div>
+                </article>
+                <aside class="cloud-side">
+                    <section class="cloud-side-card">
+                        <div class="cloud-kicker">selected session</div>
+                        <div id="cloudDetailTitle" class="cloud-side-title">pick a cloud game</div>
+                        <div id="cloudDetailSub" class="cloud-side-sub">ready when you are</div>
+                        <div id="cloudDetailCopy" class="cloud-side-copy">Select a game from the launcher and Rift will show the launch path, tags, and device fit here.</div>
+                        <div id="cloudDetailTags" class="cloud-tags"></div>
+                        <div class="cloud-side-actions">
+                            <a id="cloudLaunchRift" class="cloud-action primary" href="/games">
+                                <span class="material-icons">play_arrow</span>
+                                <span>play in rift</span>
+                            </a>
+                            <a id="cloudLaunchNowgg" class="cloud-action" href="https://nowgg.fun/" target="_blank" rel="noopener noreferrer">
+                                <span class="material-icons">open_in_new</span>
+                                <span>open nowgg</span>
+                            </a>
+                        </div>
+                    </section>
+                    <section class="cloud-side-card">
+                        <div class="cloud-kicker">session fit</div>
+                        <div id="cloudDetailStats" class="cloud-side-stats"></div>
+                    </section>
+                    <section class="cloud-side-card">
+                        <div class="cloud-kicker">notes</div>
+                        <div class="cloud-detail-note">If a game needs the raw nowgg domain, use <strong>open nowgg</strong>. If you want the Rift wrapper and embed path, use <strong>play in Rift</strong>.</div>
+                    </section>
+                </aside>
+            </div>
+        </section>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-button" onclick="location.href='/'">
+            <span class="material-icons">home</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/games'">
+            <span class="material-icons">sports_esports</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/apps'">
+            <span class="material-icons">apps</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/music'">
+            <span class="material-icons">library_music</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/soundboard'">
+            <span class="material-icons">graphic_eq</span>
+        </button>
+        <button class="nav-button active" onclick="location.href='/cloud'">
+            <span class="material-icons">cloud</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/chat'">
+            <span class="material-icons">forum</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/browser'">
+            <span class="material-icons">language</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/account'">
+            <span class="material-icons">person</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/settings'">
+            <span class="material-icons">settings</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/social-media-&-partners'">
+            <span class="material-icons">connect_without_contact</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/rift_media'">
+            <span class="material-icons">movie</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/os'">
+            <span class="material-icons">desktop_windows</span>
+        </button>
+    </nav>
+
+    <script>
+        document.body.classList.add('nav-pos-' + (localStorage.getItem('rift__nav-position') || 'bottom'));
+    </script>
+    <script src="/config.js"></script>
+    <script src="/global/js/ads.js"></script>
+    <script src="/global/js/global.js"></script>
+    <script src="/global/js/riftx-gate.js"></script>
+    <script src="/components/cloaker.js"></script>
+    <script src="/components/overlay.js"></script>
+    <script src="/components/components.js"></script>
+    <script src="/components/404.js"></script>
+    <script>
+        (function () {
+            const catalog = [
+                {
+                    id: 'roblox',
+                    title: 'roblox',
+                    genre: 'sandbox',
+                    tags: ['mobile', 'social', 'touch'],
+                    quality: 'balanced',
+                    fit: 'best on low-power devices',
+                    route: '/roblox',
+                    directUrl: 'https://nowgg.fun/apps/a/19900/b.html',
+                    summary: 'Launch the existing Rift nowgg wrapper for Roblox when the local device cannot handle the native client well.'
+                },
+                {
+                    id: 'fortnite',
+                    title: 'fortnite',
+                    genre: 'battle royale',
+                    tags: ['fps', 'competitive', 'heavy'],
+                    quality: 'high',
+                    fit: 'best on solid wifi',
+                    route: '/fortnite',
+                    directUrl: 'https://nowgg.fun/apps/a/10004/b.html',
+                    summary: 'Use the cloud route for faster drop-in sessions without depending on the local GPU.'
+                },
+                {
+                    id: 'pubg',
+                    title: 'pubg mobile',
+                    genre: 'battle royale',
+                    tags: ['fps', 'mobile', 'squad'],
+                    quality: 'balanced',
+                    fit: 'good on phones and school laptops',
+                    route: '/pubg',
+                    directUrl: 'https://nowgg.fun/apps/proxima-beta/2609/pubg-mobile-resistance.html',
+                    summary: 'A practical cloud pick for multiplayer sessions when local installs are blocked or too heavy.'
+                },
+                {
+                    id: 'amongus',
+                    title: 'among us',
+                    genre: 'party',
+                    tags: ['social', 'touch', 'light'],
+                    quality: 'low data',
+                    fit: 'great on weak devices',
+                    route: '/amongus',
+                    directUrl: 'https://nowgg.fun/apps/innersloth-llc/4047/among-us.html',
+                    summary: 'Easy cloud launch for fast party sessions and classroom-safe hardware.'
+                },
+                {
+                    id: 'genshin',
+                    title: 'genshin impact',
+                    genre: 'open world',
+                    tags: ['heavy', 'rpg', 'touch'],
+                    quality: 'high',
+                    fit: 'best on stable internet',
+                    route: '/genshin',
+                    directUrl: 'https://nowgg.fun/apps/cognosphere-pte-ltd-/1773/genshin-impact.html',
+                    summary: 'Use cloud launch for one of the heaviest mobile titles in the library.'
+                },
+                {
+                    id: 'cod',
+                    title: 'call of duty mobile',
+                    genre: 'shooter',
+                    tags: ['fps', 'competitive', 'touch'],
+                    quality: 'high',
+                    fit: 'works best with good latency',
+                    route: '/cod',
+                    directUrl: 'https://nowgg.fun/apps/a/10008/b.html',
+                    summary: 'Cloud-backed shooter sessions for users who need fast access over local installs.'
+                },
+                {
+                    id: 'stumble',
+                    title: 'stumble guys',
+                    genre: 'party',
+                    tags: ['social', 'light', 'mobile'],
+                    quality: 'low data',
+                    fit: 'very forgiving on weak hardware',
+                    route: '/stumble',
+                    directUrl: 'https://nowgg.fun/apps/a/10011/b.html',
+                    summary: 'A lighter instant-play option that makes the cloud page feel fast even on weak devices.'
+                },
+                {
+                    id: 'gd',
+                    title: 'geometry dash',
+                    genre: 'rhythm',
+                    tags: ['precision', 'mobile', 'light'],
+                    quality: 'balanced',
+                    fit: 'good for short sessions',
+                    route: '/gd',
+                    directUrl: 'https://nowgg.fun/apps/robtop-games/1400/geometry-dash.html',
+                    summary: 'Cloud access for quick run attempts without installing the game locally.'
+                },
+                {
+                    id: 'krunker',
+                    title: 'krunker',
+                    genre: 'arena fps',
+                    tags: ['fps', 'fast', 'browser'],
+                    quality: 'balanced',
+                    fit: 'works best with low latency',
+                    route: '/krunker',
+                    directUrl: 'https://nowgg.fun/apps/yendis-entertainment/51644/krunker.html',
+                    summary: 'A fast cloud shooter option that still benefits from Rift as the launcher surface.'
+                },
+                {
+                    id: 'shell',
+                    title: 'shell shockers',
+                    genre: 'arena fps',
+                    tags: ['fps', 'fast', 'multiplayer'],
+                    quality: 'balanced',
+                    fit: 'best on low-latency wifi',
+                    route: '/shell',
+                    directUrl: 'https://nowgg.fun/apps/blue-wizard-digital/51615/shell-shockers.html',
+                    summary: 'Cloud shooter sessions with a quick queue-to-match flow.'
+                },
+                {
+                    id: 'crk',
+                    title: 'cookie run kingdom',
+                    genre: 'rpg',
+                    tags: ['touch', 'grind', 'mobile'],
+                    quality: 'balanced',
+                    fit: 'best for mobile-first users',
+                    route: '/crk',
+                    directUrl: 'https://nowgg.fun/apps/a/10019/b.html',
+                    summary: 'Keep long-running mobile account games available through Rift cloud.'
+                },
+                {
+                    id: 'poppy',
+                    title: 'poppy playtime',
+                    genre: 'horror',
+                    tags: ['story', 'heavy', 'touch'],
+                    quality: 'high',
+                    fit: 'better with stronger connection',
+                    route: '/poppyplaytime',
+                    directUrl: 'https://nowgg.fun/apps/a/10019/b.html',
+                    summary: 'A heavier story game that benefits from the same launch path as other nowgg-backed sessions.'
+                }
+            ];
+
+            const filters = [
+                { id: 'all', label: 'all' },
+                { id: 'mobile', label: 'mobile' },
+                { id: 'heavy', label: 'heavy' },
+                { id: 'fps', label: 'fps' },
+                { id: 'social', label: 'social' },
+                { id: 'touch', label: 'touch' }
+            ];
+
+            const state = {
+                filter: 'all',
+                query: '',
+                selectedId: catalog[0]?.id || ''
+            };
+
+            const grid = document.getElementById('cloudGrid');
+            const search = document.getElementById('cloudSearch');
+            const filterHost = document.getElementById('cloudFilters');
+            const title = document.getElementById('cloudDetailTitle');
+            const sub = document.getElementById('cloudDetailSub');
+            const copy = document.getElementById('cloudDetailCopy');
+            const tags = document.getElementById('cloudDetailTags');
+            const stats = document.getElementById('cloudDetailStats');
+            const launchRift = document.getElementById('cloudLaunchRift');
+            const launchNowgg = document.getElementById('cloudLaunchNowgg');
+
+            function getSelectedGame() {
+                return catalog.find((entry) => entry.id === state.selectedId) || catalog[0] || null;
+            }
+
+            function getFilteredGames() {
+                const query = state.query.trim().toLowerCase();
+                return catalog.filter((entry) => {
+                    const matchesFilter = state.filter === 'all' || entry.tags.includes(state.filter) || entry.genre.includes(state.filter);
+                    const haystack = `${entry.title} ${entry.genre} ${entry.tags.join(' ')} ${entry.quality} ${entry.fit}`.toLowerCase();
+                    const matchesQuery = !query || haystack.includes(query);
+                    return matchesFilter && matchesQuery;
+                });
+            }
+
+            function renderFilters() {
+                filterHost.innerHTML = filters.map((filter) => `
+                    <button type="button" class="cloud-filter-btn ${filter.id === state.filter ? 'active' : ''}" data-cloud-filter="${filter.id}">${filter.label}</button>
+                `).join('');
+            }
+
+            function renderGrid() {
+                const items = getFilteredGames();
+                if (!items.length) {
+                    grid.innerHTML = '<div class="cloud-empty">No cloud games matched that filter yet.</div>';
+                    return;
+                }
+                if (!items.some((entry) => entry.id === state.selectedId)) {
+                    state.selectedId = items[0].id;
+                }
+                grid.innerHTML = items.map((entry) => `
+                    <article class="cloud-card ${entry.id === state.selectedId ? 'active' : ''}" data-cloud-id="${entry.id}">
+                        <div class="cloud-card-top">
+                            <div>
+                                <div class="cloud-card-title">${entry.title}</div>
+                                <div class="cloud-card-meta">${entry.genre} · ${entry.quality}</div>
+                            </div>
+                            <div class="cloud-chip">${entry.fit}</div>
+                        </div>
+                        <div class="cloud-tags">${entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('')}</div>
+                        <div class="cloud-card-copy">${entry.summary}</div>
+                        <div class="cloud-card-actions">
+                            <a class="cloud-action primary" href="${entry.route}">play in rift</a>
+                            <a class="cloud-action" href="${entry.directUrl}" target="_blank" rel="noopener noreferrer">open nowgg</a>
+                        </div>
+                    </article>
+                `).join('');
+            }
+
+            function renderDetails() {
+                const entry = getSelectedGame();
+                if (!entry) return;
+                title.textContent = entry.title;
+                sub.textContent = `${entry.genre} · ${entry.quality} · ${entry.fit}`;
+                copy.textContent = entry.summary;
+                tags.innerHTML = entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('');
+                stats.innerHTML = [
+                    ['launch path', entry.route],
+                    ['quality', entry.quality],
+                    ['device fit', entry.fit],
+                    ['genre', entry.genre]
+                ].map((row) => `
+                    <div class="cloud-side-stat">
+                        <span>${row[0]}</span>
+                        <strong>${row[1]}</strong>
+                    </div>
+                `).join('');
+                launchRift.href = entry.route;
+                launchNowgg.href = entry.directUrl;
+            }
+
+            function sync() {
+                renderFilters();
+                renderGrid();
+                renderDetails();
+            }
+
+            filterHost.addEventListener('click', (event) => {
+                const button = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-filter]') : null;
+                if (!(button instanceof HTMLElement)) return;
+                state.filter = String(button.getAttribute('data-cloud-filter') || 'all');
+                sync();
+            });
+
+            grid.addEventListener('click', (event) => {
+                const card = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-id]') : null;
+                if (!(card instanceof HTMLElement)) return;
+                state.selectedId = String(card.getAttribute('data-cloud-id') || state.selectedId);
+                sync();
+            });
+
+            search.addEventListener('input', () => {
+                state.query = search.value || '';
+                sync();
+            });
+
+            sync();
+        })();
+    </script>
+</body>
+</html>
+

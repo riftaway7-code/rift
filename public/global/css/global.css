@@ -3490,6 +3490,10 @@ body.accent-soundboard {
   --rift-section-accent: #7fd7ff;
 }
 
+body.accent-cloud {
+  --rift-section-accent: #9fd6ff;
+}
+
 body.accent-chat {
   --rift-section-accent: #ff9eca;
 }

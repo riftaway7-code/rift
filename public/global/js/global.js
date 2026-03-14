@@ -42,6 +42,7 @@ const RIFT_UI = {
         { href: '/apps', label: 'apps', icon: 'apps', section: 'tools', keywords: 'apps cheats tools utilities' },
         { href: '/music', label: 'music', icon: 'library_music', section: 'media', keywords: 'music player playlists favorites tracks' },
         { href: '/soundboard', label: 'soundboard', icon: 'graphic_eq', section: 'media', keywords: 'sounds buttons memes reactions clips' },
+        { href: '/cloud', label: 'cloud', icon: 'cloud', section: 'cloud', keywords: 'cloud gaming streaming nowgg instant play launcher mobile' },
         { href: '/chat', label: 'chat', icon: 'forum', section: 'social', keywords: 'messages dm rooms call friends' },
         { href: '/browser', label: 'browser', icon: 'language', section: 'tools', keywords: 'browser proxy tabs console web' },
         { href: '/account', label: 'account', icon: 'person', section: 'identity', keywords: 'profile account login presets sync' },
@@ -57,6 +58,7 @@ const RIFT_UI = {
         '/apps': { subtitle: 'tools, utilities, and helper surfaces', kicker: 'tools', accent: 'apps' },
         '/music': { subtitle: 'tracks, playlists, and saved listening', kicker: 'media', accent: 'music' },
         '/soundboard': { subtitle: 'stacked sound libraries and quick preview pads', kicker: 'media', accent: 'soundboard' },
+        '/cloud': { subtitle: 'launch nowgg-powered cloud sessions through Rift', kicker: 'cloud', accent: 'cloud' },
         '/chat': { subtitle: 'rooms, dms, and live status', kicker: 'social', accent: 'chat' },
         '/browser': { subtitle: 'tabs, console, and proxied browsing', kicker: 'browser', accent: 'browser' },
         '/account': { subtitle: 'identity, progress, and presets', kicker: 'identity', accent: 'account' },
@@ -78,8 +80,10 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.2',
+    version: '2.3.3',
     notes: [
+        'added a dedicated cloud launcher page for nowgg-backed games',
+        'added cloud to the main home and bottom nav surfaces',
         'removed the grub startup and made welcome to rift tap-friendly on mobile',
         'removed the old whats new popup from home',
         'added a global command palette and quick settings drawer',
@@ -360,6 +364,7 @@ function resolveNavPageLabel(nav) {
         '/apps': 'apps',
         '/music': 'music',
         '/soundboard': 'soundboard',
+        '/cloud': 'cloud',
         '/chat': 'chat',
         '/browser': 'browser',
         '/account': 'account',
