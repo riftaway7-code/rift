@@ -24,12 +24,90 @@
         header h1 {
             font-size: clamp(34px, 4.4vw, 48px);
         }
-        .account-shell {
+        .is-hidden {
+            display: none !important;
+        }
+        .account-dashboard {
             width: 100%;
             max-width: 1360px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 14px;
+            align-items: start;
+        }
+        .account-sidebar {
+            position: sticky;
+            top: 110px;
+            display: grid;
+            gap: 12px;
+        }
+        .account-hero {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 18px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)),
+                rgba(255, 255, 255, 0.04);
+            padding: 16px;
+            display: grid;
+            gap: 8px;
+        }
+        .account-hero-label {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+        .account-hero-title {
+            color: #fff;
+            font-size: 24px;
+            line-height: 1.1;
+            text-transform: lowercase;
+        }
+        .account-page-nav {
+            display: grid;
+            gap: 8px;
+        }
+        .account-page-btn {
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.78);
+            text-align: left;
+            padding: 12px 13px;
+            cursor: pointer;
+            font-family: "Run", Arial, sans-serif;
+            text-transform: lowercase;
+            display: grid;
+            gap: 3px;
+        }
+        .account-page-btn.active {
+            border-color: rgba(142, 203, 255, 0.44);
+            background: rgba(142, 203, 255, 0.12);
+            color: #fff;
+        }
+        .account-page-title {
+            font-size: 13px;
+            letter-spacing: 0.06em;
+        }
+        .account-page-copy {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.58);
+        }
+        .account-pages {
+            min-width: 0;
+        }
+        .account-page {
+            display: none;
+        }
+        .account-page.active {
+            display: block;
+        }
+        .account-shell {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
             align-items: start;
         }
@@ -40,7 +118,7 @@
             padding: 14px;
         }
         .account-card.full-row {
-            grid-column: span 3;
+            grid-column: 1 / -1;
         }
         .account-card h3 {
             color: #fff;
@@ -67,6 +145,31 @@
             gap: 8px;
             flex-wrap: wrap;
             margin-top: 8px;
+        }
+        .session-hero {
+            display: grid;
+            gap: 12px;
+            align-items: start;
+        }
+        .session-headline {
+            color: #fff;
+            font-size: 18px;
+            text-transform: lowercase;
+        }
+        .session-copy {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .account-auth-grid {
+            display: grid;
+            gap: 12px;
+            margin-top: 10px;
+            align-items: end;
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .account-auth-grid .account-actions {
+            margin-top: 0;
         }
         .account-btn {
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -258,16 +361,21 @@
             50% { transform: translateY(-1px); }
         }
         @media (max-width: 1220px) {
+            .account-dashboard {
+                grid-template-columns: 1fr;
+            }
+            .account-sidebar {
+                position: static;
+            }
             .account-shell {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
-            .account-card.full-row {
-                grid-column: 1 / -1;
-            }
         }
         @media (max-width: 760px) {
-            .account-shell {
+            .account-dashboard {
                 width: min(94vw, 620px);
+            }
+            .account-shell {
                 grid-template-columns: 1fr;
             }
             .account-card.full-row {
@@ -282,111 +390,158 @@
             <h1>rift account</h1>
             <p class="page-subtitle">login/signup with cloud save</p>
         </header>
-        <section class="account-shell">
-            <article class="account-card">
-                <h3>auth</h3>
-                <div class="account-row">
-                    <input id="username" class="account-input" placeholder="username (a-z, 0-9, _)" maxlength="24">
-                    <input id="password" class="account-input" type="password" placeholder="password (8+ chars)" maxlength="128">
+        <section class="account-dashboard">
+            <aside class="account-sidebar">
+                <article class="account-hero">
+                    <div class="account-hero-label">account center</div>
+                    <div id="sessionHeroTitle" class="account-hero-title">checking session...</div>
+                    <div id="sessionHeroMeta" class="account-status">loading your saved account state.</div>
+                </article>
+                <div class="account-page-nav">
+                    <button type="button" class="account-page-btn active" data-account-target="overview">
+                        <span class="account-page-title">page one</span>
+                        <span class="account-page-copy">session, login, and cloud sync</span>
+                    </button>
+                    <button type="button" class="account-page-btn" data-account-target="profile">
+                        <span class="account-page-title">profile</span>
+                        <span class="account-page-copy">card, bio, accent, and effects</span>
+                    </button>
+                    <button type="button" class="account-page-btn" data-account-target="progress">
+                        <span class="account-page-title">progress</span>
+                        <span class="account-page-copy">achievements, season, and quests</span>
+                    </button>
+                    <button type="button" class="account-page-btn" data-account-target="presets">
+                        <span class="account-page-title">presets</span>
+                        <span class="account-page-copy">share and import profile setups</span>
+                    </button>
                 </div>
-                <div class="account-actions">
-                    <button id="signupBtn" class="account-btn">sign up</button>
-                    <button id="loginBtn" class="account-btn">log in</button>
-                    <button id="logoutBtn" class="account-btn">log out</button>
-                </div>
-            </article>
-            <article class="account-card">
-                <h3>cloud save status</h3>
-                <div id="status" class="account-status">checking session...</div>
-                <div class="account-actions">
-                    <button id="refreshBtn" class="account-btn">refresh</button>
-                    <button id="pushSettingsBtn" class="account-btn">push local settings</button>
-                </div>
-            </article>
-            <article class="account-card">
-                <h3>chat status</h3>
-                <div class="status-row">
-                    <label for="statusMode" class="status-label">status mode</label>
-                    <select id="statusMode" class="account-input status-select">
-                        <option value="auto">automatic</option>
-                        <option value="online">online</option>
-                        <option value="idle">idle</option>
-                        <option value="dnd">do not disturb</option>
-                    </select>
-                </div>
-                <div id="statusPreview" class="account-status status-preview">
-                    <span class="status-dot offline"></span>
-                    <span>mode: automatic. current: offline.</span>
-                </div>
-                <div class="account-actions">
-                    <button id="saveStatusBtn" class="account-btn">save status</button>
-                </div>
-            </article>
-            <article class="account-card">
-                <h3>achievements</h3>
-                <div id="achievementList" class="achievement-list">
-                    <div class="account-status">log in to see achievements.</div>
-                </div>
-            </article>
-            <article class="account-card">
-                <h3>profile card</h3>
-                <div class="account-row">
-                    <input id="profileTagline" class="account-input" maxlength="80" placeholder="tagline">
-                    <textarea id="profileBio" class="account-input" maxlength="360" rows="3" placeholder="bio"></textarea>
-                    <label class="status-label" for="profileAccent">accent color</label>
-                    <input id="profileAccent" class="account-input" type="color" value="#8ecbff">
-                    <input id="profileFavorite" class="account-input" maxlength="120" placeholder="favorite game">
-                </div>
-                <div class="account-actions">
-                    <button id="saveProfileBtn" class="account-btn">save profile</button>
-                    <button id="refreshProfileBtn" class="account-btn">refresh profile</button>
-                </div>
-                <div id="profilePreview" class="profile-preview">
-                    <div class="profile-title">profile preview</div>
-                    <div class="profile-tagline">log in to load profile card.</div>
-                </div>
-            </article>
-            <article class="account-card">
-                <h3>season event</h3>
-                <div id="seasonInfo" class="account-status">log in to load season.</div>
-                <div id="seasonBadges" class="pill-row"></div>
-            </article>
-            <article class="account-card">
-                <h3>daily quests</h3>
-                <div id="dailyQuestList" class="mini-list">
-                    <div class="account-status">log in to see daily quests.</div>
-                </div>
-            </article>
-            <article class="account-card">
-                <h3>profile effects</h3>
-                <div class="account-row">
-                    <label class="status-label" for="profileThemeSelect">profile theme</label>
-                    <select id="profileThemeSelect" class="account-input"></select>
-                    <label class="status-label" for="profileFrameSelect">frame effect</label>
-                    <select id="profileFrameSelect" class="account-input"></select>
-                    <label class="status-label" for="profileAccentAnimSelect">accent animation</label>
-                    <select id="profileAccentAnimSelect" class="account-input"></select>
-                </div>
-                <div class="account-actions">
-                    <button id="saveProfileStyleBtn" class="account-btn">save effects</button>
-                </div>
-            </article>
-            <article class="account-card">
-                <h3>theme presets marketplace</h3>
-                <div class="account-row">
-                    <input id="presetNameInput" class="account-input" maxlength="60" placeholder="preset name to share">
-                    <div class="account-actions">
-                        <button id="sharePresetBtn" class="account-btn">share current preset</button>
+            </aside>
+            <div class="account-pages">
+                <section class="account-page active" data-account-panel="overview">
+                    <div class="account-shell">
+                        <article class="account-card full-row">
+                            <h3>session</h3>
+                            <div class="session-hero">
+                                <div>
+                                    <div class="session-headline" id="sessionHeadline">not logged in</div>
+                                    <div class="session-copy" id="status">checking session...</div>
+                                </div>
+                                <div id="memberActions" class="account-actions is-hidden">
+                                    <button id="refreshBtn" class="account-btn">refresh</button>
+                                    <button id="pushSettingsBtn" class="account-btn">push local settings</button>
+                                    <button id="logoutBtn" class="account-btn">log out</button>
+                                </div>
+                            </div>
+                            <div id="guestAuthWrap" class="account-auth-grid">
+                                <div class="account-row">
+                                    <input id="username" class="account-input" placeholder="username (a-z, 0-9, _)" maxlength="24">
+                                    <input id="password" class="account-input" type="password" placeholder="password (8+ chars)" maxlength="128">
+                                </div>
+                                <div class="account-actions">
+                                    <button id="signupBtn" class="account-btn">sign up</button>
+                                    <button id="loginBtn" class="account-btn">log in</button>
+                                </div>
+                            </div>
+                        </article>
+                        <article class="account-card">
+                            <h3>chat status</h3>
+                            <div class="status-row">
+                                <label for="statusMode" class="status-label">status mode</label>
+                                <select id="statusMode" class="account-input status-select">
+                                    <option value="auto">automatic</option>
+                                    <option value="online">online</option>
+                                    <option value="idle">idle</option>
+                                    <option value="dnd">do not disturb</option>
+                                </select>
+                            </div>
+                            <div id="statusPreview" class="account-status status-preview">
+                                <span class="status-dot offline"></span>
+                                <span>mode: automatic. current: offline.</span>
+                            </div>
+                            <div class="account-actions">
+                                <button id="saveStatusBtn" class="account-btn">save status</button>
+                            </div>
+                        </article>
                     </div>
-                    <input id="importPresetCodeInput" class="account-input" maxlength="12" placeholder="import preset code">
-                    <div class="account-actions">
-                        <button id="importPresetBtn" class="account-btn">import preset</button>
+                </section>
+                <section class="account-page" data-account-panel="profile">
+                    <div class="account-shell">
+                        <article class="account-card">
+                            <h3>profile card</h3>
+                            <div class="account-row">
+                                <input id="profileTagline" class="account-input" maxlength="80" placeholder="tagline">
+                                <textarea id="profileBio" class="account-input" maxlength="360" rows="3" placeholder="bio"></textarea>
+                                <label class="status-label" for="profileAccent">accent color</label>
+                                <input id="profileAccent" class="account-input" type="color" value="#8ecbff">
+                                <input id="profileFavorite" class="account-input" maxlength="120" placeholder="favorite game">
+                            </div>
+                            <div class="account-actions">
+                                <button id="saveProfileBtn" class="account-btn">save profile</button>
+                                <button id="refreshProfileBtn" class="account-btn">refresh profile</button>
+                            </div>
+                            <div id="profilePreview" class="profile-preview">
+                                <div class="profile-title">profile preview</div>
+                                <div class="profile-tagline">log in to load profile card.</div>
+                            </div>
+                        </article>
+                        <article class="account-card">
+                            <h3>profile effects</h3>
+                            <div class="account-row">
+                                <label class="status-label" for="profileThemeSelect">profile theme</label>
+                                <select id="profileThemeSelect" class="account-input"></select>
+                                <label class="status-label" for="profileFrameSelect">frame effect</label>
+                                <select id="profileFrameSelect" class="account-input"></select>
+                                <label class="status-label" for="profileAccentAnimSelect">accent animation</label>
+                                <select id="profileAccentAnimSelect" class="account-input"></select>
+                            </div>
+                            <div class="account-actions">
+                                <button id="saveProfileStyleBtn" class="account-btn">save effects</button>
+                            </div>
+                        </article>
                     </div>
-                </div>
-                <div id="presetList" class="mini-list">
-                    <div class="account-status">log in to browse presets.</div>
-                </div>
-            </article>
+                </section>
+                <section class="account-page" data-account-panel="progress">
+                    <div class="account-shell">
+                        <article class="account-card">
+                            <h3>achievements</h3>
+                            <div id="achievementList" class="achievement-list">
+                                <div class="account-status">log in to see achievements.</div>
+                            </div>
+                        </article>
+                        <article class="account-card">
+                            <h3>season event</h3>
+                            <div id="seasonInfo" class="account-status">log in to load season.</div>
+                            <div id="seasonBadges" class="pill-row"></div>
+                        </article>
+                        <article class="account-card full-row">
+                            <h3>daily quests</h3>
+                            <div id="dailyQuestList" class="mini-list">
+                                <div class="account-status">log in to see daily quests.</div>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+                <section class="account-page" data-account-panel="presets">
+                    <div class="account-shell">
+                        <article class="account-card full-row">
+                            <h3>theme presets marketplace</h3>
+                            <div class="account-row">
+                                <input id="presetNameInput" class="account-input" maxlength="60" placeholder="preset name to share">
+                                <div class="account-actions">
+                                    <button id="sharePresetBtn" class="account-btn">share current preset</button>
+                                </div>
+                                <input id="importPresetCodeInput" class="account-input" maxlength="12" placeholder="import preset code">
+                                <div class="account-actions">
+                                    <button id="importPresetBtn" class="account-btn">import preset</button>
+                                </div>
+                            </div>
+                            <div id="presetList" class="mini-list">
+                                <div class="account-status">log in to browse presets.</div>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+            </div>
         </section>
     </div>
 
@@ -440,6 +595,11 @@
 
         const el = (id) => document.getElementById(id);
         const statusEl = el('status');
+        const sessionHeroTitleEl = el('sessionHeroTitle');
+        const sessionHeroMetaEl = el('sessionHeroMeta');
+        const sessionHeadlineEl = el('sessionHeadline');
+        const guestAuthWrapEl = el('guestAuthWrap');
+        const memberActionsEl = el('memberActions');
         const statusModeEl = el('statusMode');
         const statusPreviewEl = el('statusPreview');
         const saveStatusBtn = el('saveStatusBtn');
@@ -463,11 +623,45 @@
         const importPresetCodeInputEl = el('importPresetCodeInput');
         const importPresetBtn = el('importPresetBtn');
         const presetListEl = el('presetList');
+        const accountPageButtons = Array.from(document.querySelectorAll('[data-account-target]'));
+        const accountPages = Array.from(document.querySelectorAll('[data-account-panel]'));
         const AuthClient = window.RiftAuth || window.NovaAuth;
         let profileCustomizationState = null;
+        const ACCOUNT_PAGE_KEY = 'rift__account-page';
 
         function setStatus(message) {
             statusEl.textContent = message;
+        }
+
+        function setSessionHero(title, meta) {
+            sessionHeroTitleEl.textContent = String(title || 'account');
+            sessionHeadlineEl.textContent = String(title || 'account');
+            sessionHeroMetaEl.textContent = String(meta || '');
+        }
+
+        function setSessionView(authenticated) {
+            guestAuthWrapEl.classList.toggle('is-hidden', !!authenticated);
+            memberActionsEl.classList.toggle('is-hidden', !authenticated);
+        }
+
+        function sanitizeAccountPage(value) {
+            const page = String(value || '').toLowerCase();
+            if (page === 'overview' || page === 'profile' || page === 'progress' || page === 'presets') return page;
+            return 'overview';
+        }
+
+        function setAccountPage(page, updateHash = true) {
+            const safePage = sanitizeAccountPage(page);
+            localStorage.setItem(ACCOUNT_PAGE_KEY, safePage);
+            accountPageButtons.forEach((button) => {
+                button.classList.toggle('active', button.getAttribute('data-account-target') === safePage);
+            });
+            accountPages.forEach((panel) => {
+                panel.classList.toggle('active', panel.getAttribute('data-account-panel') === safePage);
+            });
+            if (updateHash) {
+                history.replaceState(null, '', `${window.location.pathname}#${safePage}`);
+            }
         }
 
         function normalizePresenceStatus(value) {
@@ -781,6 +975,8 @@
             try {
                 const me = await AuthClient.me();
                 if (!me.authenticated) {
+                    setSessionHero('not logged in', 'sign in here first to sync games, profile, presets, and chat presence.');
+                    setSessionView(false);
                     setStatus('not logged in.');
                     statusModeEl.value = 'auto';
                     renderStatusPreview('auto', 'offline');
@@ -795,6 +991,8 @@
                 const save = await AuthClient.getSave();
                 const gameCount = Object.keys(save.save.games || {}).length;
                 const settingCount = Object.keys(save.save.settings || {}).length;
+                setSessionHero(`logged in as ${me.user.username}`, `${gameCount} saved games · ${settingCount} saved settings · cloud sync ready.`);
+                setSessionView(true);
                 setStatus(`logged in as ${me.user.username}. saved games: ${gameCount}. saved settings: ${settingCount}.`);
                 await refreshStatusMode();
                 await refreshProfileCard();
@@ -805,6 +1003,8 @@
                 await refreshPresetMarket();
             } catch (error) {
                 if (error.status === 401) {
+                    setSessionHero('not logged in', 'sign in here first to sync games, profile, presets, and chat presence.');
+                    setSessionView(false);
                     setStatus('not logged in.');
                     statusModeEl.value = 'auto';
                     renderStatusPreview('auto', 'offline');
@@ -816,6 +1016,8 @@
                     renderPresetList(null);
                     return;
                 }
+                setSessionHero('account unavailable', 'the account service did not respond normally.');
+                setSessionView(false);
                 setStatus(error.message || 'request failed');
                 renderStatusPreview('auto', 'offline');
                 setStatusControlsEnabled(false);
@@ -933,6 +1135,19 @@
             }
         });
 
+        accountPageButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                setAccountPage(button.getAttribute('data-account-target') || 'overview');
+            });
+        });
+
+        window.addEventListener('hashchange', () => {
+            setAccountPage(window.location.hash.replace(/^#/, ''), false);
+        });
+
+        setAccountPage(window.location.hash.replace(/^#/, '') || localStorage.getItem(ACCOUNT_PAGE_KEY) || 'overview', false);
+        setSessionHero('checking session...', 'loading your account, saves, and profile tools.');
+        setSessionView(false);
         setStatusControlsEnabled(false);
         renderStatusPreview('auto', 'offline');
         refreshStatus();

@@ -303,7 +303,7 @@
                 window.RiftAuth?.saveLocalSettings?.().catch(() => {});
             });
 
-            let rainEnabled = localStorage.getItem('rift__rain-enabled') !== 'false';
+            let rainEnabled = localStorage.getItem('rift__rain-enabled') === 'true';
             const syncRain = () => {
                 document.getElementById('rain-on')?.classList.toggle('active', rainEnabled);
                 document.getElementById('rain-off')?.classList.toggle('active', !rainEnabled);

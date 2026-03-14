@@ -58,7 +58,7 @@ function readStoredRiftPreferences() {
     const rawTheme = String(localStorage.getItem(RIFT_APPEARANCE.THEME_KEY) || RIFT_APPEARANCE.DEFAULT_THEME).toLowerCase();
     return {
         theme: RIFT_APPEARANCE.THEMES.includes(rawTheme) ? rawTheme : RIFT_APPEARANCE.DEFAULT_THEME,
-        rainEnabled: localStorage.getItem(RIFT_APPEARANCE.RAIN_KEY) !== 'false',
+        rainEnabled: localStorage.getItem(RIFT_APPEARANCE.RAIN_KEY) === 'true',
         performanceMode: localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true',
         navPosition: localStorage.getItem(RIFT_APPEARANCE.NAV_POSITION_KEY) || 'bottom',
         customTheme: readCustomTheme(),
@@ -130,6 +130,7 @@ window.RiftAppearance = {
     setTheme(theme) {
         const next = String(theme || '').toLowerCase();
         localStorage.setItem(this.THEME_KEY, this.THEMES.includes(next) ? next : this.DEFAULT_THEME);
+        localStorage.removeItem(this.CUSTOM_THEME_KEY);
         this.apply();
     },
     setRainEnabled(enabled) {

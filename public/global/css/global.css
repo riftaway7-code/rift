@@ -1895,6 +1895,10 @@ body.nav-pos-top .bottom-nav {
     bottom: auto;
 }
 
+body.nav-pos-top .container {
+    margin-top: 88px;
+}
+
 body.nav-pos-top .nav-toggle {
     top: 10px;
     bottom: auto;
@@ -2611,9 +2615,10 @@ textarea {
 
 body {
   background:
-    radial-gradient(1200px 700px at 100% -10%, rgba(130, 154, 176, 0.14), transparent 64%),
-    radial-gradient(900px 620px at -4% 108%, rgba(84, 99, 114, 0.2), transparent 65%),
-    linear-gradient(180deg, #08090b 0%, #050607 100%);
+    radial-gradient(1200px 700px at 100% -10%, var(--rift-bg-glow-1), transparent 64%),
+    radial-gradient(900px 620px at -4% 108%, var(--rift-bg-glow-2), transparent 65%),
+    radial-gradient(1200px 700px at 50% 110%, var(--rift-accent-soft), transparent 72%),
+    var(--rift-bg-base);
   color: var(--rift-text);
 }
 
