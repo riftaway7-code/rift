@@ -470,6 +470,7 @@
                     quality: 'balanced',
                     fit: 'best on low-power devices',
                     directUrl: 'https://nowgg.fun/apps/a/19900/b.html',
+                    riftUrl: 'https://108.ip.nowgg.fun/apps/a/19900/b.html',
                     summary: 'Launch Roblox straight on nowgg when the local device cannot handle the native client well.'
                 },
                 {
@@ -614,8 +615,9 @@
             const playerStatus = document.getElementById('cloudPlayerStatus');
             const closePlayer = document.getElementById('cloudClosePlayer');
 
-            function toRiftPlayerUrl(url) {
-                return `/embed.html#${encodeURIComponent(url)}`;
+            function toRiftPlayerUrl(entry) {
+                const target = entry.riftUrl || entry.directUrl;
+                return `/browser?url=${encodeURIComponent(target)}&forceProxy=1`;
             }
 
             function getSelectedGame() {
@@ -690,10 +692,10 @@
             function playSelectedInRift() {
                 const entry = getSelectedGame();
                 if (!entry || !playerFrame || !playerEmpty || !playerStatus) return;
-                playerFrame.src = toRiftPlayerUrl(entry.directUrl);
+                playerFrame.src = toRiftPlayerUrl(entry);
                 playerFrame.hidden = false;
                 playerEmpty.hidden = true;
-                playerStatus.textContent = `playing ${entry.title} through rift`;
+                playerStatus.textContent = `routing ${entry.title} through rift browser`;
                 playerFrame.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
