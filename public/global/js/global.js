@@ -80,8 +80,12 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.9',
+    version: '2.3.12',
     notes: [
+        'replaced the old nowgg cloud page with a Rift-native host queue and bootstrap panel for Sunshine and Moonlight sessions',
+        'added backend cloud-control endpoints for host registration, heartbeats, session requests, and stream bootstrap',
+        'restored the roblox direct cloud url to nowgg.fun while keeping the fern-style launcher handoff',
+        'switched the roblox direct cloud url to now.gg to match the working fern launch path',
         'changed roblox cloud launch to pass both the nowgg launcher url and session target through the Rift browser runner',
         'changed roblox cloud launch to use the Rift browser proxy runner instead of the blocked nowgg embed path',
         'made the wisp transport probe more tolerant on hosted deployments by using a longer socket check and http fallback',

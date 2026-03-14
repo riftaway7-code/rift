@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const dns = require('dns').promises;
 const crypto = require('crypto');
+const { attachCloudControlRoutes } = require('./cloud-control');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -4526,6 +4527,14 @@ app.put('/api/status/me', async (req, res) => {
     } catch (error) {
         return jsonError(res, 500, `Status update failed: ${error.message}`);
     }
+});
+
+attachCloudControlRoutes({
+    app,
+    readAuthDb,
+    updateAuthDb,
+    getSessionFromRequest,
+    jsonError,
 });
 
 app.get('/api/stats/users', async (req, res) => {
