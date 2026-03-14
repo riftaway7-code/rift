@@ -634,6 +634,7 @@
         const mini = window.RiftMiniPlayer;
         const SOUND_AUDIO = new Audio();
         const MUSIC_ACTIVE_TAB_KEY = 'rift__music-active-tab';
+        const MYINSTANTS_BASE = 'https://www.myinstants.com';
 
         SOUND_AUDIO.preload = 'none';
 
@@ -665,6 +666,34 @@
 
         function setSoundboardStatus(text) {
             soundboardStatus.textContent = text || '';
+        }
+
+        function proxyUrlFor(target) {
+            return `/proxy?url=${encodeURIComponent(target)}`;
+        }
+
+        function unwrapProxyUrl(raw) {
+            const value = String(raw || '').trim();
+            if (!value) return '';
+            try {
+                const absolute = new URL(value, window.location.origin);
+                if (absolute.pathname === '/proxy') {
+                    return absolute.searchParams.get('url') || '';
+                }
+                return absolute.href;
+            } catch {
+                return value;
+            }
+        }
+
+        function normalizeMyinstantsUrl(raw) {
+            const unwrapped = unwrapProxyUrl(raw);
+            if (!unwrapped) return '';
+            try {
+                return new URL(unwrapped, MYINSTANTS_BASE).href;
+            } catch {
+                return '';
+            }
         }
 
         function escapeHtml(text) {
@@ -974,12 +1003,90 @@
             });
         }
 
+        async function fetchHtml(url) {
+            const res = await fetch(url, { credentials: 'same-origin' });
+            if (!res.ok) {
+                throw new Error(`request failed (${res.status})`);
+            }
+            return await res.text();
+        }
+
+        function parseHtml(html) {
+            return new DOMParser().parseFromString(String(html || ''), 'text/html');
+        }
+
+        function collectMyinstantsCandidates(html) {
+            const doc = parseHtml(html);
+            const seen = new Set();
+            const items = [];
+            doc.querySelectorAll('a[href]').forEach((anchor) => {
+                const href = String(anchor.getAttribute('href') || '').trim();
+                const absolute = normalizeMyinstantsUrl(href);
+                if (!absolute || !/\/en\/instant\//i.test(absolute) || seen.has(absolute)) return;
+                seen.add(absolute);
+                const title = String(anchor.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!title) return;
+                items.push({
+                    title,
+                    pageUrl: absolute,
+                    proxiedPageUrl: href.startsWith('/proxy?url=') ? href : proxyUrlFor(absolute),
+                });
+            });
+            return items.slice(0, 16);
+        }
+
+        function extractMyinstantsClip(html, candidate, index) {
+            const doc = parseHtml(html);
+            const directLink = doc.querySelector('a[href*="/media/sounds/"], a[href*="media/sounds/"]');
+            const rawHref = String(directLink?.getAttribute('href') || '').trim();
+            const mediaUrl = normalizeMyinstantsUrl(rawHref);
+            const proxiedHref = rawHref.startsWith('/proxy?url=') ? rawHref : (mediaUrl ? proxyUrlFor(mediaUrl) : '');
+            if (!proxiedHref) return null;
+
+            return {
+                id: `myinstants:${index}:${candidate.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || index}`,
+                title: candidate.title,
+                pageUrl: candidate.pageUrl,
+                mediaUrl,
+                streamUrl: proxiedHref,
+            };
+        }
+
+        async function loadSoundboardViaProxy(query) {
+            const normalized = String(query || '').trim();
+            const listingUrl = normalized
+                ? `${MYINSTANTS_BASE}/en/search/?name=${encodeURIComponent(normalized)}`
+                : `${MYINSTANTS_BASE}/en/`;
+            const listingHtml = await fetchHtml(proxyUrlFor(listingUrl));
+            const candidates = collectMyinstantsCandidates(listingHtml);
+            if (!candidates.length) return [];
+
+            const clips = [];
+            for (let i = 0; i < candidates.length; i += 1) {
+                const candidate = candidates[i];
+                try {
+                    const detailHtml = await fetchHtml(candidate.proxiedPageUrl);
+                    const clip = extractMyinstantsClip(detailHtml, candidate, i);
+                    if (clip) clips.push(clip);
+                } catch {
+                }
+            }
+            return clips;
+        }
+
         async function loadSoundboard(query) {
             const normalized = String(query || '').trim();
             setSoundboardStatus(normalized ? `Searching Myinstants for "${normalized}"...` : 'Loading current Myinstants sounds...');
             try {
-                const data = await apiJson(`/api/music/soundboard/myinstants?q=${encodeURIComponent(normalized)}`);
-                state.soundboard.clips = Array.isArray(data.clips) ? data.clips : [];
+                let clips = [];
+                try {
+                    const data = await apiJson(`/api/music/soundboard/myinstants?q=${encodeURIComponent(normalized)}`);
+                    clips = Array.isArray(data.clips) ? data.clips : [];
+                } catch (error) {
+                    if (!String(error.message || '').includes('403')) throw error;
+                    clips = await loadSoundboardViaProxy(normalized);
+                }
+                state.soundboard.clips = clips;
                 state.soundboard.loaded = true;
                 state.soundboard.currentClipId = '';
                 SOUND_AUDIO.pause();
