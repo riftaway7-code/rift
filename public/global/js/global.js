@@ -1429,7 +1429,7 @@ function initHomeWorkspace() {
         </article>
     `;
     cards.classList.add('rift-home-launchpad');
-    cards.before(workspace);
+    cards.after(workspace);
 
     workspace.addEventListener('click', (event) => {
         const target = event.target instanceof HTMLElement ? event.target : null;

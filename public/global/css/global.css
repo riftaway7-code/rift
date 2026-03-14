@@ -4047,7 +4047,7 @@ body.rift-ui-ready .rift-reveal {
   body.route-home #rift-home-workspace {
     grid-template-columns: 1fr;
     max-width: 320px;
-    margin: -10px 0 10px auto;
+    margin: 14px 0 0 auto;
   }
 
   body.route-home #rift-home-workspace .rift-home-panel {
@@ -4055,11 +4055,11 @@ body.rift-ui-ready .rift-reveal {
   }
 
   body.route-home .home-cards {
-    margin-top: -4px;
+    margin-top: -10px;
   }
 
   body.route-home .rift-page-header {
-    margin-bottom: 10px;
+    margin-bottom: 4px;
   }
 }
 
