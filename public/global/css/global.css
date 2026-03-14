@@ -2718,6 +2718,65 @@ header h1 {
   backdrop-filter: blur(10px);
 }
 
+.bottom-nav.nav-meta-enabled {
+  padding-left: 122px;
+  padding-right: 122px;
+}
+
+.nav-meta {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.bottom-nav.nav-meta-enabled .nav-meta {
+  display: inline-flex;
+}
+
+.nav-meta-brand {
+  left: 14px;
+}
+
+.nav-meta-page {
+  right: 14px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.nav-brand-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+    rgba(255, 255, 255, 0.06) url('/favicon.ico') center / 16px 16px no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26);
+}
+
+.nav-brand-text,
+.nav-page-label {
+  font-family: "Run", Arial, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: rgba(244, 249, 255, 0.9);
+}
+
+.nav-page-caption {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(205, 218, 233, 0.42);
+}
+
 .bottom-nav.hidden {
   transform: translateX(-50%) translateY(calc(100% + 26px));
 }
@@ -2759,6 +2818,17 @@ body.credits-page {
   align-items: stretch;
   justify-content: flex-start;
   padding-top: 16px;
+}
+
+body.nav-pos-left .bottom-nav.nav-meta-enabled,
+body.nav-pos-right .bottom-nav.nav-meta-enabled {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+body.nav-pos-left .bottom-nav .nav-meta,
+body.nav-pos-right .bottom-nav .nav-meta {
+  display: none !important;
 }
 
 .vault-controls {
@@ -2935,6 +3005,15 @@ body.browser-page #browser-input {
     border-radius: 14px;
     gap: 4px;
     padding: 6px;
+  }
+
+  .bottom-nav.nav-meta-enabled {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .bottom-nav .nav-meta {
+    display: none !important;
   }
 
   .nav-button {

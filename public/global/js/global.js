@@ -281,6 +281,71 @@ if (document.readyState === 'loading') {
     mountRiftBootScreen();
 }
 
+function extractNavHref(button) {
+    const raw = String(button?.getAttribute('onclick') || '').trim();
+    const match = raw.match(/location\.href\s*=\s*['"]([^'"]+)['"]/i);
+    return String(match?.[1] || '').trim();
+}
+
+function resolveNavPageLabel(nav) {
+    const labels = {
+        '/': 'home',
+        '/games': 'games',
+        '/apps': 'apps',
+        '/music': 'music',
+        '/chat': 'chat',
+        '/browser': 'browser',
+        '/account': 'account',
+        '/settings': 'settings',
+        '/social-media-&-partners': 'partners',
+        '/rift_media': 'media',
+        '/os': 'os',
+    };
+
+    const active = nav?.querySelector('.nav-button.active');
+    const href = extractNavHref(active) || window.location.pathname || '/';
+    const normalized = href.length > 1 ? href.replace(/\/+$/, '') : href;
+
+    if (labels[normalized]) return labels[normalized];
+
+    const fallback = normalized
+        .replace(/^\/+/, '')
+        .replace(/[_-]+/g, ' ')
+        .trim();
+
+    return fallback || 'home';
+}
+
+function decorateBottomNav(nav, position) {
+    if (!nav) return;
+
+    const metaEnabled = position === 'top' || position === 'bottom';
+    nav.classList.toggle('nav-meta-enabled', metaEnabled);
+
+    let brand = nav.querySelector('.nav-meta-brand');
+    if (!brand) {
+        brand = document.createElement('div');
+        brand.className = 'nav-meta nav-meta-brand';
+        brand.setAttribute('aria-hidden', 'true');
+        brand.innerHTML = '<span class="nav-brand-mark"></span><span class="nav-brand-text">rift</span>';
+        nav.prepend(brand);
+    }
+
+    let page = nav.querySelector('.nav-meta-page');
+    if (!page) {
+        page = document.createElement('div');
+        page.className = 'nav-meta nav-meta-page';
+        page.setAttribute('aria-hidden', 'true');
+        page.innerHTML = '<span class="nav-page-caption">page</span><span class="nav-page-label"></span>';
+        nav.append(page);
+    }
+
+    const label = resolveNavPageLabel(nav);
+    const pageLabel = page.querySelector('.nav-page-label');
+    if (pageLabel) pageLabel.textContent = label;
+    nav.setAttribute('data-page-label', label);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const typingText = document.getElementById('typingText');
     const performanceMode = localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true';
@@ -380,6 +445,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.body.classList.add('nav-pos-' + savedPosition);
 
     const nav = document.querySelector('.bottom-nav');
+    decorateBottomNav(nav, savedPosition);
     if (nav && navToggleEnabled) {
         const toggle = document.createElement('button');
         toggle.className = 'nav-toggle';
