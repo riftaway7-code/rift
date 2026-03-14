@@ -4045,21 +4045,40 @@ body.rift-ui-ready .rift-reveal {
   }
 
   body.route-home #rift-home-workspace {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 1215;
+    width: min(290px, 24vw);
+    max-height: calc(100vh - 120px);
     grid-template-columns: 1fr;
-    max-width: 320px;
-    margin: 14px 0 0 auto;
+    margin: 0;
+    overflow: auto;
   }
 
   body.route-home #rift-home-workspace .rift-home-panel {
     min-height: 132px;
   }
 
+  body.route-home .container {
+    padding-left: 318px;
+  }
+
+  body.route-home.nav-pos-left .container {
+    padding-left: 412px;
+  }
+
+  body.route-home.nav-pos-right .container {
+    padding-left: 318px;
+    padding-right: 22px;
+  }
+
   body.route-home .home-cards {
-    margin-top: -10px;
+    margin-top: 0;
   }
 
   body.route-home .rift-page-header {
-    margin-bottom: 4px;
+    margin-bottom: 10px;
   }
 }
 
