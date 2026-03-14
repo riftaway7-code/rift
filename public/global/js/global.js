@@ -32,6 +32,49 @@ const RiftLayoutState = {
     drag: null,
 };
 
+const RIFT_UI = {
+    RECENT_KEY: 'rift__recent-pages-v1',
+    PINNED_KEY: 'rift__pinned-pages-v1',
+    REDUCED_EFFECTS_KEY: 'rift__reduced-effects-v1',
+    ROUTES: [
+        { href: '/', label: 'home', icon: 'home', section: 'workspace', keywords: 'launch dashboard landing start recent pinned' },
+        { href: '/games', label: 'games', icon: 'sports_esports', section: 'arcade', keywords: 'arcade vault library trending' },
+        { href: '/apps', label: 'apps', icon: 'apps', section: 'tools', keywords: 'apps cheats tools utilities' },
+        { href: '/music', label: 'music', icon: 'library_music', section: 'media', keywords: 'music player playlists favorites tracks' },
+        { href: '/soundboard', label: 'soundboard', icon: 'graphic_eq', section: 'media', keywords: 'sounds buttons memes reactions clips' },
+        { href: '/chat', label: 'chat', icon: 'forum', section: 'social', keywords: 'messages dm rooms call friends' },
+        { href: '/browser', label: 'browser', icon: 'language', section: 'tools', keywords: 'browser proxy tabs console web' },
+        { href: '/account', label: 'account', icon: 'person', section: 'identity', keywords: 'profile account login presets sync' },
+        { href: '/settings', label: 'settings', icon: 'settings', section: 'system', keywords: 'preferences theme performance layout rain' },
+        { href: '/credits', label: 'credits', icon: 'handshake', section: 'info', keywords: 'credits acknowledgements contributors' },
+        { href: '/rift_media', label: 'rift media', icon: 'movie', section: 'media', keywords: 'videos media streaming' },
+        { href: '/social-media-&-partners', label: 'credits + partners', icon: 'connect_without_contact', section: 'info', keywords: 'credits partners social links' },
+        { href: '/os', label: 'rift os', icon: 'desktop_windows', section: 'system', keywords: 'desktop os launcher shell' },
+    ],
+    PAGE_META: {
+        '/': { subtitle: 'workspace, recent launches, and quick actions', kicker: 'workspace', accent: 'home' },
+        '/games': { subtitle: 'jump straight into the arcade stack', kicker: 'arcade', accent: 'games' },
+        '/apps': { subtitle: 'tools, utilities, and helper surfaces', kicker: 'tools', accent: 'apps' },
+        '/music': { subtitle: 'tracks, playlists, and saved listening', kicker: 'media', accent: 'music' },
+        '/soundboard': { subtitle: 'stacked sound libraries and quick preview pads', kicker: 'media', accent: 'soundboard' },
+        '/chat': { subtitle: 'rooms, dms, and live status', kicker: 'social', accent: 'chat' },
+        '/browser': { subtitle: 'tabs, console, and proxied browsing', kicker: 'browser', accent: 'browser' },
+        '/account': { subtitle: 'identity, progress, and presets', kicker: 'identity', accent: 'account' },
+        '/settings': { subtitle: 'appearance, performance, and behavior', kicker: 'system', accent: 'settings' },
+        '/credits': { subtitle: 'contributors, acknowledgements, and project context', kicker: 'info', accent: 'partners' },
+        '/rift_media': { subtitle: 'streaming and embedded media surfaces', kicker: 'media', accent: 'media' },
+        '/social-media-&-partners': { subtitle: 'outbound links, socials, and credits', kicker: 'info', accent: 'partners' },
+        '/os': { subtitle: 'desktop shell and system experiments', kicker: 'system', accent: 'os' },
+    },
+};
+
+const RiftUiState = {
+    shellReady: false,
+    paletteOpen: false,
+    drawerOpen: false,
+    auth: { authenticated: false, username: '', clientMode: 'rift' },
+};
+
 function normalizeHexColor(value, fallback = '#8ecbff') {
     const raw = String(value || '').trim().toLowerCase();
     const short = raw.match(/^#([0-9a-f]{3})$/i);
@@ -126,10 +169,21 @@ function applyRiftAppearance() {
     return prefs;
 }
 
+function applyReducedEffectsPreference() {
+    if (!document.body) return false;
+    const enabled = localStorage.getItem(RIFT_UI.REDUCED_EFFECTS_KEY) === 'true';
+    document.body.classList.toggle('reduced-effects', enabled);
+    return enabled;
+}
+
 if (document.body) {
     applyRiftAppearance();
+    applyReducedEffectsPreference();
 } else {
-    document.addEventListener('DOMContentLoaded', applyRiftAppearance, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+        applyRiftAppearance();
+        applyReducedEffectsPreference();
+    }, { once: true });
 }
 
 window.addEventListener('storage', (event) => {
@@ -138,10 +192,13 @@ window.addEventListener('storage', (event) => {
         event.key === RIFT_APPEARANCE.RAIN_KEY ||
         event.key === RIFT_APPEARANCE.PERFORMANCE_KEY ||
         event.key === RIFT_APPEARANCE.NAV_POSITION_KEY ||
-        event.key === RIFT_APPEARANCE.CUSTOM_THEME_KEY
+        event.key === RIFT_APPEARANCE.CUSTOM_THEME_KEY ||
+        event.key === RIFT_UI.REDUCED_EFFECTS_KEY
     ) {
         const prefs = applyRiftAppearance();
+        applyReducedEffectsPreference();
         decorateBottomNav(document.querySelector('.bottom-nav'), prefs?.navPosition || 'bottom');
+        syncRiftUiShell();
     }
 });
 
@@ -153,14 +210,17 @@ window.RiftAppearance = {
         localStorage.setItem(this.THEME_KEY, this.THEMES.includes(next) ? next : this.DEFAULT_THEME);
         localStorage.removeItem(this.CUSTOM_THEME_KEY);
         this.apply();
+        syncRiftUiShell();
     },
     setRainEnabled(enabled) {
         localStorage.setItem(this.RAIN_KEY, enabled ? 'true' : 'false');
         this.apply();
+        syncRiftUiShell();
     },
     setPerformanceMode(enabled) {
         localStorage.setItem(this.PERFORMANCE_KEY, enabled ? 'true' : 'false');
         this.apply();
+        syncRiftUiShell();
     },
     getCustomTheme() {
         return readCustomTheme();
@@ -174,11 +234,30 @@ window.RiftAppearance = {
         };
         localStorage.setItem(this.CUSTOM_THEME_KEY, JSON.stringify(payload));
         this.apply();
+        syncRiftUiShell();
         return payload;
     },
     clearCustomTheme() {
         localStorage.removeItem(this.CUSTOM_THEME_KEY);
         this.apply();
+        syncRiftUiShell();
+    },
+};
+
+window.RiftUI = {
+    openCommandPalette() {
+        openRiftCommandPalette();
+    },
+    openQuickSettings() {
+        openRiftQuickSettings();
+    },
+    togglePinnedRoute(href) {
+        togglePinnedRoute(href || getCurrentPath());
+    },
+    setReducedEffects(enabled) {
+        localStorage.setItem(RIFT_UI.REDUCED_EFFECTS_KEY, enabled ? 'true' : 'false');
+        applyReducedEffectsPreference();
+        syncRiftUiShell();
     },
 };
 
@@ -787,6 +866,658 @@ function initPageLayoutEditor() {
     });
 }
 
+function readJsonStorage(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+function writeJsonStorage(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+    }
+}
+
+function getCurrentPath() {
+    const path = String(window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    return path;
+}
+
+function getRouteCatalog() {
+    return RIFT_UI.ROUTES.slice();
+}
+
+function getRouteMeta(pathname = getCurrentPath()) {
+    const normalized = String(pathname || '/').replace(/\/+$/, '') || '/';
+    const route = getRouteCatalog().find((entry) => entry.href === normalized) || null;
+    const pageMeta = RIFT_UI.PAGE_META[normalized] || {};
+    return {
+        href: normalized,
+        label: route?.label || resolveNavPageLabel(document.querySelector('.bottom-nav')) || 'page',
+        icon: route?.icon || 'dashboard',
+        section: route?.section || pageMeta.kicker || 'rift',
+        keywords: route?.keywords || '',
+        subtitle: pageMeta.subtitle || '',
+        kicker: pageMeta.kicker || route?.section || 'rift',
+        accent: pageMeta.accent || route?.section || 'rift',
+    };
+}
+
+function readPinnedRoutes() {
+    const rows = readJsonStorage(RIFT_UI.PINNED_KEY, []);
+    return Array.isArray(rows) ? rows.map((value) => String(value || '').trim()).filter(Boolean) : [];
+}
+
+function writePinnedRoutes(rows) {
+    const next = Array.from(new Set((Array.isArray(rows) ? rows : []).map((value) => String(value || '').trim()).filter(Boolean))).slice(0, 8);
+    writeJsonStorage(RIFT_UI.PINNED_KEY, next);
+}
+
+function readRecentRoutes() {
+    const rows = readJsonStorage(RIFT_UI.RECENT_KEY, []);
+    return Array.isArray(rows)
+        ? rows.map((entry) => ({
+            href: String(entry?.href || '').trim(),
+            at: Number(entry?.at || 0),
+        })).filter((entry) => entry.href)
+        : [];
+}
+
+function writeRecentRoutes(rows) {
+    const next = (Array.isArray(rows) ? rows : [])
+        .map((entry) => ({
+            href: String(entry?.href || '').trim(),
+            at: Number(entry?.at || Date.now()),
+        }))
+        .filter((entry) => entry.href)
+        .slice(0, 12);
+    writeJsonStorage(RIFT_UI.RECENT_KEY, next);
+}
+
+function trackRecentPage() {
+    const current = getCurrentPath();
+    const catalog = getRouteCatalog();
+    if (!catalog.some((entry) => entry.href === current)) return;
+    const rows = readRecentRoutes().filter((entry) => entry.href !== current);
+    rows.unshift({ href: current, at: Date.now() });
+    writeRecentRoutes(rows);
+}
+
+function isPinnedRoute(pathname) {
+    return readPinnedRoutes().includes(String(pathname || '').trim());
+}
+
+function togglePinnedRoute(pathname) {
+    const target = String(pathname || getCurrentPath()).trim();
+    if (!target) return false;
+    const rows = readPinnedRoutes();
+    const existing = rows.indexOf(target);
+    let pinned = false;
+    if (existing >= 0) {
+        rows.splice(existing, 1);
+        pinned = false;
+    } else {
+        rows.unshift(target);
+        pinned = true;
+    }
+    writePinnedRoutes(rows);
+    syncRiftUiShell();
+    return pinned;
+}
+
+function createRouteLinkHtml(route, className = 'rift-route-link') {
+    const href = String(route?.href || '#').trim();
+    const icon = String(route?.icon || 'dashboard').trim();
+    const label = String(route?.label || href || 'page').trim();
+    return `
+        <a href="${href}" class="${className}">
+            <span class="material-icons">${icon}</span>
+            <span>${label}</span>
+        </a>
+    `;
+}
+
+function ensureRiftUiShell() {
+    if (RiftUiState.shellReady || !document.body) return;
+    RiftUiState.shellReady = true;
+
+    const shell = document.createElement('div');
+    shell.id = 'rift-ui-shell';
+    shell.innerHTML = `
+        <div id="rift-command-shade" class="rift-ui-shade" hidden>
+            <div id="rift-command-palette" class="rift-command-palette" role="dialog" aria-modal="true" aria-labelledby="riftCommandTitle">
+                <div class="rift-command-head">
+                    <div>
+                        <div id="riftCommandTitle" class="rift-command-title">command palette</div>
+                        <div class="rift-command-subtitle">jump to pages, actions, and quick toggles</div>
+                    </div>
+                    <button type="button" class="rift-command-close" data-rift-command-close="1" aria-label="Close command palette">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="rift-command-search">
+                    <span class="material-icons">search</span>
+                    <input id="rift-command-input" type="text" autocomplete="off" placeholder="search pages and actions">
+                </div>
+                <div id="rift-command-results" class="rift-command-results"></div>
+            </div>
+        </div>
+        <div id="rift-drawer-shade" class="rift-ui-shade" hidden></div>
+        <aside id="rift-quick-drawer" class="rift-quick-drawer" aria-hidden="true">
+            <div class="rift-drawer-head">
+                <div>
+                    <div class="rift-drawer-title">quick settings</div>
+                    <div class="rift-drawer-subtitle">appearance, performance, and layout</div>
+                </div>
+                <button type="button" class="rift-command-close" data-rift-drawer-close="1" aria-label="Close quick settings">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="rift-drawer-grid">
+                <label class="rift-setting-row">
+                    <span>theme</span>
+                    <select id="rift-quick-theme"></select>
+                </label>
+                <label class="rift-setting-row">
+                    <span>nav</span>
+                    <select id="rift-quick-nav">
+                        <option value="bottom">bottom</option>
+                        <option value="top">top</option>
+                        <option value="left">left</option>
+                        <option value="right">right</option>
+                    </select>
+                </label>
+                <label class="rift-toggle-row">
+                    <span>performance mode</span>
+                    <input id="rift-quick-performance" type="checkbox">
+                </label>
+                <label class="rift-toggle-row">
+                    <span>rain background</span>
+                    <input id="rift-quick-rain" type="checkbox">
+                </label>
+                <label class="rift-toggle-row">
+                    <span>reduced effects</span>
+                    <input id="rift-quick-reduced" type="checkbox">
+                </label>
+            </div>
+            <div class="rift-drawer-actions">
+                <button type="button" class="rift-utility-btn" data-rift-action="pin-current">pin current page</button>
+                <button type="button" class="rift-utility-btn" data-rift-action="open-palette">open command palette</button>
+            </div>
+        </aside>
+        <aside id="rift-context-rail" class="rift-context-rail">
+            <div class="rift-context-card">
+                <div class="rift-context-kicker">current page</div>
+                <div id="rift-context-page" class="rift-context-title">loading...</div>
+                <div id="rift-context-subtitle" class="rift-context-subtitle">building context</div>
+                <div class="rift-context-actions">
+                    <button type="button" class="rift-utility-btn" data-rift-action="open-palette">palette</button>
+                    <button type="button" class="rift-utility-btn" data-rift-action="open-drawer">settings</button>
+                </div>
+            </div>
+            <div class="rift-context-card">
+                <div class="rift-context-kicker">session</div>
+                <div id="rift-context-auth" class="rift-context-chip is-skeleton">checking...</div>
+            </div>
+            <div class="rift-context-card">
+                <div class="rift-context-row-head">
+                    <div class="rift-context-kicker">pinned</div>
+                    <button type="button" class="rift-inline-action" data-rift-action="pin-current">toggle current</button>
+                </div>
+                <div id="rift-context-pinned" class="rift-link-stack rift-is-loading"></div>
+            </div>
+            <div class="rift-context-card">
+                <div class="rift-context-kicker">recent</div>
+                <div id="rift-context-recent" class="rift-link-stack rift-is-loading"></div>
+            </div>
+        </aside>
+        <div id="rift-pinned-dock" class="rift-pinned-dock"></div>
+    `;
+    document.body.appendChild(shell);
+
+    const themeSelect = document.getElementById('rift-quick-theme');
+    if (themeSelect) {
+        themeSelect.innerHTML = RIFT_APPEARANCE.THEMES.map((theme) => `<option value="${theme}">${theme}</option>`).join('');
+    }
+
+    shell.addEventListener('click', (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+
+        const action = target.getAttribute('data-rift-action') || target.closest('[data-rift-action]')?.getAttribute('data-rift-action') || '';
+        if (action === 'open-palette') openRiftCommandPalette();
+        if (action === 'open-drawer') openRiftQuickSettings();
+        if (action === 'pin-current') togglePinnedRoute(getCurrentPath());
+
+        if (target.id === 'rift-command-shade' || target.id === 'rift-drawer-shade' || target.getAttribute('data-rift-command-close') === '1') {
+            closeRiftCommandPalette();
+        }
+        if (target.getAttribute('data-rift-drawer-close') === '1') {
+            closeRiftQuickSettings();
+        }
+    });
+
+    const commandInput = document.getElementById('rift-command-input');
+    if (commandInput) {
+        commandInput.addEventListener('input', () => renderRiftCommandResults(commandInput.value));
+        commandInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeRiftCommandPalette();
+                return;
+            }
+            if (event.key === 'Enter') {
+                const first = document.querySelector('.rift-command-item');
+                if (first instanceof HTMLElement) first.click();
+            }
+        });
+    }
+
+    document.getElementById('rift-command-results')?.addEventListener('click', (event) => {
+        const item = event.target instanceof HTMLElement ? event.target.closest('.rift-command-item') : null;
+        if (!(item instanceof HTMLElement)) return;
+        const href = String(item.getAttribute('data-href') || '').trim();
+        const action = String(item.getAttribute('data-action') || '').trim();
+        if (href) {
+            window.location.assign(href);
+            return;
+        }
+        if (action === 'open-drawer') openRiftQuickSettings();
+        if (action === 'toggle-performance') window.RiftAppearance?.setPerformanceMode(!(localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true'));
+        if (action === 'toggle-reduced') window.RiftUI?.setReducedEffects(!(localStorage.getItem(RIFT_UI.REDUCED_EFFECTS_KEY) === 'true'));
+        if (action === 'pin-current') togglePinnedRoute(getCurrentPath());
+        closeRiftCommandPalette();
+    });
+
+    document.getElementById('rift-quick-theme')?.addEventListener('change', (event) => {
+        window.RiftAppearance?.setTheme(event.target.value);
+        syncRiftUiShell();
+    });
+    document.getElementById('rift-quick-nav')?.addEventListener('change', (event) => {
+        localStorage.setItem(RIFT_APPEARANCE.NAV_POSITION_KEY, String(event.target.value || 'bottom'));
+        const prefs = applyRiftAppearance();
+        decorateBottomNav(document.querySelector('.bottom-nav'), prefs?.navPosition || 'bottom');
+        syncRiftUiShell();
+    });
+    document.getElementById('rift-quick-performance')?.addEventListener('change', (event) => {
+        window.RiftAppearance?.setPerformanceMode(!!event.target.checked);
+        syncRiftUiShell();
+    });
+    document.getElementById('rift-quick-rain')?.addEventListener('change', (event) => {
+        window.RiftAppearance?.setRainEnabled(!!event.target.checked);
+        syncRiftUiShell();
+    });
+    document.getElementById('rift-quick-reduced')?.addEventListener('change', (event) => {
+        window.RiftUI?.setReducedEffects(!!event.target.checked);
+        syncRiftUiShell();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && String(event.key || '').toLowerCase() === 'k') {
+            event.preventDefault();
+            openRiftCommandPalette();
+            return;
+        }
+        if (String(event.key || '') === 'Escape') {
+            if (RiftUiState.paletteOpen) closeRiftCommandPalette();
+            if (RiftUiState.drawerOpen) closeRiftQuickSettings();
+        }
+        if (String(event.key || '') === '/') {
+            const activeElement = document.activeElement;
+            const isTyping = activeElement && /input|textarea|select/i.test(String(activeElement.tagName || ''));
+            if (!isTyping && getCurrentPath() === '/') {
+                event.preventDefault();
+                openRiftCommandPalette();
+            }
+        }
+    });
+}
+
+function buildRiftCommandItems(query = '') {
+    const normalized = String(query || '').trim().toLowerCase();
+    const routes = getRouteCatalog()
+        .map((route) => ({
+            type: 'route',
+            href: route.href,
+            label: route.label,
+            icon: route.icon,
+            meta: route.section,
+            search: `${route.label} ${route.section} ${route.keywords}`.toLowerCase(),
+        }))
+        .filter((entry) => !normalized || entry.search.includes(normalized));
+
+    const actions = [
+        {
+            type: 'action',
+            action: 'open-drawer',
+            label: 'open quick settings',
+            icon: 'tune',
+            meta: 'appearance + behavior',
+            search: 'open quick settings theme nav performance rain reduced effects',
+        },
+        {
+            type: 'action',
+            action: 'toggle-performance',
+            label: localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true' ? 'disable performance mode' : 'enable performance mode',
+            icon: 'speed',
+            meta: 'performance',
+            search: 'toggle performance mode speed low power',
+        },
+        {
+            type: 'action',
+            action: 'toggle-reduced',
+            label: localStorage.getItem(RIFT_UI.REDUCED_EFFECTS_KEY) === 'true' ? 'disable reduced effects' : 'enable reduced effects',
+            icon: 'animation',
+            meta: 'motion + effects',
+            search: 'toggle reduced effects motion animation',
+        },
+        {
+            type: 'action',
+            action: 'pin-current',
+            label: isPinnedRoute(getCurrentPath()) ? 'unpin current page' : 'pin current page',
+            icon: 'push_pin',
+            meta: getCurrentPath(),
+            search: 'pin current page dock favorite quick launch',
+        },
+    ].filter((entry) => !normalized || entry.search.includes(normalized));
+
+    return [...actions, ...routes].slice(0, 16);
+}
+
+function renderRiftCommandResults(query = '') {
+    const host = document.getElementById('rift-command-results');
+    if (!host) return;
+    const items = buildRiftCommandItems(query);
+    host.innerHTML = items.length
+        ? items.map((item) => `
+            <button type="button" class="rift-command-item" ${item.href ? `data-href="${item.href}"` : `data-action="${item.action}"`}>
+                <span class="material-icons">${item.icon}</span>
+                <span class="rift-command-copy">
+                    <strong>${item.label}</strong>
+                    <span>${item.meta}</span>
+                </span>
+            </button>
+        `).join('')
+        : '<div class="rift-command-empty">no commands matched that search.</div>';
+}
+
+function openRiftCommandPalette() {
+    ensureRiftUiShell();
+    const shade = document.getElementById('rift-command-shade');
+    const input = document.getElementById('rift-command-input');
+    if (!shade || !input) return;
+    RiftUiState.paletteOpen = true;
+    shade.hidden = false;
+    renderRiftCommandResults('');
+    input.value = '';
+    window.requestAnimationFrame(() => input.focus());
+}
+
+function closeRiftCommandPalette() {
+    const shade = document.getElementById('rift-command-shade');
+    if (shade) shade.hidden = true;
+    RiftUiState.paletteOpen = false;
+}
+
+function openRiftQuickSettings() {
+    ensureRiftUiShell();
+    const shade = document.getElementById('rift-drawer-shade');
+    const drawer = document.getElementById('rift-quick-drawer');
+    if (!shade || !drawer) return;
+    RiftUiState.drawerOpen = true;
+    syncRiftUiShell();
+    shade.hidden = false;
+    drawer.classList.add('is-open');
+    drawer.setAttribute('aria-hidden', 'false');
+}
+
+function closeRiftQuickSettings() {
+    const shade = document.getElementById('rift-drawer-shade');
+    const drawer = document.getElementById('rift-quick-drawer');
+    if (shade) shade.hidden = true;
+    if (drawer) {
+        drawer.classList.remove('is-open');
+        drawer.setAttribute('aria-hidden', 'true');
+    }
+    RiftUiState.drawerOpen = false;
+}
+
+function syncRiftQuickSettingsControls() {
+    const prefs = readStoredRiftPreferences();
+    const theme = document.getElementById('rift-quick-theme');
+    const nav = document.getElementById('rift-quick-nav');
+    const performance = document.getElementById('rift-quick-performance');
+    const rain = document.getElementById('rift-quick-rain');
+    const reduced = document.getElementById('rift-quick-reduced');
+    if (theme) theme.value = prefs.theme;
+    if (nav) nav.value = prefs.navPosition;
+    if (performance) performance.checked = !!prefs.performanceMode;
+    if (rain) rain.checked = !!prefs.rainEnabled;
+    if (reduced) reduced.checked = localStorage.getItem(RIFT_UI.REDUCED_EFFECTS_KEY) === 'true';
+}
+
+function renderRiftLinkStack(host, paths, emptyText) {
+    if (!host) return;
+    const catalog = getRouteCatalog();
+    const items = paths
+        .map((path) => catalog.find((entry) => entry.href === path))
+        .filter(Boolean);
+    host.classList.remove('rift-is-loading');
+    host.innerHTML = items.length
+        ? items.map((item) => createRouteLinkHtml(item, 'rift-mini-link')).join('')
+        : `<div class="rift-context-empty">${emptyText}</div>`;
+}
+
+function syncRiftContextRail() {
+    const meta = getRouteMeta();
+    const page = document.getElementById('rift-context-page');
+    const subtitle = document.getElementById('rift-context-subtitle');
+    const auth = document.getElementById('rift-context-auth');
+    if (page) page.textContent = meta.label;
+    if (subtitle) subtitle.textContent = meta.subtitle || `${meta.kicker} surface`;
+    if (auth) {
+        auth.classList.remove('is-skeleton');
+        auth.textContent = RiftUiState.auth.authenticated
+            ? `${RiftUiState.auth.username || 'signed in'} · ${RiftUiState.auth.clientMode || 'rift'}`
+            : 'guest session';
+    }
+    renderRiftLinkStack(document.getElementById('rift-context-pinned'), readPinnedRoutes(), 'pin pages to keep them here.');
+    renderRiftLinkStack(
+        document.getElementById('rift-context-recent'),
+        readRecentRoutes().map((entry) => entry.href).filter((href) => href !== getCurrentPath()),
+        'open more pages to build recent history.'
+    );
+}
+
+function syncRiftPinnedDock() {
+    const dock = document.getElementById('rift-pinned-dock');
+    if (!dock) return;
+    const pinned = readPinnedRoutes();
+    const catalog = getRouteCatalog();
+    const items = pinned.map((href) => catalog.find((entry) => entry.href === href)).filter(Boolean);
+    const current = getCurrentPath();
+    const pinLabel = isPinnedRoute(current) ? 'unpin page' : 'pin page';
+    dock.innerHTML = `
+        <button type="button" class="rift-dock-action" data-rift-action="pin-current">
+            <span class="material-icons">push_pin</span>
+            <span>${pinLabel}</span>
+        </button>
+        ${items.length ? items.map((item) => createRouteLinkHtml(item, 'rift-dock-link')).join('') : '<div class="rift-dock-empty">pin pages for a personal dock.</div>'}
+    `;
+}
+
+function enhancePageHeader() {
+    const header = document.querySelector('.container > header');
+    if (!(header instanceof HTMLElement) || header.dataset.riftHeaderReady === 'true') return;
+    header.dataset.riftHeaderReady = 'true';
+    const meta = getRouteMeta();
+    header.classList.add('rift-page-header');
+
+    const kicker = document.createElement('div');
+    kicker.className = 'rift-page-kicker';
+    kicker.textContent = meta.kicker || 'rift';
+    header.prepend(kicker);
+
+    let subtitle = header.querySelector('.page-subtitle');
+    if (!(subtitle instanceof HTMLElement) && meta.subtitle) {
+        subtitle = document.createElement('p');
+        subtitle.className = 'page-subtitle';
+        subtitle.textContent = meta.subtitle;
+        header.appendChild(subtitle);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'rift-page-actions';
+    actions.innerHTML = `
+        <button type="button" class="rift-utility-btn" data-rift-action="open-palette">command</button>
+        <button type="button" class="rift-utility-btn" data-rift-action="open-drawer">settings</button>
+        <button type="button" class="rift-utility-btn" data-rift-header-pin="1">${isPinnedRoute(meta.href) ? 'unpin page' : 'pin page'}</button>
+    `;
+    header.appendChild(actions);
+
+    actions.addEventListener('click', (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+        const action = target.getAttribute('data-rift-action');
+        if (action === 'open-palette') openRiftCommandPalette();
+        if (action === 'open-drawer') openRiftQuickSettings();
+        if (target.getAttribute('data-rift-header-pin') === '1') {
+            togglePinnedRoute(meta.href);
+        }
+    });
+}
+
+function syncPageHeaderActions() {
+    const headerPin = document.querySelector('[data-rift-header-pin="1"]');
+    if (headerPin instanceof HTMLElement) {
+        headerPin.textContent = isPinnedRoute(getCurrentPath()) ? 'unpin page' : 'pin page';
+    }
+}
+
+function initHomeWorkspace() {
+    if (getCurrentPath() !== '/') return;
+    const header = document.querySelector('.container > header');
+    const cards = document.querySelector('.home-cards');
+    if (!(header instanceof HTMLElement) || !(cards instanceof HTMLElement) || document.getElementById('rift-home-workspace')) return;
+
+    const workspace = document.createElement('section');
+    workspace.id = 'rift-home-workspace';
+    workspace.className = 'rift-home-workspace rift-reveal';
+    workspace.innerHTML = `
+        <article class="rift-home-panel rift-home-pulse">
+            <div class="rift-panel-kicker">workspace</div>
+            <div class="rift-panel-title">jump back in fast</div>
+            <div class="rift-panel-copy">recent pages, pinned tools, and quick controls live here now.</div>
+            <div class="rift-panel-actions">
+                <button type="button" class="rift-utility-btn" data-rift-action="open-palette">open palette</button>
+                <button type="button" class="rift-utility-btn" data-rift-action="open-drawer">quick settings</button>
+            </div>
+        </article>
+        <article class="rift-home-panel">
+            <div class="rift-panel-row-head">
+                <div class="rift-panel-kicker">pinned</div>
+                <button type="button" class="rift-inline-action" data-rift-action="pin-current">toggle current</button>
+            </div>
+            <div id="rift-home-pinned" class="rift-pill-grid rift-is-loading"></div>
+        </article>
+        <article class="rift-home-panel">
+            <div class="rift-panel-kicker">recent</div>
+            <div id="rift-home-recent" class="rift-pill-grid rift-is-loading"></div>
+        </article>
+    `;
+    cards.classList.add('rift-home-launchpad');
+    cards.before(workspace);
+
+    workspace.addEventListener('click', (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+        const action = target.getAttribute('data-rift-action');
+        if (action === 'open-palette') openRiftCommandPalette();
+        if (action === 'open-drawer') openRiftQuickSettings();
+        if (action === 'pin-current') togglePinnedRoute(getCurrentPath());
+    });
+}
+
+function syncHomeWorkspace() {
+    if (getCurrentPath() !== '/') return;
+    const pinnedHost = document.getElementById('rift-home-pinned');
+    const recentHost = document.getElementById('rift-home-recent');
+    if (pinnedHost) {
+        renderRiftLinkStack(pinnedHost, readPinnedRoutes(), 'pin pages to keep them one tap away.');
+        pinnedHost.classList.add('rift-pill-grid');
+    }
+    if (recentHost) {
+        renderRiftLinkStack(recentHost, readRecentRoutes().map((entry) => entry.href).filter((href) => href !== '/'), 'your next launches will show up here.');
+        recentHost.classList.add('rift-pill-grid');
+    }
+}
+
+function applySectionIdentity() {
+    if (!document.body) return;
+    for (const cls of Array.from(document.body.classList)) {
+        if (cls.startsWith('route-') || cls.startsWith('accent-')) document.body.classList.remove(cls);
+    }
+    const meta = getRouteMeta();
+    document.body.classList.add(`route-${meta.href === '/' ? 'home' : meta.href.replace(/^\/+/, '').replace(/[^a-z0-9]+/gi, '-')}`);
+    document.body.classList.add(`accent-${meta.accent}`);
+}
+
+function applySharedRevealMotion() {
+    if (!document.body) return;
+    const selectors = [
+        '.container > header',
+        '.home-card',
+        '.game-card',
+        '.vault-tile',
+        '.app-card',
+        '.credit-card',
+        '.music-panel',
+        '.soundboard-panel',
+        '.settings-group',
+        '.account-shell',
+        '.browser-shell',
+        '.vault-controls',
+        '#rift-home-workspace',
+    ];
+    const nodes = Array.from(document.querySelectorAll(selectors.join(', ')));
+    nodes.forEach((node, index) => {
+        if (!(node instanceof HTMLElement) || node.dataset.riftRevealReady === 'true') return;
+        node.dataset.riftRevealReady = 'true';
+        node.classList.add('rift-reveal');
+        node.style.setProperty('--rift-reveal-delay', `${Math.min(index * 40, 280)}ms`);
+    });
+    requestAnimationFrame(() => {
+        document.body.classList.add('rift-ui-ready');
+    });
+}
+
+function fetchRiftUiAuthState() {
+    return Promise.resolve()
+        .then(() => fetch('/api/auth/me', { credentials: 'include' }))
+        .then(async (res) => {
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) return { authenticated: false, username: '', clientMode: 'rift' };
+            return {
+                authenticated: !!payload?.authenticated,
+                username: String(payload?.user?.username || ''),
+                clientMode: String(payload?.clientMode || 'rift'),
+            };
+        })
+        .catch(() => ({ authenticated: false, username: '', clientMode: 'rift' }));
+}
+
+function syncRiftUiShell() {
+    ensureRiftUiShell();
+    syncRiftQuickSettingsControls();
+    syncRiftContextRail();
+    syncRiftPinnedDock();
+    syncPageHeaderActions();
+    syncHomeWorkspace();
+}
+
 function detectSlowEnvironment() {
     const reasons = [];
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
@@ -968,6 +1699,30 @@ document.addEventListener('DOMContentLoaded', function () {
     const nav = document.querySelector('.bottom-nav');
     decorateBottomNav(nav, prefs.navPosition);
     initPageLayoutEditor();
+    trackRecentPage();
+    applySectionIdentity();
+    ensureRiftUiShell();
+    enhancePageHeader();
+    initHomeWorkspace();
+    syncRiftUiShell();
+    applySharedRevealMotion();
+    fetchRiftUiAuthState().then((state) => {
+        RiftUiState.auth = state;
+        syncRiftUiShell();
+    });
+    window.addEventListener('focus', () => {
+        fetchRiftUiAuthState().then((state) => {
+            RiftUiState.auth = state;
+            syncRiftUiShell();
+        });
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        fetchRiftUiAuthState().then((state) => {
+            RiftUiState.auth = state;
+            syncRiftUiShell();
+        });
+    });
     if (nav && navToggleEnabled) {
         const toggle = document.createElement('button');
         toggle.className = 'nav-toggle';
