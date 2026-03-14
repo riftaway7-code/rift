@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.12',
+    version: '2.3.13',
     notes: [
+        'changed the cloud bootstrap panel to show copyable Moonlight and Tailscale host values instead of relying on a placeholder deep link',
         'replaced the old nowgg cloud page with a Rift-native host queue and bootstrap panel for Sunshine and Moonlight sessions',
         'added backend cloud-control endpoints for host registration, heartbeats, session requests, and stream bootstrap',
         'restored the roblox direct cloud url to nowgg.fun while keeping the fern-style launcher handoff',

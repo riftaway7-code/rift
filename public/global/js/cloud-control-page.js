@@ -99,6 +99,26 @@
         }
     }
 
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    async function copyText(value, label) {
+        const text = String(value || '').trim();
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            playerStatus.textContent = `${label} copied`;
+        } catch {
+            playerStatus.textContent = `could not copy ${label}`;
+        }
+    }
+
     function getSelectedGame() {
         return catalog.find((entry) => entry.id === state.selectedId) || catalog[0] || null;
     }
@@ -268,21 +288,49 @@
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('') : '';
 
         sessionLinks.innerHTML = '';
-        if (bootstrap?.connection?.launchUrl) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action primary" href="${bootstrap.connection.launchUrl}" target="_blank" rel="noopener noreferrer"><span class="material-icons">open_in_new</span><span>open launch link</span></a>`);
+        const moonlightHost = bootstrap?.connection?.moonlightHost || '';
+        const tailscaleIp = bootstrap?.connection?.tailscaleIp || '';
+        const launchUrl = bootstrap?.connection?.launchUrl || '';
+        const pairUrl = bootstrap?.connection?.pairUrl || '';
+        const parsecUrl = bootstrap?.connection?.parsecUrl || '';
+        const notes = bootstrap?.connection?.notes || '';
+        const hasDeepLink = /^moonlight:\/\//i.test(launchUrl);
+
+        if (moonlightHost) {
+            sessionLinks.insertAdjacentHTML('beforeend', `<button class="cloud-action primary" type="button" data-cloud-copy="${escapeHtml(moonlightHost)}" data-cloud-copy-label="moonlight host"><span class="material-icons">content_copy</span><span>copy moonlight host</span></button>`);
         }
-        if (bootstrap?.connection?.pairUrl) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${bootstrap.connection.pairUrl}" target="_blank" rel="noopener noreferrer"><span class="material-icons">link</span><span>pair host</span></a>`);
+        if (tailscaleIp && tailscaleIp !== moonlightHost) {
+            sessionLinks.insertAdjacentHTML('beforeend', `<button class="cloud-action" type="button" data-cloud-copy="${escapeHtml(tailscaleIp)}" data-cloud-copy-label="tailscale ip"><span class="material-icons">content_copy</span><span>copy tailscale ip</span></button>`);
         }
-        if (bootstrap?.connection?.parsecUrl) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${bootstrap.connection.parsecUrl}" target="_blank" rel="noopener noreferrer"><span class="material-icons">terminal</span><span>backup control</span></a>`);
+        if (pairUrl) {
+            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${escapeHtml(pairUrl)}" target="_blank" rel="noopener noreferrer"><span class="material-icons">link</span><span>pair host</span></a>`);
         }
-        if (bootstrap?.connection?.moonlightHost || bootstrap?.connection?.tailscaleIp) {
-            const label = bootstrap.connection.moonlightHost || bootstrap.connection.tailscaleIp;
-            sessionLinks.insertAdjacentHTML('beforeend', `<div class="cloud-host-pill"><span class="material-icons">devices</span><strong>${label}</strong></div>`);
+        if (parsecUrl) {
+            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${escapeHtml(parsecUrl)}" target="_blank" rel="noopener noreferrer"><span class="material-icons">terminal</span><span>backup control</span></a>`);
+        }
+        if (hasDeepLink) {
+            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${escapeHtml(launchUrl)}"><span class="material-icons">rocket_launch</span><span>try moonlight deep link</span></a>`);
+        }
+        sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="https://moonlight-stream.org/" target="_blank" rel="noopener noreferrer"><span class="material-icons">open_in_new</span><span>open moonlight site</span></a>`);
+        if (moonlightHost || tailscaleIp) {
+            const label = moonlightHost || tailscaleIp;
+            sessionLinks.insertAdjacentHTML('beforeend', `<div class="cloud-host-pill"><span class="material-icons">devices</span><strong>${escapeHtml(label)}</strong></div>`);
         }
 
-        instructionList.innerHTML = (bootstrap?.instructions || ['Rift is waiting for an assigned host to expose bootstrap data.']).map((entry) => `<li>${entry}</li>`).join('');
+        const instructions = [];
+        if (moonlightHost || tailscaleIp) {
+            instructions.push(`Open Moonlight manually, add the host using ${escapeHtml(moonlightHost || tailscaleIp)}, and pair it if needed.`);
+        }
+        if (hasDeepLink) {
+            instructions.push('The Moonlight deep link is optional. If it does nothing on your device, use the copied host value in Moonlight manually.');
+        }
+        if (notes) {
+            instructions.push(`Host note: ${escapeHtml(notes)}`);
+        }
+        const mergedInstructions = instructions.concat(bootstrap?.instructions || []);
+        instructionList.innerHTML = (mergedInstructions.length ? mergedInstructions : ['Rift is waiting for an assigned host to expose bootstrap data.'])
+            .map((entry) => `<li>${entry}</li>`)
+            .join('');
         hostList.innerHTML = onlineHosts.slice(0, 6).map((host) => `
             <div class="cloud-host-pill">
                 <span class="material-icons">computer</span>
@@ -395,6 +443,13 @@
     search.addEventListener('input', () => {
         state.query = search.value || '';
         sync();
+    });
+
+    sessionLinks.addEventListener('click', (event) => {
+        const button = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-copy]') : null;
+        if (!(button instanceof HTMLElement)) return;
+        event.preventDefault();
+        copyText(button.getAttribute('data-cloud-copy'), button.getAttribute('data-cloud-copy-label') || 'value');
     });
 
     requestSessionBtn.addEventListener('click', requestSelectedSession);
