@@ -213,11 +213,11 @@
                 await connection.setTransport('/libcurl/index.mjs', [{ websocket: wispUrl }]);
             }
 
-            async function testWispSocket(timeoutMs = 1500) {
+            async function testWispSocket(timeoutMs = 8000) {
                 const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';
                 return await new Promise((resolve) => {
                     let settled = false;
-                    const socket = new WebSocket(wispUrl);
+                    const socket = new WebSocket(wispUrl, 'wisp-v2');
                     const finish = (ok) => {
                         if (settled) return;
                         settled = true;
@@ -230,6 +230,19 @@
                     socket.addEventListener('error', () => finish(false), { once: true });
                     socket.addEventListener('close', () => { if (!settled) finish(false); }, { once: true });
                 });
+            }
+
+            async function testWispHttp() {
+                try {
+                    const response = await fetch('/wisp/', {
+                        method: 'GET',
+                        cache: 'no-store',
+                        headers: { 'cache-control': 'no-cache' },
+                    });
+                    return response.status === 426;
+                } catch {
+                    return false;
+                }
             }
 
             function showError(message) {
@@ -262,7 +275,8 @@
                 try {
                     await registerSW();
                     await ensureTransport();
-                    const ok = await testWispSocket();
+                    let ok = await testWispSocket();
+                    if (!ok) ok = await testWispHttp();
                     if (!ok) throw new Error('Wisp websocket was not reachable on this deployment.');
                     frame.src = encodeTarget(currentTarget);
                     showFrame();

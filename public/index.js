@@ -23,7 +23,7 @@ async function ensureTransport() {
     ]);
 }
 
-async function testWispSocket(timeoutMs = 1500) {
+async function testWispSocket(timeoutMs = 8000) {
     const wispUrl =
         (location.protocol === "https:" ? "wss" : "ws") +
         "://" +
@@ -32,7 +32,7 @@ async function testWispSocket(timeoutMs = 1500) {
 
     return await new Promise((resolve) => {
         let settled = false;
-        const socket = new WebSocket(wispUrl);
+        const socket = new WebSocket(wispUrl, "wisp-v2");
 
         const finish = (ok) => {
             if (settled) return;
@@ -53,6 +53,19 @@ async function testWispSocket(timeoutMs = 1500) {
             if (!settled) finish(false);
         }, { once: true });
     });
+}
+
+async function testWispHttp() {
+    try {
+        const response = await fetch("/wisp/", {
+            method: "GET",
+            cache: "no-store",
+            headers: { "cache-control": "no-cache" },
+        });
+        return response.status === 426;
+    } catch {
+        return false;
+    }
 }
 
 function normalizeTarget(raw) {
@@ -125,7 +138,10 @@ form.addEventListener("submit", async (event) => {
             await registerSW();
             await ensureTransport();
 
-            const wispAvailable = await testWispSocket();
+            let wispAvailable = await testWispSocket();
+            if (!wispAvailable) {
+                wispAvailable = await testWispHttp();
+            }
             if (!wispAvailable) {
                 proxyMode = "proxy";
                 showError(

@@ -80,8 +80,10 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.5',
+    version: '2.3.7',
     notes: [
+        'made the wisp transport probe more tolerant on hosted deployments by using a longer socket check and http fallback',
+        'wired a real node-side wisp websocket server onto /wisp/ for Rift deployments that support upgrades',
         'restored a real embed shell so in-rift cloud play uses scramjet instead of the plain proxy',
         'added in-rift cloud play so nowgg sessions can launch inside Rift',
         'changed cloud launches to open direct nowgg sessions instead of truffled wrappers',
