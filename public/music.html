@@ -739,8 +739,22 @@
             return `/proxy?url=${encodeURIComponent(target)}`;
         }
 
-        function normalizeSoundboardUrl(raw) {
+        function unwrapProxyUrl(raw) {
             const value = String(raw || '').trim();
+            if (!value) return '';
+            try {
+                const absolute = new URL(value, window.location.origin);
+                if (absolute.pathname === '/proxy') {
+                    return absolute.searchParams.get('url') || '';
+                }
+                return absolute.href;
+            } catch {
+                return value;
+            }
+        }
+
+        function normalizeSoundboardUrl(raw) {
+            const value = unwrapProxyUrl(raw);
             if (!value) return '';
             try {
                 return new URL(value, SOUNDBOARD_SOURCE_BASE).href;
