@@ -7860,6 +7860,17 @@ app.all('/proxy', async (req, res) => {
             const target = new URL(String(targetUrl));
             if (headers.origin) headers.origin = target.origin;
             if (headers.referer) headers.referer = target.href;
+            const hostname = String(target.hostname || '').toLowerCase();
+            if (/(^|\.)myinstants\.com$/i.test(hostname)) {
+                headers['user-agent'] = headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+                headers.accept = headers.accept || 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8';
+                headers['accept-language'] = headers['accept-language'] || 'en-US,en;q=0.9';
+                headers['cache-control'] = headers['cache-control'] || 'no-cache';
+                headers.pragma = headers.pragma || 'no-cache';
+                headers['upgrade-insecure-requests'] = headers['upgrade-insecure-requests'] || '1';
+                headers.origin = target.origin;
+                headers.referer = `${target.origin}/`;
+            }
         } catch {}
 
         const response = await fetch(targetUrl, {
