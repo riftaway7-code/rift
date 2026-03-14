@@ -2,6 +2,7 @@ const RIFT_APPEARANCE = {
     THEME_KEY: 'rift__theme',
     RAIN_KEY: 'rift__rain-enabled',
     PERFORMANCE_KEY: 'rift__performance-mode',
+    NAV_POSITION_KEY: 'rift__nav-position',
     CUSTOM_THEME_KEY: 'rift__theme-custom-v1',
     DEFAULT_THEME: 'midnight',
     THEMES: [
@@ -53,31 +54,39 @@ function readCustomTheme() {
     }
 }
 
-function applyRiftAppearance() {
-    if (!document.body) return;
-
+function readStoredRiftPreferences() {
     const rawTheme = String(localStorage.getItem(RIFT_APPEARANCE.THEME_KEY) || RIFT_APPEARANCE.DEFAULT_THEME).toLowerCase();
-    const theme = RIFT_APPEARANCE.THEMES.includes(rawTheme) ? rawTheme : RIFT_APPEARANCE.DEFAULT_THEME;
+    return {
+        theme: RIFT_APPEARANCE.THEMES.includes(rawTheme) ? rawTheme : RIFT_APPEARANCE.DEFAULT_THEME,
+        rainEnabled: localStorage.getItem(RIFT_APPEARANCE.RAIN_KEY) !== 'false',
+        performanceMode: localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true',
+        navPosition: localStorage.getItem(RIFT_APPEARANCE.NAV_POSITION_KEY) || 'bottom',
+        customTheme: readCustomTheme(),
+    };
+}
+
+function applyRiftAppearance() {
+    if (!document.body) return null;
+
+    const prefs = readStoredRiftPreferences();
+
+    // Apply performance mode first so the page can disable heavy effects early.
+    document.body.classList.toggle('performance-mode', prefs.performanceMode);
+    document.body.classList.toggle('rain-disabled', prefs.performanceMode || !prefs.rainEnabled);
 
     for (const cls of Array.from(document.body.classList)) {
         if (cls.startsWith('theme-')) document.body.classList.remove(cls);
     }
-    document.body.classList.add(`theme-${theme}`);
+    document.body.classList.add(`theme-${prefs.theme}`);
 
-    const rainEnabled = localStorage.getItem(RIFT_APPEARANCE.RAIN_KEY) !== 'false';
-    const performanceMode = localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true';
-    document.body.classList.toggle('performance-mode', performanceMode);
-    document.body.classList.toggle('rain-disabled', performanceMode || !rainEnabled);
-
-    const custom = readCustomTheme();
-    if (custom) {
-        document.body.style.setProperty('--rift-bg-base', custom.bg);
-        document.body.style.setProperty('--rift-bg-glow-1', rgbaFromHex(custom.glow, 0.26));
-        document.body.style.setProperty('--rift-bg-glow-2', rgbaFromHex(custom.glow, 0.18));
-        document.body.style.setProperty('--rift-accent', custom.accent);
-        document.body.style.setProperty('--rift-accent-soft', rgbaFromHex(custom.accent, 0.3));
-        document.body.style.setProperty('--rift-text', rgbaFromHex(custom.text, 0.94));
-        document.body.style.setProperty('--rift-text-dim', rgbaFromHex(custom.text, 0.68));
+    if (prefs.customTheme) {
+        document.body.style.setProperty('--rift-bg-base', prefs.customTheme.bg);
+        document.body.style.setProperty('--rift-bg-glow-1', rgbaFromHex(prefs.customTheme.glow, 0.26));
+        document.body.style.setProperty('--rift-bg-glow-2', rgbaFromHex(prefs.customTheme.glow, 0.18));
+        document.body.style.setProperty('--rift-accent', prefs.customTheme.accent);
+        document.body.style.setProperty('--rift-accent-soft', rgbaFromHex(prefs.customTheme.accent, 0.3));
+        document.body.style.setProperty('--rift-text', rgbaFromHex(prefs.customTheme.text, 0.94));
+        document.body.style.setProperty('--rift-text-dim', rgbaFromHex(prefs.customTheme.text, 0.68));
     } else {
         document.body.style.removeProperty('--rift-bg-base');
         document.body.style.removeProperty('--rift-bg-glow-1');
@@ -87,12 +96,19 @@ function applyRiftAppearance() {
         document.body.style.removeProperty('--rift-text');
         document.body.style.removeProperty('--rift-text-dim');
     }
+
+    for (const cls of Array.from(document.body.classList)) {
+        if (cls.startsWith('nav-pos-')) document.body.classList.remove(cls);
+    }
+    document.body.classList.add(`nav-pos-${prefs.navPosition}`);
+
+    return prefs;
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyRiftAppearance, { once: true });
-} else {
+if (document.body) {
     applyRiftAppearance();
+} else {
+    document.addEventListener('DOMContentLoaded', applyRiftAppearance, { once: true });
 }
 
 window.addEventListener('storage', (event) => {
@@ -100,9 +116,11 @@ window.addEventListener('storage', (event) => {
         event.key === RIFT_APPEARANCE.THEME_KEY ||
         event.key === RIFT_APPEARANCE.RAIN_KEY ||
         event.key === RIFT_APPEARANCE.PERFORMANCE_KEY ||
+        event.key === RIFT_APPEARANCE.NAV_POSITION_KEY ||
         event.key === RIFT_APPEARANCE.CUSTOM_THEME_KEY
     ) {
-        applyRiftAppearance();
+        const prefs = applyRiftAppearance();
+        decorateBottomNav(document.querySelector('.bottom-nav'), prefs?.navPosition || 'bottom');
     }
 });
 
@@ -348,7 +366,8 @@ function decorateBottomNav(nav, position) {
 
 document.addEventListener('DOMContentLoaded', function () {
     const typingText = document.getElementById('typingText');
-    const performanceMode = localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true';
+    const prefs = applyRiftAppearance() || readStoredRiftPreferences();
+    const performanceMode = prefs.performanceMode;
     const cursorFxEnabled = localStorage.getItem('rift__cursor-fx') === 'true';
     const navToggleEnabled = localStorage.getItem('rift__nav-toggle') === 'true';
 
@@ -441,11 +460,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
-    document.body.classList.add('nav-pos-' + savedPosition);
-
     const nav = document.querySelector('.bottom-nav');
-    decorateBottomNav(nav, savedPosition);
+    decorateBottomNav(nav, prefs.navPosition);
     if (nav && navToggleEnabled) {
         const toggle = document.createElement('button');
         toggle.className = 'nav-toggle';
