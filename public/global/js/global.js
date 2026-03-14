@@ -333,6 +333,7 @@ function resolveNavPageLabel(nav) {
         '/games': 'games',
         '/apps': 'apps',
         '/music': 'music',
+        '/soundboard': 'soundboard',
         '/chat': 'chat',
         '/browser': 'browser',
         '/account': 'account',

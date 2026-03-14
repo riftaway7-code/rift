@@ -253,35 +253,6 @@
             font-size: 11px;
             min-height: 16px;
         }
-        .media-tabs {
-            display: inline-flex;
-            gap: 8px;
-            margin-bottom: 12px;
-            padding: 6px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,.12);
-            background: rgba(255,255,255,.04);
-        }
-        .media-tab {
-            border: 1px solid rgba(255,255,255,.1);
-            background: rgba(255,255,255,.04);
-            color: rgba(255,255,255,.72);
-            border-radius: 10px;
-            padding: 10px 14px;
-            cursor: pointer;
-            font-family: "Run", Arial, sans-serif;
-            font-size: 11px;
-            text-transform: lowercase;
-            letter-spacing: .06em;
-        }
-        .media-tab.active {
-            background: rgba(255,255,255,.15);
-            color: #fff;
-            border-color: rgba(255,255,255,.26);
-        }
-        .media-tab-panel[hidden] {
-            display: none !important;
-        }
         .results {
             margin-top: 10px;
             display: grid;
@@ -344,149 +315,11 @@
             color: #ff9e9e;
             border-color: rgba(255,160,160,.5);
         }
-        .soundboard-shell {
-            display: grid;
-            gap: 12px;
-            min-height: min(62vh, 700px);
-        }
-        .soundboard-toolbar {
-            display: grid;
-            grid-template-columns: minmax(260px, 1fr) auto auto;
-            gap: 8px;
-            align-items: center;
-        }
-        .soundboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 10px;
-            align-content: start;
-            max-height: min(58vh, 640px);
-            overflow: auto;
-        }
-        .soundboard-layout {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
-            gap: 14px;
-            min-height: min(58vh, 640px);
-        }
-        .sound-card {
-            border: 1px solid rgba(255,255,255,.12);
-            border-radius: 14px;
-            background: rgba(255,255,255,.04);
-            padding: 12px;
-            display: grid;
-            gap: 10px;
-            min-height: 132px;
-        }
-        .sound-card.active {
-            border-color: rgba(167,216,255,.46);
-            box-shadow: 0 0 0 1px rgba(167,216,255,.16) inset;
-        }
-        .sound-card-top {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        .sound-card-title {
-            color: #fff;
-            font-size: 12px;
-            line-height: 1.4;
-            word-break: break-word;
-        }
-        .sound-card-sub {
-            color: rgba(255,255,255,.58);
-            font-size: 10px;
-            margin-top: 4px;
-            text-transform: lowercase;
-            letter-spacing: .05em;
-        }
-        .sound-card-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .sound-preview {
-            border: 1px solid rgba(255,255,255,.12);
-            border-radius: 14px;
-            background: rgba(255,255,255,.04);
-            overflow: hidden;
-            min-height: 0;
-            display: grid;
-            grid-template-rows: auto minmax(0, 1fr);
-        }
-        .sound-preview-head {
-            padding: 12px;
-            border-bottom: 1px solid rgba(255,255,255,.08);
-            display: grid;
-            gap: 8px;
-        }
-        .sound-preview-title {
-            color: #fff;
-            font-size: 13px;
-            line-height: 1.35;
-        }
-        .sound-preview-sub {
-            color: rgba(255,255,255,.6);
-            font-size: 10px;
-            text-transform: lowercase;
-            letter-spacing: .05em;
-        }
-        .sound-preview-frame {
-            width: 100%;
-            height: 100%;
-            min-height: 420px;
-            border: 0;
-            background: rgba(0,0,0,.25);
-        }
-        .sound-preview-empty {
-            padding: 24px;
-            color: rgba(255,255,255,.64);
-            font-size: 12px;
-            text-align: center;
-        }
-        .sound-btn,
-        .sound-link {
-            border: 1px solid rgba(255,255,255,.16);
-            background: rgba(255,255,255,.08);
-            color: #fff;
-            border-radius: 10px;
-            padding: 8px 10px;
-            cursor: pointer;
-            font-family: "Run", Arial, sans-serif;
-            font-size: 10px;
-            text-transform: lowercase;
-            letter-spacing: .04em;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        .sound-btn.primary {
-            min-width: 92px;
-            background: rgba(167,216,255,.16);
-            border-color: rgba(167,216,255,.26);
-        }
-        .sound-empty {
-            border: 1px dashed rgba(255,255,255,.16);
-            border-radius: 14px;
-            padding: 24px;
-            color: rgba(255,255,255,.62);
-            font-size: 12px;
-            text-align: center;
-        }
         @media (max-width: 920px) {
             .music-shell {
                 grid-template-columns: 1fr;
             }
             .search-form {
-                grid-template-columns: 1fr;
-            }
-            .soundboard-toolbar {
-                grid-template-columns: 1fr;
-            }
-            .soundboard-layout {
                 grid-template-columns: 1fr;
             }
             .playlist-create {
@@ -502,7 +335,7 @@
     <div class="container">
         <header>
             <h1>rift music</h1>
-            <p class="page-subtitle">search music or open the soundboard tab</p>
+            <p class="page-subtitle">search music to get started</p>
         </header>
 
         <section class="music-shell">
@@ -535,79 +368,44 @@
             </article>
 
             <article class="music-panel">
-                <div class="media-tabs" role="tablist" aria-label="media tabs">
-                    <button id="musicTabBtn" class="media-tab active" type="button" role="tab" aria-selected="true">music</button>
-                    <button id="soundboardTabBtn" class="media-tab" type="button" role="tab" aria-selected="false">soundboard</button>
-                </div>
-
-                <section id="musicTabPanel" class="media-tab-panel">
-                    <div class="music-main-grid">
-                        <div class="music-search-col">
-                            <form id="searchForm" class="search-form">
-                                <input id="searchInput" class="field" placeholder="search songs/artists" autocomplete="off">
-                                <select id="playlistTargetSelect" class="source" aria-label="Playlist target">
-                                    <option value="">add to playlist...</option>
-                                </select>
-                                <select id="sourceSelect" class="source" aria-label="Music source">
-                                    <option value="all">all</option>
-                                    <option value="audius">audius</option>
-                                    <option value="jamendo">jamendo</option>
-                                </select>
-                                <button class="btn" type="submit">search</button>
-                            </form>
-                            <div id="musicStatus" class="status">Search Music to get started</div>
-                            <div id="results" class="results"></div>
-                        </div>
-                        <aside class="music-library-col">
-                            <div class="library-head">favorites + playlists</div>
-                            <div id="libraryNote" class="library-note">Sign in to save favorites and playlists.</div>
-
-                            <div class="library-head">favorites</div>
-                            <input id="favoritesSearch" class="library-search" placeholder="search favorites" autocomplete="off">
-                            <div id="favoritesList" class="mini-list"></div>
-
-                            <div class="library-head">playlists</div>
-                            <div class="playlist-create">
-                                <input id="playlistName" class="field" placeholder="new playlist name" autocomplete="off">
-                                <select id="playlistPrivacy" class="source" aria-label="Playlist privacy">
-                                    <option value="public">public</option>
-                                    <option value="private">private</option>
-                                </select>
-                                <button id="createPlaylistBtn" class="btn" type="button">create</button>
-                            </div>
-                            <input id="playlistsSearch" class="library-search" placeholder="search playlists" autocomplete="off">
-                            <div id="playlistsList" class="mini-list"></div>
-                        </aside>
-                    </div>
-                </section>
-
-                <section id="soundboardTabPanel" class="media-tab-panel" hidden>
-                    <div class="soundboard-shell">
-                        <form id="soundboardSearchForm" class="soundboard-toolbar">
-                            <input id="soundboardSearchInput" class="field" placeholder="filter loaded sound buttons" autocomplete="off">
-                            <button id="soundboardTrendingBtn" class="btn" type="button">trending</button>
-                            <button class="btn" type="submit">filter</button>
+                <div class="music-main-grid">
+                    <div class="music-search-col">
+                        <form id="searchForm" class="search-form">
+                            <input id="searchInput" class="field" placeholder="search songs/artists" autocomplete="off">
+                            <select id="playlistTargetSelect" class="source" aria-label="Playlist target">
+                                <option value="">add to playlist...</option>
+                            </select>
+                            <select id="sourceSelect" class="source" aria-label="Music source">
+                                <option value="all">all</option>
+                                <option value="audius">audius</option>
+                                <option value="jamendo">jamendo</option>
+                            </select>
+                            <button class="btn" type="submit">search</button>
                         </form>
-                        <div id="soundboardStatus" class="status">Open the soundboard tab to load Sound Buttons World.</div>
-                        <div class="soundboard-layout">
-                            <div id="soundboardResults" class="soundboard-grid"></div>
-                            <aside class="sound-preview">
-                                <div class="sound-preview-head">
-                                    <div id="soundPreviewTitle" class="sound-preview-title">No sound selected</div>
-                                    <div id="soundPreviewMeta" class="sound-preview-sub">select a sound card to open its page here</div>
-                                    <div class="sound-card-actions">
-                                        <a id="soundPreviewOpen" class="sound-link" href="https://soundbuttonsworld.com/" target="_blank" rel="noopener noreferrer">
-                                            <span class="material-icons">open_in_new</span>
-                                            <span>open source</span>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div id="soundPreviewEmpty" class="sound-preview-empty">Pick a sound from the list and Rift will load the sound page here.</div>
-                                <iframe id="soundPreviewFrame" class="sound-preview-frame" title="Soundboard preview" hidden></iframe>
-                            </aside>
-                        </div>
+                        <div id="musicStatus" class="status">Search Music to get started</div>
+                        <div id="results" class="results"></div>
                     </div>
-                </section>
+                    <aside class="music-library-col">
+                        <div class="library-head">favorites + playlists</div>
+                        <div id="libraryNote" class="library-note">Sign in to save favorites and playlists.</div>
+
+                        <div class="library-head">favorites</div>
+                        <input id="favoritesSearch" class="library-search" placeholder="search favorites" autocomplete="off">
+                        <div id="favoritesList" class="mini-list"></div>
+
+                        <div class="library-head">playlists</div>
+                        <div class="playlist-create">
+                            <input id="playlistName" class="field" placeholder="new playlist name" autocomplete="off">
+                            <select id="playlistPrivacy" class="source" aria-label="Playlist privacy">
+                                <option value="public">public</option>
+                                <option value="private">private</option>
+                            </select>
+                            <button id="createPlaylistBtn" class="btn" type="button">create</button>
+                        </div>
+                        <input id="playlistsSearch" class="library-search" placeholder="search playlists" autocomplete="off">
+                        <div id="playlistsList" class="mini-list"></div>
+                    </aside>
+                </div>
             </article>
         </section>
     </div>
@@ -624,6 +422,9 @@
         </button>
         <button class="nav-button active" onclick="location.href='/music'">
             <span class="material-icons">library_music</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/soundboard'">
+            <span class="material-icons">graphic_eq</span>
         </button>
         <button class="nav-button" onclick="location.href='/chat'">
             <span class="material-icons">forum</span>
@@ -686,23 +487,7 @@
         const playlistPrivacy = document.getElementById('playlistPrivacy');
         const createPlaylistBtn = document.getElementById('createPlaylistBtn');
         const playlistTargetSelect = document.getElementById('playlistTargetSelect');
-        const musicTabBtn = document.getElementById('musicTabBtn');
-        const soundboardTabBtn = document.getElementById('soundboardTabBtn');
-        const musicTabPanel = document.getElementById('musicTabPanel');
-        const soundboardTabPanel = document.getElementById('soundboardTabPanel');
-        const soundboardSearchForm = document.getElementById('soundboardSearchForm');
-        const soundboardSearchInput = document.getElementById('soundboardSearchInput');
-        const soundboardTrendingBtn = document.getElementById('soundboardTrendingBtn');
-        const soundboardStatus = document.getElementById('soundboardStatus');
-        const soundboardResults = document.getElementById('soundboardResults');
-        const soundPreviewTitle = document.getElementById('soundPreviewTitle');
-        const soundPreviewMeta = document.getElementById('soundPreviewMeta');
-        const soundPreviewOpen = document.getElementById('soundPreviewOpen');
-        const soundPreviewEmpty = document.getElementById('soundPreviewEmpty');
-        const soundPreviewFrame = document.getElementById('soundPreviewFrame');
         const mini = window.RiftMiniPlayer;
-        const MUSIC_ACTIVE_TAB_KEY = 'rift__music-active-tab';
-        const SOUNDBOARD_SOURCE_BASE = 'https://soundbuttonsworld.com';
 
         const state = {
             tracks: [],
@@ -711,13 +496,6 @@
             authenticated: false,
             favorites: [],
             playlists: [],
-            activeTab: localStorage.getItem(MUSIC_ACTIVE_TAB_KEY) === 'soundboard' ? 'soundboard' : 'music',
-            soundboard: {
-                clips: [],
-                loaded: false,
-                filteredClips: [],
-                selectedClipId: '',
-            },
         };
 
         function fmtTime(seconds) {
@@ -729,38 +507,6 @@
 
         function setStatus(text) {
             statusEl.textContent = text || '';
-        }
-
-        function setSoundboardStatus(text) {
-            soundboardStatus.textContent = text || '';
-        }
-
-        function proxyUrlFor(target) {
-            return `/proxy?url=${encodeURIComponent(target)}`;
-        }
-
-        function unwrapProxyUrl(raw) {
-            const value = String(raw || '').trim();
-            if (!value) return '';
-            try {
-                const absolute = new URL(value, window.location.origin);
-                if (absolute.pathname === '/proxy') {
-                    return absolute.searchParams.get('url') || '';
-                }
-                return absolute.href;
-            } catch {
-                return value;
-            }
-        }
-
-        function normalizeSoundboardUrl(raw) {
-            const value = unwrapProxyUrl(raw);
-            if (!value) return '';
-            try {
-                return new URL(value, SOUNDBOARD_SOURCE_BASE).href;
-            } catch {
-                return '';
-            }
         }
 
         function escapeHtml(text) {
@@ -777,21 +523,6 @@
             const id = String(track?.id || '').trim();
             if (!provider || !id) return '';
             return `${provider}:${id}`;
-        }
-
-        function setActiveTab(name, remember = true) {
-            const next = name === 'soundboard' ? 'soundboard' : 'music';
-            state.activeTab = next;
-            musicTabBtn.classList.toggle('active', next === 'music');
-            musicTabBtn.setAttribute('aria-selected', next === 'music' ? 'true' : 'false');
-            soundboardTabBtn.classList.toggle('active', next === 'soundboard');
-            soundboardTabBtn.setAttribute('aria-selected', next === 'soundboard' ? 'true' : 'false');
-            musicTabPanel.hidden = next !== 'music';
-            soundboardTabPanel.hidden = next !== 'soundboard';
-            if (remember) localStorage.setItem(MUSIC_ACTIVE_TAB_KEY, next);
-            if (next === 'soundboard' && !state.soundboard.loaded) {
-                loadSoundboard('');
-            }
         }
 
         function favoriteKeys() {
@@ -1017,142 +748,6 @@
             });
         }
 
-        function renderSoundboardResults() {
-            const clips = Array.isArray(state.soundboard.filteredClips) ? state.soundboard.filteredClips : [];
-            if (!clips.length) {
-                soundboardResults.innerHTML = `<div class="sound-empty">${state.soundboard.loaded ? 'No loaded sounds match that filter.' : 'No soundboard clips loaded yet.'}</div>`;
-                return;
-            }
-
-            soundboardResults.innerHTML = clips.map((clip, index) => `
-                <article class="sound-card ${clip.id === state.soundboard.selectedClipId ? 'active' : ''}">
-                    <div class="sound-card-top">
-                        <div>
-                            <div class="sound-card-title">${escapeHtml(clip.title)}</div>
-                            <div class="sound-card-sub">${escapeHtml(clip.section || 'sound buttons world')}</div>
-                        </div>
-                        <button class="sound-btn primary" type="button" data-sound-open="${index}">
-                            <span class="material-icons">${clip.id === state.soundboard.selectedClipId ? 'visibility' : 'open_in_browser'}</span>
-                            <span>${clip.id === state.soundboard.selectedClipId ? 'viewing' : 'open'}</span>
-                        </button>
-                    </div>
-                    <div class="sound-card-actions">
-                        <a class="sound-link" href="${escapeHtml(clip.pageUrl)}" target="_blank" rel="noopener noreferrer">
-                            <span class="material-icons">open_in_new</span>
-                            <span>source</span>
-                        </a>
-                    </div>
-                </article>
-            `).join('');
-
-            soundboardResults.querySelectorAll('[data-sound-open]').forEach((button) => {
-                button.addEventListener('click', () => {
-                    const index = Number(button.getAttribute('data-sound-open'));
-                    const clip = clips[index];
-                    if (!clip) return;
-                    selectSoundboardClip(clip);
-                });
-            });
-        }
-
-        async function fetchHtml(url) {
-            const res = await fetch(url, { credentials: 'same-origin' });
-            if (!res.ok) {
-                throw new Error(`request failed (${res.status})`);
-            }
-            return await res.text();
-        }
-
-        function parseHtml(html) {
-            return new DOMParser().parseFromString(String(html || ''), 'text/html');
-        }
-
-        function collectSoundboardWorldCandidates(html) {
-            const doc = parseHtml(html);
-            const seen = new Set();
-            const items = [];
-            doc.querySelectorAll('a[href]').forEach((anchor) => {
-                const href = String(anchor.getAttribute('href') || '').trim();
-                const absolute = normalizeSoundboardUrl(href);
-                if (!absolute || !/\/sound-button\//i.test(absolute) || seen.has(absolute)) return;
-                seen.add(absolute);
-                const title = String(anchor.textContent || '').replace(/\s+/g, ' ').trim();
-                if (!title) return;
-                const sectionHeading = anchor.closest('section, div, article')?.previousElementSibling?.textContent || '';
-                items.push({
-                    title,
-                    pageUrl: absolute,
-                    proxiedPageUrl: proxyUrlFor(absolute),
-                    section: String(sectionHeading || '').replace(/\s+/g, ' ').trim().toLowerCase() || 'sound buttons world',
-                });
-            });
-            return items.slice(0, 48);
-        }
-
-        function applySoundboardFilter(query) {
-            const normalized = String(query || '').trim().toLowerCase();
-            state.soundboard.filteredClips = state.soundboard.clips.filter((clip) => {
-                if (!normalized) return true;
-                const hay = `${clip.title || ''} ${clip.section || ''}`.toLowerCase();
-                return hay.includes(normalized);
-            });
-            if (!state.soundboard.filteredClips.some((clip) => clip.id === state.soundboard.selectedClipId)) {
-                state.soundboard.selectedClipId = '';
-            }
-            renderSoundboardResults();
-        }
-
-        function selectSoundboardClip(clip) {
-            if (!clip) return;
-            state.soundboard.selectedClipId = clip.id;
-            soundPreviewTitle.textContent = clip.title || 'Sound preview';
-            soundPreviewMeta.textContent = clip.section || 'sound buttons world';
-            soundPreviewOpen.href = clip.pageUrl || `${SOUNDBOARD_SOURCE_BASE}/`;
-            soundPreviewEmpty.hidden = true;
-            soundPreviewFrame.hidden = false;
-            soundPreviewFrame.src = clip.proxiedPageUrl || proxyUrlFor(clip.pageUrl);
-            renderSoundboardResults();
-            setSoundboardStatus(`Opened ${clip.title} from Sound Buttons World.`);
-        }
-
-        async function loadSoundboardViaProxy(query) {
-            const listingHtml = await fetchHtml(proxyUrlFor(`${SOUNDBOARD_SOURCE_BASE}/`));
-            const clips = collectSoundboardWorldCandidates(listingHtml).map((clip, index) => ({
-                id: `soundbuttonsworld:${index}:${clip.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 36) || index}`,
-                ...clip,
-            }));
-            const normalized = String(query || '').trim().toLowerCase();
-            if (!normalized) return clips;
-            return clips.filter((clip) => `${clip.title || ''} ${clip.section || ''}`.toLowerCase().includes(normalized));
-        }
-
-        async function loadSoundboard(query) {
-            const normalized = String(query || '').trim();
-            setSoundboardStatus(normalized ? `Filtering Sound Buttons World for "${normalized}"...` : 'Loading Sound Buttons World sounds...');
-            try {
-                const clips = await loadSoundboardViaProxy(normalized);
-                state.soundboard.clips = clips;
-                state.soundboard.filteredClips = clips.slice();
-                state.soundboard.loaded = true;
-                state.soundboard.selectedClipId = '';
-                soundPreviewTitle.textContent = 'No sound selected';
-                soundPreviewMeta.textContent = 'select a sound card to open its page here';
-                soundPreviewOpen.href = `${SOUNDBOARD_SOURCE_BASE}/`;
-                soundPreviewFrame.hidden = true;
-                soundPreviewFrame.src = 'about:blank';
-                soundPreviewEmpty.hidden = false;
-                renderSoundboardResults();
-                setSoundboardStatus(clips.length
-                    ? `Loaded ${clips.length} sounds from Sound Buttons World.`
-                    : 'No sounds matched that filter.');
-            } catch (error) {
-                state.soundboard.clips = [];
-                state.soundboard.filteredClips = [];
-                renderSoundboardResults();
-                setSoundboardStatus(String(error?.message || 'soundboard load failed'));
-            }
-        }
-
         async function setFavorite(track, isFavorite) {
             if (!state.authenticated) {
                 setStatus('Sign in to favorite songs.');
@@ -1251,31 +846,6 @@
             await doSearch(searchInput.value);
         });
 
-        soundboardSearchForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            if (!state.soundboard.loaded) {
-                await loadSoundboard(soundboardSearchInput.value);
-                return;
-            }
-            applySoundboardFilter(soundboardSearchInput.value);
-            setSoundboardStatus(state.soundboard.filteredClips.length
-                ? `Showing ${state.soundboard.filteredClips.length} filtered sounds.`
-                : 'No loaded sounds matched that filter.');
-        });
-
-        soundboardTrendingBtn.addEventListener('click', async () => {
-            soundboardSearchInput.value = '';
-            await loadSoundboard('');
-        });
-
-        musicTabBtn.addEventListener('click', () => {
-            setActiveTab('music');
-        });
-
-        soundboardTabBtn.addEventListener('click', () => {
-            setActiveTab('soundboard');
-        });
-
         favoritesSearch?.addEventListener('input', () => {
             renderLibrary();
         });
@@ -1370,16 +940,17 @@
         }
 
         window.addEventListener((mini && mini.updateEvent) || 'rift-mini-player-update', syncFromMini);
+
         (async () => {
             await checkAuth();
             await refreshLibrary();
             syncFromMini();
-            renderSoundboardResults();
-            setActiveTab(state.activeTab, false);
         })();
     </script>
 </body>
 </html>
+
+
 
 
 
