@@ -12,6 +12,26 @@ const RIFT_APPEARANCE = {
     ],
 };
 
+const RIFT_LAYOUT_EDITOR = {
+    STORAGE_PREFIX: 'rift__page-layout-v1::',
+    MENU_ID: 'rift-layout-menu',
+    BANNER_ID: 'rift-layout-banner',
+    ACTIVE_CLASS: 'rift-layout-edit-mode',
+    EDITABLE_CLASS: 'rift-layout-editable',
+    CUSTOMIZED_CLASS: 'rift-layout-customized',
+    DRAGGING_CLASS: 'rift-layout-dragging',
+};
+
+const RiftLayoutState = {
+    active: false,
+    initialized: false,
+    menu: null,
+    banner: null,
+    trigger: null,
+    candidates: [],
+    drag: null,
+};
+
 function normalizeHexColor(value, fallback = '#8ecbff') {
     const raw = String(value || '').trim().toLowerCase();
     const short = raw.match(/^#([0-9a-f]{3})$/i);
@@ -355,7 +375,6 @@ function decorateBottomNav(nav, position) {
     if (!page) {
         page = document.createElement('div');
         page.className = 'nav-meta nav-meta-page';
-        page.setAttribute('aria-hidden', 'true');
         page.innerHTML = '<span class="nav-page-caption">page</span><span class="nav-page-label"></span>';
         nav.append(page);
     }
@@ -363,7 +382,408 @@ function decorateBottomNav(nav, position) {
     const label = resolveNavPageLabel(nav);
     const pageLabel = page.querySelector('.nav-page-label');
     if (pageLabel) pageLabel.textContent = label;
+    page.setAttribute('role', 'button');
+    page.setAttribute('tabindex', metaEnabled ? '0' : '-1');
+    page.setAttribute('aria-label', `Customize ${label} page layout`);
+    page.setAttribute('aria-expanded', 'false');
+    page.title = 'Customize this page layout';
     nav.setAttribute('data-page-label', label);
+    bindLayoutTrigger(page);
+}
+
+function getLayoutStorageKey() {
+    const path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    return `${RIFT_LAYOUT_EDITOR.STORAGE_PREFIX}${path}`;
+}
+
+function readStoredPageLayout() {
+    try {
+        const raw = localStorage.getItem(getLayoutStorageKey());
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function writeStoredPageLayout(layout) {
+    const entries = Object.entries(layout || {}).filter(([, value]) => {
+        const x = Number(value?.x || 0);
+        const y = Number(value?.y || 0);
+        return Number.isFinite(x) && Number.isFinite(y) && (x !== 0 || y !== 0);
+    });
+    if (!entries.length) {
+        localStorage.removeItem(getLayoutStorageKey());
+        return;
+    }
+    localStorage.setItem(getLayoutStorageKey(), JSON.stringify(Object.fromEntries(entries)));
+}
+
+function getLayoutClassTokens(element) {
+    if (!(element instanceof HTMLElement)) return [];
+    const value = typeof element.className === 'string'
+        ? element.className
+        : String(element.getAttribute('class') || '');
+    return value.split(/\s+/).map((token) => token.trim()).filter(Boolean);
+}
+
+function isEditableLayoutElement(element) {
+    if (!(element instanceof HTMLElement)) return false;
+    if (element.closest('.bottom-nav, .nav-toggle, .overlay-shade, .overlay-box, #rift-layout-menu, #rift-layout-banner, .nav-meta-brand, .nav-meta-page, .browser-console-output, .browser-console-runner')) return false;
+    if (element.tagName === 'IFRAME' || element.id === 'browser-frame') return false;
+    if (element.matches('html, body, script, style, link, meta')) return false;
+    if (element.getClientRects().length === 0) return false;
+
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 26 || rect.height < 20) return false;
+    if (rect.width > window.innerWidth * 0.78 || rect.height > window.innerHeight * 0.48) return false;
+
+    if (element.matches('button, [role="button"], a[href], input, select, textarea, label')) return true;
+
+    const classTokens = getLayoutClassTokens(element);
+    return classTokens.some((token) => /(btn|button|card|tile|chip|panel|control|shortcut|tab|item|badge|pill)/i.test(token));
+}
+
+function buildLayoutElementKey(element) {
+    if (!(element instanceof HTMLElement)) return '';
+    const parts = [];
+    let current = element;
+
+    while (current && current !== document.body) {
+        let segment = current.tagName.toLowerCase();
+        if (current.id) {
+            segment += `#${current.id}`;
+            parts.unshift(segment);
+            break;
+        }
+
+        const classTokens = getLayoutClassTokens(current)
+            .filter((token) => !token.startsWith('rift-layout-'))
+            .slice(0, 2);
+        if (classTokens.length) segment += `.${classTokens.join('.')}`;
+
+        const parent = current.parentElement;
+        if (parent) {
+            const siblings = Array.from(parent.children).filter((child) => child.tagName === current.tagName);
+            segment += `:nth-of-type(${siblings.indexOf(current) + 1})`;
+        }
+        parts.unshift(segment);
+        current = current.parentElement;
+    }
+
+    return parts.join('>');
+}
+
+function collectEditableLayoutElements() {
+    const selector = [
+        'button',
+        'a[href]',
+        'input',
+        'select',
+        'textarea',
+        'label',
+        '[role="button"]',
+        '[class*="btn"]',
+        '[class*="button"]',
+        '[class*="card"]',
+        '[class*="tile"]',
+        '[class*="chip"]',
+        '[class*="panel"]',
+        '[class*="control"]',
+        '[class*="shortcut"]',
+        '[class*="tab"]',
+        '[class*="item"]',
+        '[class*="badge"]',
+    ].join(', ');
+    return Array.from(document.querySelectorAll(selector)).filter(isEditableLayoutElement);
+}
+
+function applyLayoutOffset(element, offset) {
+    const x = Number(offset?.x || 0);
+    const y = Number(offset?.y || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) {
+        clearLayoutOffset(element);
+        return;
+    }
+    element.classList.add(RIFT_LAYOUT_EDITOR.CUSTOMIZED_CLASS);
+    element.style.setProperty('--rift-layout-offset-x', `${x}px`);
+    element.style.setProperty('--rift-layout-offset-y', `${y}px`);
+}
+
+function clearLayoutOffset(element) {
+    if (!(element instanceof HTMLElement)) return;
+    element.classList.remove(RIFT_LAYOUT_EDITOR.CUSTOMIZED_CLASS, RIFT_LAYOUT_EDITOR.DRAGGING_CLASS);
+    element.style.removeProperty('--rift-layout-offset-x');
+    element.style.removeProperty('--rift-layout-offset-y');
+}
+
+function refreshEditableLayoutElements() {
+    RiftLayoutState.candidates.forEach((element) => {
+        element.classList.remove(RIFT_LAYOUT_EDITOR.EDITABLE_CLASS, RIFT_LAYOUT_EDITOR.DRAGGING_CLASS);
+    });
+    RiftLayoutState.candidates = collectEditableLayoutElements();
+    if (RiftLayoutState.active) {
+        RiftLayoutState.candidates.forEach((element) => {
+            element.classList.add(RIFT_LAYOUT_EDITOR.EDITABLE_CLASS);
+        });
+    }
+    return RiftLayoutState.candidates;
+}
+
+function applyStoredPageLayout() {
+    const layout = readStoredPageLayout();
+    const candidates = refreshEditableLayoutElements();
+    candidates.forEach((element) => {
+        const key = buildLayoutElementKey(element);
+        const offset = layout[key];
+        if (offset) {
+            applyLayoutOffset(element, offset);
+        } else if (!RiftLayoutState.active) {
+            element.classList.remove(RIFT_LAYOUT_EDITOR.EDITABLE_CLASS);
+        }
+    });
+}
+
+function ensureLayoutBanner() {
+    let banner = document.getElementById(RIFT_LAYOUT_EDITOR.BANNER_ID);
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = RIFT_LAYOUT_EDITOR.BANNER_ID;
+        banner.className = 'rift-layout-banner';
+        banner.innerHTML = `
+            <div class="rift-layout-banner-text">
+                <strong>page edit mode</strong>
+                <span>drag buttons, cards, and controls anywhere on this page.</span>
+            </div>
+            <div class="rift-layout-banner-actions">
+                <button type="button" class="rift-layout-banner-btn" data-layout-action="finish">done</button>
+                <button type="button" class="rift-layout-banner-btn" data-layout-action="reset">reset page</button>
+            </div>
+        `;
+        document.body.appendChild(banner);
+        banner.addEventListener('click', (event) => {
+            const action = event.target instanceof HTMLElement ? event.target.getAttribute('data-layout-action') : null;
+            if (action === 'finish') {
+                setLayoutEditMode(false);
+            }
+            if (action === 'reset') {
+                resetStoredPageLayout();
+            }
+        });
+    }
+    RiftLayoutState.banner = banner;
+    return banner;
+}
+
+function updateLayoutBanner() {
+    const banner = ensureLayoutBanner();
+    banner.hidden = !RiftLayoutState.active;
+}
+
+function ensureLayoutMenu() {
+    let menu = document.getElementById(RIFT_LAYOUT_EDITOR.MENU_ID);
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = RIFT_LAYOUT_EDITOR.MENU_ID;
+        menu.className = 'rift-layout-menu';
+        menu.hidden = true;
+        menu.innerHTML = `
+            <button type="button" class="rift-layout-menu-item" data-layout-action="toggle"></button>
+            <button type="button" class="rift-layout-menu-item" data-layout-action="reset">reset this page</button>
+        `;
+        document.body.appendChild(menu);
+        menu.addEventListener('click', (event) => {
+            const action = event.target instanceof HTMLElement ? event.target.getAttribute('data-layout-action') : null;
+            if (!action) return;
+            if (action === 'toggle') {
+                setLayoutEditMode(!RiftLayoutState.active);
+            }
+            if (action === 'reset') {
+                resetStoredPageLayout();
+            }
+            closeLayoutMenu();
+        });
+    }
+    RiftLayoutState.menu = menu;
+    updateLayoutMenu();
+    return menu;
+}
+
+function updateLayoutMenu() {
+    const menu = RiftLayoutState.menu || document.getElementById(RIFT_LAYOUT_EDITOR.MENU_ID);
+    if (!menu) return;
+    const toggleButton = menu.querySelector('[data-layout-action="toggle"]');
+    const resetButton = menu.querySelector('[data-layout-action="reset"]');
+    const hasLayout = Object.keys(readStoredPageLayout()).length > 0;
+    if (toggleButton) toggleButton.textContent = RiftLayoutState.active ? 'finish editing' : 'edit this page';
+    if (resetButton) resetButton.disabled = !hasLayout;
+}
+
+function positionLayoutMenu(trigger) {
+    const menu = ensureLayoutMenu();
+    const rect = trigger.getBoundingClientRect();
+    menu.hidden = false;
+    menu.style.visibility = 'hidden';
+    requestAnimationFrame(() => {
+        const width = menu.offsetWidth || 180;
+        const maxLeft = window.scrollX + document.documentElement.clientWidth - width - 12;
+        const nextLeft = Math.max(12, Math.min(window.scrollX + rect.right - width, maxLeft));
+        menu.style.left = `${nextLeft}px`;
+        menu.style.top = `${window.scrollY + rect.bottom + 10}px`;
+        menu.style.visibility = 'visible';
+    });
+}
+
+function closeLayoutMenu() {
+    const menu = RiftLayoutState.menu || document.getElementById(RIFT_LAYOUT_EDITOR.MENU_ID);
+    if (!menu) return;
+    menu.hidden = true;
+    menu.style.visibility = 'hidden';
+    if (RiftLayoutState.trigger) {
+        RiftLayoutState.trigger.setAttribute('aria-expanded', 'false');
+    }
+    RiftLayoutState.trigger = null;
+}
+
+function openLayoutMenu(trigger) {
+    RiftLayoutState.trigger = trigger;
+    ensureLayoutMenu();
+    updateLayoutMenu();
+    trigger.setAttribute('aria-expanded', 'true');
+    positionLayoutMenu(trigger);
+}
+
+function bindLayoutTrigger(trigger) {
+    if (!(trigger instanceof HTMLElement) || trigger.dataset.riftLayoutBound === 'true') return;
+    trigger.dataset.riftLayoutBound = 'true';
+    trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const menu = ensureLayoutMenu();
+        const alreadyOpen = !menu.hidden && RiftLayoutState.trigger === trigger;
+        if (alreadyOpen) {
+            closeLayoutMenu();
+            return;
+        }
+        openLayoutMenu(trigger);
+    });
+    trigger.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        trigger.click();
+    });
+}
+
+function resolveEditableLayoutTarget(start) {
+    let current = start instanceof HTMLElement ? start : null;
+    while (current && current !== document.body) {
+        if (isEditableLayoutElement(current)) return current;
+        current = current.parentElement;
+    }
+    return null;
+}
+
+function setLayoutEditMode(active) {
+    RiftLayoutState.active = !!active;
+    document.body.classList.toggle(RIFT_LAYOUT_EDITOR.ACTIVE_CLASS, RiftLayoutState.active);
+    refreshEditableLayoutElements();
+    updateLayoutBanner();
+    updateLayoutMenu();
+}
+
+function resetStoredPageLayout() {
+    localStorage.removeItem(getLayoutStorageKey());
+    refreshEditableLayoutElements().forEach((element) => {
+        clearLayoutOffset(element);
+    });
+    updateLayoutMenu();
+}
+
+function initPageLayoutEditor() {
+    if (RiftLayoutState.initialized || !document.body) return;
+    RiftLayoutState.initialized = true;
+    ensureLayoutMenu();
+    updateLayoutBanner();
+    applyStoredPageLayout();
+    window.setTimeout(applyStoredPageLayout, 350);
+
+    document.addEventListener('click', (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+
+        if (RiftLayoutState.active && !target.closest(`#${RIFT_LAYOUT_EDITOR.MENU_ID}, #${RIFT_LAYOUT_EDITOR.BANNER_ID}, .nav-meta-page`)) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        if (RiftLayoutState.menu && !RiftLayoutState.menu.hidden && !target.closest(`#${RIFT_LAYOUT_EDITOR.MENU_ID}, .nav-meta-page`)) {
+            closeLayoutMenu();
+        }
+    }, true);
+
+    document.addEventListener('pointerdown', (event) => {
+        if (!RiftLayoutState.active || event.button !== 0) return;
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target || target.closest(`#${RIFT_LAYOUT_EDITOR.MENU_ID}, #${RIFT_LAYOUT_EDITOR.BANNER_ID}, .nav-meta-page`)) return;
+
+        const element = resolveEditableLayoutTarget(target);
+        if (!element) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const startX = Number.parseFloat(element.style.getPropertyValue('--rift-layout-offset-x')) || 0;
+        const startY = Number.parseFloat(element.style.getPropertyValue('--rift-layout-offset-y')) || 0;
+        RiftLayoutState.drag = {
+            element,
+            key: buildLayoutElementKey(element),
+            pointerX: event.clientX,
+            pointerY: event.clientY,
+            startX,
+            startY,
+        };
+        element.classList.add(RIFT_LAYOUT_EDITOR.DRAGGING_CLASS);
+    }, true);
+
+    document.addEventListener('pointermove', (event) => {
+        const drag = RiftLayoutState.drag;
+        if (!drag) return;
+        event.preventDefault();
+        const nextX = Math.round(drag.startX + (event.clientX - drag.pointerX));
+        const nextY = Math.round(drag.startY + (event.clientY - drag.pointerY));
+        applyLayoutOffset(drag.element, { x: nextX, y: nextY });
+    }, { passive: false, capture: true });
+
+    document.addEventListener('pointerup', () => {
+        const drag = RiftLayoutState.drag;
+        if (!drag) return;
+        drag.element.classList.remove(RIFT_LAYOUT_EDITOR.DRAGGING_CLASS);
+        const currentX = Number.parseFloat(drag.element.style.getPropertyValue('--rift-layout-offset-x')) || 0;
+        const currentY = Number.parseFloat(drag.element.style.getPropertyValue('--rift-layout-offset-y')) || 0;
+        const layout = readStoredPageLayout();
+        if (currentX === 0 && currentY === 0) {
+            delete layout[drag.key];
+            clearLayoutOffset(drag.element);
+        } else {
+            layout[drag.key] = { x: currentX, y: currentY };
+        }
+        writeStoredPageLayout(layout);
+        updateLayoutMenu();
+        RiftLayoutState.drag = null;
+    }, true);
+
+    document.addEventListener('pointercancel', () => {
+        if (!RiftLayoutState.drag) return;
+        RiftLayoutState.drag.element.classList.remove(RIFT_LAYOUT_EDITOR.DRAGGING_CLASS);
+        RiftLayoutState.drag = null;
+    }, true);
+
+    window.addEventListener('resize', () => {
+        if (RiftLayoutState.trigger && RiftLayoutState.menu && !RiftLayoutState.menu.hidden) {
+            positionLayoutMenu(RiftLayoutState.trigger);
+        }
+    });
 }
 
 function detectSlowEnvironment() {
@@ -546,6 +966,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const nav = document.querySelector('.bottom-nav');
     decorateBottomNav(nav, prefs.navPosition);
+    initPageLayoutEditor();
     if (nav && navToggleEnabled) {
         const toggle = document.createElement('button');
         toggle.className = 'nav-toggle';

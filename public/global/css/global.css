@@ -3235,3 +3235,189 @@ body.browser-page #browser-input {
     font-size: 20px;
   }
 }
+
+.nav-meta-page {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 12px;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.nav-meta-page:hover,
+.nav-meta-page:focus-visible {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+.rift-layout-menu {
+  position: absolute;
+  z-index: 2200;
+  min-width: 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 11, 14, 0.96);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(16px);
+}
+
+.rift-layout-menu[hidden] {
+  display: none !important;
+}
+
+.rift-layout-menu-item,
+.rift-layout-banner-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(247, 250, 255, 0.94);
+  padding: 9px 12px;
+  font-size: 12px;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.rift-layout-menu-item:disabled,
+.rift-layout-banner-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rift-layout-banner {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 2150;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(7, 10, 13, 0.94);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(16px);
+}
+
+.rift-layout-banner[hidden] {
+  display: none !important;
+}
+
+.rift-layout-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rift-layout-banner-text strong {
+  font-family: "Run", Arial, sans-serif;
+  font-size: 12px;
+  text-transform: lowercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.rift-layout-banner-text span {
+  font-size: 11px;
+  color: rgba(215, 224, 235, 0.7);
+}
+
+.rift-layout-banner-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.rift-layout-edit-mode .rift-layout-editable {
+  outline: 1px dashed rgba(166, 211, 255, 0.42);
+  outline-offset: 3px;
+  cursor: grab !important;
+  user-select: none;
+}
+
+.rift-layout-customized {
+  translate: var(--rift-layout-offset-x, 0px) var(--rift-layout-offset-y, 0px);
+}
+
+.rift-layout-dragging {
+  cursor: grabbing !important;
+  z-index: 40 !important;
+}
+
+body.browser-page .browser-shell {
+  grid-template-columns: 94px minmax(0, 1fr) !important;
+}
+
+body.browser-page .browser-shell.browser-console-open {
+  grid-template-columns: 94px minmax(0, 1fr) minmax(300px, 360px) !important;
+}
+
+body.browser-page .browser-view {
+  min-width: 0;
+}
+
+body.browser-page .browser-home {
+  inset: 58px 0 0 0 !important;
+  padding: 0 20px;
+}
+
+body.browser-page .browser-console {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100%;
+  height: 100% !important;
+  min-height: 0;
+  margin: 0;
+  border-radius: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: none;
+  box-shadow: none;
+}
+
+body.browser-page .browser-shell:not(.browser-console-open) .browser-console {
+  display: none !important;
+}
+
+body.browser-page .browser-shell.browser-console-open #browser-frame {
+  height: 100% !important;
+  min-height: 100% !important;
+}
+
+@media (max-width: 980px) {
+  .rift-layout-banner {
+    top: auto;
+    bottom: 96px;
+    left: 12px;
+    right: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rift-layout-banner-actions {
+    justify-content: stretch;
+  }
+
+  .rift-layout-banner-btn {
+    flex: 1;
+  }
+
+  body.browser-page .browser-shell.browser-console-open {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.browser-page .browser-console {
+    min-height: 260px;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}

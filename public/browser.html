@@ -71,33 +71,34 @@
                     referrerpolicy="strict-origin-when-cross-origin"
                 ></iframe>
 
-                <section id="browser-console" class="browser-console" hidden aria-label="Browser console">
-                    <div class="browser-console-header">
-                        <div class="browser-console-title-wrap">
-                            <span class="material-icons">terminal</span>
-                            <div>
-                                <strong>browser console</strong>
-                                <p id="browser-console-status">attach to a page to inspect logs and run JavaScript.</p>
-                            </div>
-                        </div>
-                        <div class="browser-console-actions">
-                            <button type="button" id="browser-console-clear" class="browser-console-action">Clear</button>
-                            <button type="button" id="browser-console-close" class="browser-console-action">Close</button>
-                        </div>
-                    </div>
-                    <div id="browser-console-output" class="browser-console-output" aria-live="polite"></div>
-                    <div class="browser-console-runner">
-                        <textarea
-                            id="browser-console-input"
-                            class="browser-console-input"
-                            rows="3"
-                            placeholder="Run JavaScript in the current browser page"
-                            aria-label="Run JavaScript in the current browser page"
-                        ></textarea>
-                        <button type="button" id="browser-console-run" class="browser-console-run">Run JS</button>
-                    </div>
-                </section>
             </div>
+
+            <aside id="browser-console" class="browser-console" hidden aria-label="Browser console">
+                <div class="browser-console-header">
+                    <div class="browser-console-title-wrap">
+                        <span class="material-icons">terminal</span>
+                        <div>
+                            <strong>browser console</strong>
+                            <p id="browser-console-status">attach to a page to inspect logs and run JavaScript.</p>
+                        </div>
+                    </div>
+                    <div class="browser-console-actions">
+                        <button type="button" id="browser-console-clear" class="browser-console-action">Clear</button>
+                        <button type="button" id="browser-console-close" class="browser-console-action">Close</button>
+                    </div>
+                </div>
+                <div id="browser-console-output" class="browser-console-output" aria-live="polite"></div>
+                <div class="browser-console-runner">
+                    <textarea
+                        id="browser-console-input"
+                        class="browser-console-input"
+                        rows="3"
+                        placeholder="Run JavaScript in the current browser page"
+                        aria-label="Run JavaScript in the current browser page"
+                    ></textarea>
+                    <button type="button" id="browser-console-run" class="browser-console-run">Run JS</button>
+                </div>
+            </aside>
         </section>
     </div>
 
@@ -170,6 +171,7 @@
             const moreMenu = document.getElementById('browser-more-menu');
             const popout = document.getElementById('browser-popout');
             const panelSwitcher = document.getElementById('panel-switcher');
+            const browserShell = document.querySelector('.browser-shell');
             const browserView = document.querySelector('.browser-view');
             const browserHome = document.getElementById('browser-home');
             const consolePanel = document.getElementById('browser-console');
@@ -185,7 +187,7 @@
                 ? new BareMux.BareMuxConnection('/baremux/worker.js')
                 : null;
 
-            if (!form || !input || !frame || !back || !forward || !reload || !more || !moreMenu || !popout || !panelSwitcher || !browserView || !browserHome || !consolePanel || !consoleStatus || !consoleOutput || !consoleInput || !consoleRun || !consoleClear || !consoleClose) return;
+            if (!form || !input || !frame || !back || !forward || !reload || !more || !moreMenu || !popout || !panelSwitcher || !browserShell || !browserView || !browserHome || !consolePanel || !consoleStatus || !consoleOutput || !consoleInput || !consoleRun || !consoleClear || !consoleClose) return;
 
             const MAX_PANELS = 3;
             const modeKey = window.location.pathname.startsWith('/nova/') ? 'nova' : 'rift';
@@ -257,7 +259,7 @@
             function setConsoleOpen(open) {
                 consoleOpen = !!open;
                 consolePanel.hidden = !consoleOpen;
-                browserView.classList.toggle('browser-console-open', consoleOpen);
+                browserShell.classList.toggle('browser-console-open', consoleOpen);
             }
 
             function clearConsoleOutput() {
