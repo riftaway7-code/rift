@@ -1078,14 +1078,7 @@
             const normalized = String(query || '').trim();
             setSoundboardStatus(normalized ? `Searching Myinstants for "${normalized}"...` : 'Loading current Myinstants sounds...');
             try {
-                let clips = [];
-                try {
-                    const data = await apiJson(`/api/music/soundboard/myinstants?q=${encodeURIComponent(normalized)}`);
-                    clips = Array.isArray(data.clips) ? data.clips : [];
-                } catch (error) {
-                    if (!String(error.message || '').includes('403')) throw error;
-                    clips = await loadSoundboardViaProxy(normalized);
-                }
+                const clips = await loadSoundboardViaProxy(normalized);
                 state.soundboard.clips = clips;
                 state.soundboard.loaded = true;
                 state.soundboard.currentClipId = '';
