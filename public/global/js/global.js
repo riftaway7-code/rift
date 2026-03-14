@@ -82,6 +82,7 @@ const RiftUiState = {
 const RIFT_RELEASE = {
     version: '2.3.4',
     notes: [
+        'added in-rift cloud play so nowgg sessions can launch inside Rift',
         'changed cloud launches to open direct nowgg sessions instead of truffled wrappers',
         'added a dedicated cloud launcher page for nowgg-backed games',
         'added cloud to the main home and bottom nav surfaces',
