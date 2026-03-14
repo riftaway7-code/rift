@@ -1421,6 +1421,18 @@ header h1 {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.performance-suggest-box {
+  max-width: min(420px, 92vw);
+}
+
+.performance-suggest-reason {
+  margin-top: -8px !important;
+  color: rgba(255, 255, 255, 0.56) !important;
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  text-transform: lowercase;
+}
+
 /* ── Toast ── */
 .error-toast,
 .rift-toast {

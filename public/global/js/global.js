@@ -4,6 +4,7 @@ const RIFT_APPEARANCE = {
     PERFORMANCE_KEY: 'rift__performance-mode',
     NAV_POSITION_KEY: 'rift__nav-position',
     CUSTOM_THEME_KEY: 'rift__theme-custom-v1',
+    PERFORMANCE_PROMPT_SESSION_KEY: 'rift__performance-prompt-seen-v1',
     DEFAULT_THEME: 'midnight',
     THEMES: [
         'midnight', 'ocean', 'emerald', 'sunset', 'rose', 'violet',
@@ -365,6 +366,88 @@ function decorateBottomNav(nav, position) {
     nav.setAttribute('data-page-label', label);
 }
 
+function detectSlowEnvironment() {
+    const reasons = [];
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+    const effectiveType = String(connection?.effectiveType || '').toLowerCase();
+
+    if (connection?.saveData) {
+        reasons.push('data saver is enabled');
+    }
+    if (effectiveType === 'slow-2g' || effectiveType === '2g' || effectiveType === '3g') {
+        reasons.push(`network looks slow (${effectiveType})`);
+    }
+    if (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) {
+        reasons.push(`device memory is limited (${navigator.deviceMemory}gb)`);
+    }
+    if (typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4) {
+        reasons.push(`cpu threads are limited (${navigator.hardwareConcurrency})`);
+    }
+
+    return {
+        slow: reasons.length > 0,
+        reasons,
+    };
+}
+
+function waitForBootScreenToClear(callback, attempts = 0) {
+    const boot = document.querySelector('.rift-boot-screen');
+    if (!boot || boot.classList.contains('is-exiting')) {
+        callback();
+        return;
+    }
+    if (attempts > 40) {
+        callback();
+        return;
+    }
+    window.setTimeout(() => waitForBootScreenToClear(callback, attempts + 1), 350);
+}
+
+function promptForPerformanceModeIfNeeded() {
+    if (!document.body) return;
+    if (localStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_KEY) === 'true') return;
+    if (sessionStorage.getItem(RIFT_APPEARANCE.PERFORMANCE_PROMPT_SESSION_KEY) === 'true') return;
+
+    const environment = detectSlowEnvironment();
+    if (!environment.slow) return;
+
+    sessionStorage.setItem(RIFT_APPEARANCE.PERFORMANCE_PROMPT_SESSION_KEY, 'true');
+
+    const openPrompt = () => {
+        if (!document.body) return;
+
+        const shade = document.createElement('div');
+        shade.className = 'overlay-shade';
+        shade.innerHTML = `
+            <div class="overlay-box performance-suggest-box" role="dialog" aria-modal="true" aria-labelledby="riftPerfPromptTitle">
+                <div class="overlay-body">
+                    <p id="riftPerfPromptTitle">rift noticed this tab may be running on a slower device or network.</p>
+                    <p>enable performance mode for this tab now?</p>
+                    <p class="performance-suggest-reason">${environment.reasons.join(' · ')}</p>
+                </div>
+                <div class="overlay-actions">
+                    <button type="button" class="overlay-btn" data-rift-performance-choice="no">not now</button>
+                    <button type="button" class="overlay-btn overlay-accept" data-rift-performance-choice="yes">enable</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(shade);
+
+        const close = () => shade.remove();
+        shade.querySelectorAll('[data-rift-performance-choice]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const choice = button.getAttribute('data-rift-performance-choice');
+                if (choice === 'yes') {
+                    window.RiftAppearance?.setPerformanceMode(true);
+                }
+                close();
+            });
+        });
+    };
+
+    waitForBootScreenToClear(openPrompt);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const typingText = document.getElementById('typingText');
     const prefs = applyRiftAppearance() || readStoredRiftPreferences();
@@ -474,6 +557,8 @@ document.addEventListener('DOMContentLoaded', function () {
             toggle.classList.toggle('nav-is-hidden');
         });
     }
+
+    promptForPerformanceModeIfNeeded();
 
 });
 
