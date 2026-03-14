@@ -505,12 +505,6 @@
             function buildProxyUrl(targetUrl) {
                 try {
                     const u = new URL(targetUrl, window.location.origin);
-                    if (u.origin === 'https://velara.my' && u.pathname.startsWith('/astra')) {
-                        return u.href;
-                    }
-                    if (u.origin === window.location.origin && (u.pathname.startsWith('/astra') || u.pathname.startsWith('/astra-accounts'))) {
-                        return u.pathname + (u.search || '');
-                    }
                 } catch {}
 
                 if (shouldForcePlainProxy(targetUrl)) {

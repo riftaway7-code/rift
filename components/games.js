@@ -82,12 +82,6 @@ const VAULT_CONFIG = {
                bases: [],
                localCatalogUrl: "/totalscience-catalog",
           },
-          velara: {
-               key: "velara",
-               label: "Velara",
-               bases: [],
-               localCatalogUrl: "/velara-catalog",
-          },
           petezah: {
                key: "petezah",
                label: "PeteZah Lite",
@@ -1146,12 +1140,11 @@ const RiftVault = {
                fyinx: 7,
                elite: 8,
                sdxp: 9,
-               velara: 10,
-               "gn-math": 11,
-               petezah: 12,
-               seraph: 13,
+               "gn-math": 10,
+               petezah: 11,
+               seraph: 12,
           };
-          return rank[source] ?? 14;
+          return rank[source] ?? 13;
      },
 
      dedupeGames(items, source) {
@@ -1453,13 +1446,6 @@ const RiftVault = {
                     url = url.split("{prefix}").join(encodedPrefix);
                }
 
-               const isVelaraAstra = game.source === "velara" && /^https?:\/\/velara\.my\/astra(?:\/|$)/i.test(url);
-               if (isVelaraAstra) {
-                    const inRiftUrl = `${window.location.origin}/browser?url=${encodeURIComponent(url)}`;
-                    window.location.href = inRiftUrl;
-                    return;
-               }
-
                if (game.source === "truffled") {
                     url = this.resolveTruffledLocalLaunchUrl(game, url);
                }
@@ -1494,14 +1480,7 @@ const RiftVault = {
                               const win = window.open(target, "_blank");
                               if (win) return;
                          }
-                         const isVelaraAstraFallback = game.source === "velara" && /^https?:\/\/velara\.my\/astra(?:\/|$)/i.test(normalizedFallbackUrl);
-                         const browserUrl = isVelaraAstraFallback
-                              ? `${window.location.origin}/browser?url=${encodeURIComponent(normalizedFallbackUrl)}`
-                              : `${window.location.origin}/browser?url=${encodeURIComponent(normalizedFallbackUrl)}&popout=1`;
-                         if (isVelaraAstraFallback) {
-                              window.location.href = browserUrl;
-                              return;
-                         }
+                         const browserUrl = `${window.location.origin}/browser?url=${encodeURIComponent(normalizedFallbackUrl)}&popout=1`;
                          const win = window.open("about:blank", "_blank");
                          if (win) {
                               win.location.replace(browserUrl);
