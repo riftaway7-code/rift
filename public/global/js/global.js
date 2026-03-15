@@ -58,7 +58,7 @@ const RIFT_UI = {
         '/apps': { subtitle: 'tools, utilities, and helper surfaces', kicker: 'tools', accent: 'apps' },
         '/music': { subtitle: 'tracks, playlists, and saved listening', kicker: 'media', accent: 'music' },
         '/soundboard': { subtitle: 'stacked sound libraries and quick preview pads', kicker: 'media', accent: 'soundboard' },
-        '/cloud': { subtitle: 'launch nowgg sessions through Rift without leaving the site', kicker: 'cloud', accent: 'cloud' },
+        '/cloud': { subtitle: 'launch now.gg sessions through Rift\'s UV route', kicker: 'cloud', accent: 'cloud' },
         '/chat': { subtitle: 'rooms, dms, and live status', kicker: 'social', accent: 'chat' },
         '/browser': { subtitle: 'tabs, console, and proxied browsing', kicker: 'browser', accent: 'browser' },
         '/account': { subtitle: 'identity, progress, and presets', kicker: 'identity', accent: 'account' },
@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.32',
+    version: '2.3.33',
     notes: [
+        'added a dedicated Ultraviolet runtime under /uv, wired it to Rift\'s Wisp-backed BareMux transport, and moved now.gg cloud launches onto that UV route while leaving TinyJet and Scramjet in place for the rest of Rift',
         'forced the tinyjet service worker to skip waiting, claim pages immediately, and bypass cache on registration so HTML response fixes take effect without stale worker lag',
         'taught the tinyjet service worker to relabel mis-tagged iframe and document HTML responses as text/html so nowgg pages stop rendering as raw source',
         'wrapped tinyjet epoxy transport with a header normalizer so BareMux and Scramjet requests stop crashing on plain-object header maps',

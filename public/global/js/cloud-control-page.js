@@ -136,7 +136,7 @@
         query: '',
         selectedId: catalog[0]?.id || '',
         loading: false,
-        proxyMode: 'scramjet',
+        proxyMode: 'uv',
         lastLaunch: null,
         lastError: '',
     };
@@ -169,10 +169,6 @@
         return;
     }
 
-    const connection = window.BareMux?.BareMuxConnection
-        ? new BareMux.BareMuxConnection('/baremux/worker.js')
-        : null;
-
     function escapeHtml(value) {
         return String(value || '')
             .replace(/&/g, '&amp;')
@@ -203,101 +199,16 @@
         if (label) playerStatus.textContent = label;
     }
 
-    async function ensureTransport() {
-        if (!connection) return false;
-        const wispUrl =
-            (location.protocol === 'https:' ? 'wss' : 'ws') +
-            '://' +
-            location.host +
-            '/wisp/';
-        await connection.setTransport('/libcurl/index.mjs', [{ websocket: wispUrl }]);
-        return true;
-    }
-
-    async function testWispSocket(timeoutMs = 8000) {
-        const wispUrl =
-            (location.protocol === 'https:' ? 'wss' : 'ws') +
-            '://' +
-            location.host +
-            '/wisp/';
-
-        return await new Promise((resolve) => {
-            let settled = false;
-            const socket = new WebSocket(wispUrl, 'wisp-v2');
-            const finish = (ok) => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timer);
-                try { socket.close(); } catch {}
-                resolve(ok);
-            };
-            const timer = setTimeout(() => finish(false), timeoutMs);
-            socket.addEventListener('open', () => finish(true), { once: true });
-            socket.addEventListener('error', () => finish(false), { once: true });
-            socket.addEventListener('close', () => {
-                if (!settled) finish(false);
-            }, { once: true });
-        });
-    }
-
-    async function testWispHttp() {
-        try {
-            const response = await fetch('/wisp/', {
-                method: 'GET',
-                cache: 'no-store',
-                headers: { 'cache-control': 'no-cache' },
-            });
-            return response.status === 426;
-        } catch {
-            return false;
-        }
-    }
-
     async function prepareProxyMode() {
-        state.proxyMode = 'scramjet';
-        if (typeof registerSW === 'function') {
-            await registerSW();
-        }
-
-        let transportReady = false;
-        try {
-            transportReady = await ensureTransport();
-        } catch {
-            transportReady = false;
-        }
-
-        if (transportReady) {
-            let wispAvailable = await testWispSocket();
-            if (!wispAvailable) wispAvailable = await testWispHttp();
-            if (wispAvailable) return;
-        }
-
-        state.proxyMode = 'proxy';
-    }
-
-    function encodeTarget(targetUrl) {
-        const encoder = self.__scramjet$bundle?.rewriters?.url?.encodeUrl;
-        if (!encoder) return null;
-        const base = window.location.origin;
-        try {
-            return encoder(targetUrl, base);
-        } catch {
-            return null;
-        }
+        state.proxyMode = 'uv';
     }
 
     function buildEmbedUrl(targetUrl) {
-        return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
+        return `/uv/index.html?url=${encodeURIComponent(targetUrl)}`;
     }
 
     function requiresScramjet(targetUrl) {
-        try {
-            const url = new URL(targetUrl, window.location.origin);
-            const host = String(url.hostname || '').toLowerCase();
-            return host === 'nowgg.fun' || host.endsWith('.nowgg.fun');
-        } catch {
-            return false;
-        }
+        return false;
     }
 
     function updateActionLabels() {
@@ -350,8 +261,8 @@
 
         stats.innerHTML = [
             ['launch mode', 'top-level'],
-            ['proxy route', state.proxyMode === 'scramjet' ? 'scramjet / wisp' : 'compatibility proxy'],
-            ['source', 'nowgg.fun'],
+            ['proxy route', 'ultraviolet / wisp'],
+            ['source', 'now.gg session host'],
             ['best fit', entry.fit],
         ].map((row) => `
             <div class="cloud-side-stat">
@@ -363,8 +274,8 @@
 
     function renderSummaryStrip() {
         statHosts.textContent = `${catalog.length} games ready`;
-        statQueue.textContent = 'rift embed shell';
-        statProtocol.textContent = state.proxyMode === 'scramjet' ? 'scramjet / wisp' : 'compatibility proxy';
+        statQueue.textContent = 'uv launcher';
+        statProtocol.textContent = 'ultraviolet / wisp';
     }
 
     function renderLaunchPanel() {
@@ -396,19 +307,19 @@
         sessionPills.innerHTML = [
             ['status', state.loading ? 'preparing' : 'ready'],
             ['mode', 'in-rift'],
-            ['route', state.proxyMode === 'scramjet' ? 'scramjet' : 'compatibility'],
+            ['route', 'uv'],
         ].map((row) => `<div class="cloud-chip">${row[0]} · ${row[1]}</div>`).join('');
 
         sessionSummary.innerHTML = [
             ['game', entry.title],
-            ['source', 'nowgg.fun'],
+            ['source', 'now.gg session host'],
             ['last launch', lastLaunchTime],
-            ['active route', state.proxyMode === 'scramjet' ? 'tinyjet shell + scramjet' : 'tinyjet shell + compatibility proxy'],
+            ['active route', 'uv service worker + wisp'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('');
 
         connectionSummary.innerHTML = [
             ['target', entry.url.replace(/^https?:\/\//i, '')],
-            ['embed model', 'tinyjet shell'],
+            ['embed model', 'uv launcher page'],
             ['session load', 'proxied inside rift'],
             ['fallback', 'open direct'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${escapeHtml(row[1])}</strong></div>`).join('');
@@ -429,18 +340,16 @@
         `;
 
         instructionList.innerHTML = [
-            'Rift now hands cloud sessions to the existing tinyjet shell, which already has its own Scramjet controller and BareMux worker setup.',
-            'That avoids the broken root-level embed path that kept failing with "there are no bare clients" before the proxied session could start.',
-            state.proxyMode === 'scramjet'
-                ? 'Scramjet transport is available on this deployment, so Rift will load the session inside the tinyjet shell with the stronger route.'
-                : 'If Scramjet transport is unavailable, Rift falls back to the compatibility proxy path inside the same tinyjet shell.',
+            'Rift now hands now.gg launches to a dedicated UV route instead of forcing them through TinyJet.',
+            'That UV route still uses Rift\'s Wisp-backed BareMux transport, so the new path keeps the existing transport stack instead of replacing it.',
+            'TinyJet and Scramjet stay in Rift for the browser and embed flows. This cloud page only changes the now.gg launch route.',
             'If a game still rejects the proxied launch, use the direct button as a temporary fallback and report which title failed.',
         ].map((line) => `<li>${line}</li>`).join('');
 
         hostList.innerHTML = `
             <div class="cloud-host-pill"><span class="material-icons">language</span><strong>${escapeHtml(window.location.host)}</strong></div>
             <div class="cloud-host-pill"><span class="material-icons">sports_esports</span><strong>${entry.title}</strong></div>
-            <div class="cloud-host-pill"><span class="material-icons">shield</span><strong>${state.proxyMode === 'scramjet' ? 'wisp ready' : 'proxy fallback'}</strong></div>
+            <div class="cloud-host-pill"><span class="material-icons">shield</span><strong>wisp route</strong></div>
         `;
     }
 
@@ -465,9 +374,6 @@
         try {
             if (!direct) {
                 await prepareProxyMode();
-                if (requiresScramjet(entry.url) && state.proxyMode !== 'scramjet') {
-                    throw new Error('Rift needs Scramjet transport for this nowgg title. The plain proxy path breaks its asset loader.');
-                }
             }
 
             const nextUrl = direct ? entry.url : buildEmbedUrl(entry.url);
@@ -565,12 +471,12 @@
             try {
                 await prepareProxyMode();
             } catch {
-                state.proxyMode = 'proxy';
+                state.proxyMode = 'uv';
             }
             renderSummaryStrip();
             renderDetailCard();
             renderLaunchPanel();
-            setBusy(false, `route ready: ${state.proxyMode === 'scramjet' ? 'scramjet / wisp' : 'compatibility proxy'}`);
+            setBusy(false, 'route ready: ultraviolet / wisp');
         });
     }
 

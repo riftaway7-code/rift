@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const dns = require('dns').promises;
 const crypto = require('crypto');
+const { uvPath } = require('@titaniumnetwork-dev/ultraviolet');
 const { attachCloudControlRoutes } = require('./cloud-control');
 
 const app = express();
@@ -156,6 +157,8 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
     'scramjet',
     'baremux',
     'libcurl',
+    'epoxy',
+    'uv',
     'wisp',
     'validate',
     'sdxp',
@@ -4255,7 +4258,15 @@ function parseProxyUpstreamFromReferer(req) {
 
 function isLikelyAssetPath(pathname) {
     if (!pathname || pathname === '/') return false;
-    if (pathname.startsWith('/assets/') || pathname.startsWith('/components/') || pathname.startsWith('/scramjet/') || pathname.startsWith('/baremux/') || pathname.startsWith('/libcurl/')) {
+    if (
+        pathname.startsWith('/assets/') ||
+        pathname.startsWith('/components/') ||
+        pathname.startsWith('/scramjet/') ||
+        pathname.startsWith('/baremux/') ||
+        pathname.startsWith('/libcurl/') ||
+        pathname.startsWith('/epoxy/') ||
+        pathname.startsWith('/uv/')
+    ) {
         return false;
     }
     return /\.(?:js|mjs|css|json|map|png|jpe?g|webp|gif|svg|ico|woff2?|ttf|otf|eot|mp3|ogg|wav|m4a|aac|flac|wasm|unityweb|data|bin|txt|xml)(?:$|\?)/i.test(pathname);
@@ -4325,6 +4336,8 @@ app.use('/components', express.static(path.join(__dirname, '..', 'components')))
 app.use('/scramjet', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'scramjet', 'dist')));
 app.use('/baremux', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'bare-mux', 'dist')));
 app.use('/libcurl', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'libcurl-transport', 'dist')));
+app.use('/epoxy', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'epoxy-transport', 'dist')));
+app.use('/uv', express.static(uvPath));
 
 if (ENABLE_VELARA) {
     app.all(/^\/astra(?:\/(.*))?$/, async (req, res) => {

@@ -381,7 +381,7 @@
     <div class="container">
         <header>
             <h1>rift cloud</h1>
-            <p class="page-subtitle">launch cloud games through Rift without leaving the site</p>
+            <p class="page-subtitle">launch now.gg sessions through Rift's UV route without leaving the site</p>
         </header>
 
         <section class="cloud-shell">
@@ -389,13 +389,13 @@
                 <div class="cloud-banner-top">
                     <div class="cloud-banner-copy">
                         <div class="cloud-kicker">cloud gaming</div>
-                        <div class="cloud-hero">nowgg sessions routed through rift</div>
-                        <div class="cloud-copy">Rift cloud now launches supported nowgg games through Rift's tinyjet shell. The goal is simple: keep the game on the Rift domain while using the proxy stack that already knows how to hold onto its transport state.</div>
+                        <div class="cloud-hero">now.gg sessions routed through ultraviolet</div>
+                        <div class="cloud-copy">Rift cloud now launches supported now.gg games through a dedicated UV route. The goal is simple: keep the game on the Rift domain, use a real UV service-worker path for now.gg, and leave TinyJet plus Scramjet available for the rest of Rift.</div>
                     </div>
                     <div class="cloud-stat-row">
                         <div class="cloud-stat"><span class="material-icons">computer</span><span id="cloudStatHosts">0 games ready</span></div>
-                        <div class="cloud-stat"><span class="material-icons">route</span><span id="cloudStatQueue">tinyjet shell</span></div>
-                        <div class="cloud-stat"><span class="material-icons">gamepad</span><span id="cloudStatProtocol">scramjet / wisp</span></div>
+                        <div class="cloud-stat"><span class="material-icons">route</span><span id="cloudStatQueue">uv launcher</span></div>
+                        <div class="cloud-stat"><span class="material-icons">gamepad</span><span id="cloudStatProtocol">ultraviolet / wisp</span></div>
                     </div>
                 </div>
                 <div class="cloud-toolbar">
@@ -419,7 +419,7 @@
                         </div>
                     </div>
                     <div class="cloud-player-frame-wrap">
-                        <div id="cloudPlayerEmpty" class="cloud-player-empty">Pick a cloud game and press <strong>play in rift</strong>. Rift will register its proxy stack, choose the active route, and navigate the main page onto the nowgg session.</div>
+                            <div id="cloudPlayerEmpty" class="cloud-player-empty">Pick a cloud game and press <strong>play in rift</strong>. Rift will open the UV launcher, register the dedicated UV service worker, wire it to Wisp through BareMux, and then move the main page onto the proxied now.gg session.</div>
                         <div id="cloudSessionView" class="cloud-session-view" hidden>
                             <div id="cloudSessionPills" class="cloud-session-links"></div>
                             <div id="cloudSessionSummary" class="cloud-session-list"></div>
@@ -455,7 +455,7 @@
                     </section>
                     <section class="cloud-side-card">
                         <div class="cloud-kicker">notes</div>
-                        <div class="cloud-detail-note">This mode is now focused on nowgg-in-Rift. Rift now launches through its tinyjet shell so the cloud page uses the proxy stack that already survives long enough to start the session. If the stronger route is unavailable, Rift stops and lets you use the direct fallback.</div>
+                        <div class="cloud-detail-note">This mode is now focused on now.gg-in-Rift through a real UV path. TinyJet and Scramjet stay available for the browser and embed flows, but now.gg launches no longer depend on them rendering the final document correctly.</div>
                     </section>
                 </aside>
             </div>
