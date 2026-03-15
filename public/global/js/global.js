@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.24',
+    version: '2.3.25',
     notes: [
+        'reverted Roblox cloud launches from the dead hard-coded 108.ip.nowgg.fun host back to the live generic now.gg launcher URL',
         'fixed tinyjet BareMux startup by switching its worker path to the absolute /tinyjet/bareworker.js URL required by bare-mux v2',
         'replaced tinyjet cloud-launch CDN dependencies with local Scramjet, BareMux, libcurl, and wasm files so the tinyjet shell can boot on Rift deployments',
         'switched Rift cloud launches over to the existing tinyjet shell so nowgg sessions use the proxy stack that already initializes BareMux correctly',
