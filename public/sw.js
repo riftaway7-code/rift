@@ -13,6 +13,29 @@ const uvContext = new Ultraviolet(self.__uv$config);
 uvContext.meta.origin = self.location.origin;
 const scramjet = new ScramjetServiceWorker(self.__scramjet$config);
 
+function rewriteScramjetTarget(requestUrl) {
+    try {
+        const routeUrl = new URL(requestUrl);
+        const prefix = `${self.location.origin}${self.__scramjet$config.prefix}`;
+        if (!routeUrl.href.startsWith(prefix)) {
+            return null;
+        }
+
+        const encodedTarget = routeUrl.href.slice(prefix.length);
+        const decodedTarget = self.__scramjet$config.codec.decode(encodedTarget);
+        const upstream = new URL(decodedTarget);
+        const match = upstream.hostname.match(/^(\d+)\.ip\.[^.]+\.onrender\.com$/i);
+        if (!match || !/\.onrender\.com$/i.test(self.location.hostname)) {
+            return null;
+        }
+
+        upstream.hostname = `${match[1]}.ip.nowgg.fun`;
+        return `${prefix}${self.__scramjet$config.codec.encode(upstream.toString())}`;
+    } catch {
+        return null;
+    }
+}
+
 async function getEscapedUvTarget(event) {
     const { request, clientId } = event;
     let activeClientUrl = '';
@@ -86,6 +109,11 @@ async function handleRequest(event) {
         }
 
         if (scramjet.route({ request })) {
+            const rewrittenTarget = rewriteScramjetTarget(request.url);
+            if (rewrittenTarget && rewrittenTarget !== request.url) {
+                const proxiedRequest = new Request(rewrittenTarget, request);
+                return await scramjet.fetch({ request: proxiedRequest });
+            }
             return await scramjet.fetch({ request });
         }
 
