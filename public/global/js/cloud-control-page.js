@@ -136,7 +136,7 @@
         query: '',
         selectedId: catalog[0]?.id || '',
         loading: false,
-        proxyMode: 'uv',
+        proxyMode: 'scramjet',
         lastLaunch: null,
         lastError: '',
     };
@@ -200,7 +200,7 @@
     }
 
     async function prepareProxyMode() {
-        state.proxyMode = 'uv';
+        state.proxyMode = 'scramjet';
     }
 
     async function resolveLaunchTarget(targetUrl) {
@@ -208,7 +208,7 @@
     }
 
     function buildEmbedUrl(targetUrl) {
-        return `/uv/index.html?url=${encodeURIComponent(targetUrl)}`;
+        return `/browser?url=${encodeURIComponent(targetUrl)}&forceProxy=1`;
     }
 
     function requiresScramjet(targetUrl) {
@@ -264,9 +264,9 @@
         tags.innerHTML = entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('');
 
         stats.innerHTML = [
-            ['launch mode', 'apex iframe shell'],
-            ['proxy route', 'ultraviolet / wisp'],
-            ['source', 'generic now.gg launcher'],
+            ['launch mode', 'scramjet shell'],
+            ['proxy route', 'scramjet / wisp'],
+            ['source', 'proxied launcher'],
             ['best fit', entry.fit],
         ].map((row) => `
             <div class="cloud-side-stat">
@@ -278,8 +278,8 @@
 
     function renderSummaryStrip() {
         statHosts.textContent = `${catalog.length} games ready`;
-        statQueue.textContent = 'uv iframe shell';
-        statProtocol.textContent = 'ultraviolet / wisp';
+        statQueue.textContent = 'scramjet shell';
+        statProtocol.textContent = 'scramjet / wisp';
     }
 
     function renderLaunchPanel() {
@@ -316,15 +316,15 @@
 
         sessionSummary.innerHTML = [
             ['game', entry.title],
-            ['source', 'generic now.gg launcher'],
+            ['source', 'proxied launcher'],
             ['last launch', lastLaunchTime],
-            ['active route', 'uv iframe + wisp'],
+            ['active route', 'scramjet browser + wisp'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('');
 
         connectionSummary.innerHTML = [
             ['target', entry.url.replace(/^https?:\/\//i, '')],
-            ['embed model', 'frog-style shell'],
-            ['session load', 'proxied inside iframe'],
+            ['embed model', 'browser shell'],
+            ['session load', 'proxied inside shell'],
             ['fallback', 'open direct'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${escapeHtml(row[1])}</strong></div>`).join('');
 
@@ -344,16 +344,16 @@
         `;
 
         instructionList.innerHTML = [
-            'Rift now keeps now.gg inside a dedicated UV iframe shell instead of navigating the whole tab onto the encoded UV url.',
-            'That shell still runs on Rift\'s Wisp-backed BareMux transport, so TinyJet and Scramjet stay intact for the rest of Rift.',
-            'Roblox now uses the generic nowgg launcher again so the page can manage its own session handoff like Frogies does.',
+            'Rift now hands cloud titles off to the existing Scramjet browser shell instead of trying to make the cloud dashboard be the player too.',
+            'That shell stays on Rift and loads the remote page through Scramjet over the current Wisp-backed BareMux transport.',
+            'This matches the chatroom pattern you described: proxy the target page inside a controlled shell instead of relying on raw iframes to the upstream origin.',
             'If a game still rejects the proxied launch, use the direct button and report the exact launcher url that worked or failed.',
         ].map((line) => `<li>${line}</li>`).join('');
 
         hostList.innerHTML = `
             <div class="cloud-host-pill"><span class="material-icons">language</span><strong>${escapeHtml(window.location.host)}</strong></div>
             <div class="cloud-host-pill"><span class="material-icons">sports_esports</span><strong>${entry.title}</strong></div>
-            <div class="cloud-host-pill"><span class="material-icons">shield</span><strong>wisp route</strong></div>
+            <div class="cloud-host-pill"><span class="material-icons">shield</span><strong>scramjet route</strong></div>
         `;
     }
 
@@ -476,12 +476,12 @@
             try {
                 await prepareProxyMode();
             } catch {
-                state.proxyMode = 'uv';
+                state.proxyMode = 'scramjet';
             }
             renderSummaryStrip();
             renderDetailCard();
             renderLaunchPanel();
-            setBusy(false, 'route ready: ultraviolet / wisp');
+            setBusy(false, 'route ready: scramjet / wisp');
         });
     }
 

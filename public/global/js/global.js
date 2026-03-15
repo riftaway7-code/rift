@@ -80,8 +80,10 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.38',
+    version: '2.3.39',
     notes: [
+        'switched cloud launches off the UV shell and back onto Rift\'s existing Scramjet browser shell so now.gg follows the same controlled proxy-in-a-shell model as the chat-style surfaces',
+        'updated the cloud page copy and route labels to match the Scramjet-over-Wisp handoff instead of the failed UV iframe experiment',
         'reworked the UV cloud launcher into a Frogies-style apex-domain iframe shell so now.gg stays inside Rift instead of moving the whole tab onto the encoded UV document',
         'switched Roblox cloud launch back to the generic nowgg.fun launcher and removed the broken in-page resolver hop from the Rift cloud flow',
         'switched Rift\'s UV asset recovery from fragile request-referrer guessing to service-worker client tracking so escaped now.gg chunk, css, image, and oapi requests inherit the active UV page context instead of falling back to local 404 HTML',
