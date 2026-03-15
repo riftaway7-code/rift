@@ -1,8 +1,14 @@
 importScripts("./tinyjet/scramjet.all.js");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker()
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
 async function normalizeHtmlResponse(request, response) {
-  if (!response || !["document", "iframe"].includes(request.destination)) {
+  if (!response) {
     return response;
   }
   const contentType = String(response.headers.get("content-type") || "").toLowerCase();
@@ -17,6 +23,8 @@ async function normalizeHtmlResponse(request, response) {
     }
     const headers = new Headers(response.headers);
     headers.set("content-type", "text/html; charset=utf-8");
+    headers.delete("x-content-type-options");
+    headers.set("content-disposition", "inline");
     return new Response(bodyText, {
       status: response.status,
       statusText: response.statusText,

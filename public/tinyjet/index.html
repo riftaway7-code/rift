@@ -13,12 +13,12 @@
         sync: "/tinyjet/tinyjet/scramjet.sync.js"
       }
     };
-    const swReloadKey = "rift__tinyjet-sw-controlled-v1";
+    const swReloadKey = "rift__tinyjet-sw-controlled-v2";
     const { ScramjetController } = $scramjetLoadController();
     const scramjet = new ScramjetController(tinyjetConfig);
     async function ensureTinyjetControl() {
       if (!("serviceWorker" in navigator)) return;
-      await navigator.serviceWorker.register("/tinyjet/sw.js", { scope: "/tinyjet/" });
+      await navigator.serviceWorker.register("/tinyjet/sw.js?v=2.3.32", { scope: "/tinyjet/", updateViaCache: "none" });
       await navigator.serviceWorker.ready;
       if (!navigator.serviceWorker.controller && !sessionStorage.getItem(swReloadKey)) {
         sessionStorage.setItem(swReloadKey, "1");

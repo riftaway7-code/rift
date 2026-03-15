@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.31',
+    version: '2.3.32',
     notes: [
+        'forced the tinyjet service worker to skip waiting, claim pages immediately, and bypass cache on registration so HTML response fixes take effect without stale worker lag',
         'taught the tinyjet service worker to relabel mis-tagged iframe and document HTML responses as text/html so nowgg pages stop rendering as raw source',
         'wrapped tinyjet epoxy transport with a header normalizer so BareMux and Scramjet requests stop crashing on plain-object header maps',
         'switched tinyjet cloud launches off libcurl and back onto epoxy transport so nowgg sessions no longer fail on libcurl wasm bootstrap',
