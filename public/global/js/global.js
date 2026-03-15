@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.26',
+    version: '2.3.27',
     notes: [
+        'moved tinyjet Scramjet traffic under /tinyjet/scramjet and added a one-time service-worker takeover reload so encoded cloud URLs stay inside tinyjet\'s worker scope',
         'switched Roblox cloud launch from the 404ing generic now.gg path to the currently working 159.ip.nowgg.fun session host',
         'reverted Roblox cloud launches from the dead hard-coded 108.ip.nowgg.fun host back to the live generic now.gg launcher URL',
         'fixed tinyjet BareMux startup by switching its worker path to the absolute /tinyjet/bareworker.js URL required by bare-mux v2',

@@ -5,17 +5,33 @@
   <script src="./tinyjet/scramjet.all.js" defer></script>
   <script type="module" defer>
     import * as BareMux from "/baremux/index.mjs";
+    const tinyjetConfig = {
+      prefix: "/tinyjet/scramjet/",
+      files: {
+        wasm: "/tinyjet/tinyjet/wasm.wasm",
+        all: "/tinyjet/tinyjet/scramjet.all.js",
+        sync: "/tinyjet/tinyjet/scramjet.sync.js"
+      }
+    };
+    const swReloadKey = "rift__tinyjet-sw-controlled-v1";
     const { ScramjetController } = $scramjetLoadController();
-    const scramjet = new ScramjetController({ 
-      files: { 
-        wasm: "./tinyjet/wasm.wasm", 
-        all: "./tinyjet/scramjet.all.js", 
-        sync: "./tinyjet/scramjet.sync.js" 
-      } 
-    });
+    const scramjet = new ScramjetController(tinyjetConfig);
+    async function ensureTinyjetControl() {
+      if (!("serviceWorker" in navigator)) return;
+      await navigator.serviceWorker.register("/tinyjet/sw.js", { scope: "/tinyjet/" });
+      await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller && !sessionStorage.getItem(swReloadKey)) {
+        sessionStorage.setItem(swReloadKey, "1");
+        window.location.reload();
+        await new Promise(() => {});
+      }
+      if (navigator.serviceWorker.controller) {
+        sessionStorage.removeItem(swReloadKey);
+      }
+    }
     try {
-      scramjet.init();
-      navigator.serviceWorker.register("./sw.js", { scope: "./" });
+      await ensureTinyjetControl();
+      await scramjet.init();
     } catch (e) { console.error("scramjet failed to initialize;", e); }
     const connection = new BareMux.BareMuxConnection("/tinyjet/bareworker.js");
     const websocketInput = document.getElementById("websocket");
