@@ -62,7 +62,6 @@ async function handleRequest(event) {
             url.pathname.startsWith("/components/") ||
             url.pathname.startsWith("/global/") ||
             url.pathname.startsWith("/api/") ||
-            url.pathname.startsWith("/scramjet/") ||
             url.pathname.startsWith("/baremux/") ||
             url.pathname.startsWith("/libcurl/") ||
             url.pathname.startsWith("/epoxy/") ||
