@@ -390,11 +390,11 @@
                     <div class="cloud-banner-copy">
                         <div class="cloud-kicker">cloud gaming</div>
                         <div class="cloud-hero">nowgg sessions routed through rift</div>
-                        <div class="cloud-copy">Rift cloud now launches supported nowgg games through Rift's top-level proxy route. The goal is simple: keep the game on the Rift domain and avoid the old iframe path that nowgg blocks.</div>
+                        <div class="cloud-copy">Rift cloud now launches supported nowgg games through Rift's embed shell. The goal is simple: keep the game on the Rift domain and keep the transport worker alive while the proxied session starts.</div>
                     </div>
                     <div class="cloud-stat-row">
                         <div class="cloud-stat"><span class="material-icons">computer</span><span id="cloudStatHosts">0 games ready</span></div>
-                        <div class="cloud-stat"><span class="material-icons">route</span><span id="cloudStatQueue">top-level proxy route</span></div>
+                        <div class="cloud-stat"><span class="material-icons">route</span><span id="cloudStatQueue">rift embed shell</span></div>
                         <div class="cloud-stat"><span class="material-icons">gamepad</span><span id="cloudStatProtocol">scramjet / wisp</span></div>
                     </div>
                 </div>
@@ -455,7 +455,7 @@
                     </section>
                     <section class="cloud-side-card">
                         <div class="cloud-kicker">notes</div>
-                        <div class="cloud-detail-note">This mode is now focused on nowgg-in-Rift. Rift first tries the top-level Scramjet route because nowgg blocks iframe embedding on the real session host. If the stronger route is unavailable, Rift falls back to the compatibility proxy path on the same domain.</div>
+                        <div class="cloud-detail-note">This mode is now focused on nowgg-in-Rift. Rift now launches through its embed shell so the BareMux worker does not reset between the launcher and the proxied session. If the stronger route is unavailable, Rift stops and lets you use the direct fallback.</div>
                     </section>
                 </aside>
             </div>

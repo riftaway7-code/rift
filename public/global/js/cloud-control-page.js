@@ -286,12 +286,8 @@
         }
     }
 
-    function buildLaunchUrl(targetUrl) {
-        if (state.proxyMode === 'scramjet') {
-            const encoded = encodeTarget(targetUrl);
-            if (encoded) return encoded;
-        }
-        return `/proxy?url=${encodeURIComponent(targetUrl)}`;
+    function buildEmbedUrl(targetUrl) {
+        return `/embed?url=${encodeURIComponent(targetUrl)}`;
     }
 
     function requiresScramjet(targetUrl) {
@@ -367,7 +363,7 @@
 
     function renderSummaryStrip() {
         statHosts.textContent = `${catalog.length} games ready`;
-        statQueue.textContent = 'top-level proxy route';
+        statQueue.textContent = 'rift embed shell';
         statProtocol.textContent = state.proxyMode === 'scramjet' ? 'scramjet / wisp' : 'compatibility proxy';
     }
 
@@ -407,13 +403,13 @@
             ['game', entry.title],
             ['source', 'nowgg.fun'],
             ['last launch', lastLaunchTime],
-            ['active route', state.proxyMode === 'scramjet' ? 'top-level scramjet page' : 'top-level compatibility proxy'],
+            ['active route', state.proxyMode === 'scramjet' ? 'rift embed shell + scramjet' : 'rift embed shell + compatibility proxy'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('');
 
         connectionSummary.innerHTML = [
             ['target', entry.url.replace(/^https?:\/\//i, '')],
-            ['embed model', 'top-level page'],
-            ['iframe bypass', 'enabled by launch flow'],
+            ['embed model', 'rift embed shell'],
+            ['session load', 'proxied inside rift'],
             ['fallback', 'open direct'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${escapeHtml(row[1])}</strong></div>`).join('');
 
@@ -433,11 +429,11 @@
         `;
 
         instructionList.innerHTML = [
-            'Rift launches supported nowgg pages as the main proxied page instead of nesting them inside the old cloud iframe.',
-            'That top-level route is the important change, because nowgg blocks iframe embedding on the real session host.',
+            'Rift now opens cloud sessions through its dedicated embed shell so the BareMux worker stays alive while the session starts.',
+            'That avoids the transport reset that happened when Rift jumped straight from the launcher page onto the proxied nowgg URL.',
             state.proxyMode === 'scramjet'
-                ? 'Scramjet transport is available on this deployment, so Rift will try the stronger in-site launch path first.'
-                : 'If Scramjet transport is unavailable, Rift falls back to the compatibility proxy path on the same domain.',
+                ? 'Scramjet transport is available on this deployment, so Rift will load the session inside the embed shell with the stronger route.'
+                : 'If Scramjet transport is unavailable, Rift falls back to the compatibility proxy path inside the same embed shell.',
             'If a game still rejects the proxied launch, use the direct button as a temporary fallback and report which title failed.',
         ].map((line) => `<li>${line}</li>`).join('');
 
@@ -474,7 +470,7 @@
                 }
             }
 
-            const nextUrl = direct ? entry.url : buildLaunchUrl(entry.url);
+            const nextUrl = direct ? entry.url : buildEmbedUrl(entry.url);
             state.lastLaunch = {
                 id: entry.id,
                 at: Date.now(),
