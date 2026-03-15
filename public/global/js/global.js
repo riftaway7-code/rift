@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.20',
+    version: '2.3.21',
     notes: [
+        'moved the Scramjet runtime onto /assets/scramjet so cloud pages bypass stale service-worker proxying even before the new worker activates',
         'stopped the Rift service worker from proxying internal Scramjet, BareMux, libcurl, wisp, and embed assets so the cloud runtime can load without 500 loops',
         'vendored the Scramjet runtime into public/scramjet and fixed its config paths so cloud embed pages no longer depend on the server alias into node_modules',
         'corrected Rift cloud launches to use the real embed.html entrypoint instead of the missing /embed clean route',

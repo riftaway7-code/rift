@@ -1,8 +1,8 @@
 importScripts(
-    "/scramjet/scramjet.codecs.js",
-    "/scramjet/scramjet.config.js",
-    "/scramjet/scramjet.bundle.js",
-    "/scramjet/scramjet.worker.js"
+    "/assets/scramjet/scramjet.codecs.js",
+    "/assets/scramjet/scramjet.config.js",
+    "/assets/scramjet/scramjet.bundle.js",
+    "/assets/scramjet/scramjet.worker.js"
 );
 
 const scramjet = new ScramjetServiceWorker(self.__scramjet$config);
