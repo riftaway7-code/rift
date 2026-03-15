@@ -294,6 +294,16 @@
         return `/proxy?url=${encodeURIComponent(targetUrl)}`;
     }
 
+    function requiresScramjet(targetUrl) {
+        try {
+            const url = new URL(targetUrl, window.location.origin);
+            const host = String(url.hostname || '').toLowerCase();
+            return host === 'nowgg.fun' || host.endsWith('.nowgg.fun');
+        } catch {
+            return false;
+        }
+    }
+
     function updateActionLabels() {
         requestSessionBtn.querySelector('span:last-child').textContent = 'play in rift';
         endSessionBtn.querySelector('span:last-child').textContent = 'open direct';
@@ -459,6 +469,9 @@
         try {
             if (!direct) {
                 await prepareProxyMode();
+                if (requiresScramjet(entry.url) && state.proxyMode !== 'scramjet') {
+                    throw new Error('Rift needs Scramjet transport for this nowgg title. The plain proxy path breaks its asset loader.');
+                }
             }
 
             const nextUrl = direct ? entry.url : buildLaunchUrl(entry.url);
