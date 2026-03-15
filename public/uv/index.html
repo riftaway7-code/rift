@@ -235,8 +235,9 @@
             const frame = document.getElementById('uvFrame');
             const emptyState = document.getElementById('uvEmptyState');
             const params = new URLSearchParams(window.location.search);
-            const connection = window.BareMux?.BareMuxConnection
-                ? new BareMux.BareMuxConnection('/baremux/worker.js')
+            const BareMuxConnection = window.BareMux && window.BareMux.BareMuxConnection;
+            const connection = BareMuxConnection
+                ? new BareMuxConnection('/baremux/worker.js')
                 : null;
             let currentTarget = '';
 
@@ -355,8 +356,10 @@
                     frame.src = buildUvUrl(target);
                 } catch (error) {
                     launchButton.disabled = false;
+                    emptyState.hidden = false;
+                    frame.classList.remove('live');
                     setStatus(error?.message || 'UV launch failed.', true);
-                    return;
+                    throw error;
                 }
 
                 launchButton.disabled = false;
@@ -396,10 +399,21 @@
 
             setInterval(syncAddressFromFrame, 1000);
 
-            const initialTarget = readInitialTarget();
-            if (initialTarget) {
-                launch(initialTarget);
+            async function boot() {
+                try {
+                    const initialTarget = readInitialTarget();
+                    if (initialTarget) {
+                        setStatus('booting Rift UV shell...', false);
+                        await launch(initialTarget);
+                    } else {
+                        setStatus('enter a target url to load it inside Rift', false);
+                    }
+                } catch (error) {
+                    setStatus(error?.message || 'UV shell startup failed.', true);
+                }
             }
+
+            boot();
         })();
     </script>
 </body>
