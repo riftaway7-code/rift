@@ -287,7 +287,7 @@
     }
 
     function buildEmbedUrl(targetUrl) {
-        return `/embed?url=${encodeURIComponent(targetUrl)}`;
+        return `/embed.html?url=${encodeURIComponent(targetUrl)}`;
     }
 
     function requiresScramjet(targetUrl) {

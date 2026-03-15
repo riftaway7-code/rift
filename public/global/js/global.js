@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.17',
+    version: '2.3.18',
     notes: [
+        'corrected Rift cloud launches to use the real embed.html entrypoint instead of the missing /embed clean route',
         'changed Rift cloud launches to open nowgg titles through the dedicated embed shell so BareMux transport stays alive while the proxied session starts',
         'blocked nowgg cloud launches from falling back to Rift\'s plain compatibility proxy because that path breaks nowgg\'s Next.js asset loader',
         'changed Roblox cloud launch to target the resolved 108.ip.nowgg.fun session host directly instead of the generic nowgg launcher page',
