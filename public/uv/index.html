@@ -131,6 +131,11 @@
             min-height: 0;
         }
 
+        .frame-wrap.live .empty,
+        .empty[hidden] {
+            display: none !important;
+        }
+
         .empty {
             position: absolute;
             inset: 0;
@@ -342,6 +347,7 @@
             }
 
             function showFrame() {
+                frame.parentElement.classList.add('live');
                 emptyState.hidden = true;
                 frame.classList.add('live');
             }
@@ -363,6 +369,7 @@
                     frame.src = buildUvUrl(target);
                 } catch (error) {
                     launchButton.disabled = false;
+                    frame.parentElement.classList.remove('live');
                     emptyState.hidden = false;
                     frame.classList.remove('live');
                     setStatus(error?.message || 'UV launch failed.', true);
