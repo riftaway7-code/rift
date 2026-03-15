@@ -8,7 +8,7 @@
             quality: 'balanced',
             fit: 'best first test for the new flow',
             summary: 'Routes the Roblox nowgg session onto Rift so the game opens on the Rift domain instead of a separate nowgg tab.',
-            url: 'https://159.ip.nowgg.fun/apps/a/19900/b.html',
+            url: 'https://now.gg/apps/a/19900/b.html',
         },
         {
             id: 'fortnite',
@@ -203,6 +203,38 @@
         state.proxyMode = 'uv';
     }
 
+    function isResolvableNowggTarget(targetUrl) {
+        try {
+            const parsed = new URL(targetUrl, window.location.origin);
+            return parsed.hostname === 'now.gg'
+                || parsed.hostname === 'www.now.gg'
+                || parsed.hostname === 'nowgg.fun'
+                || parsed.hostname === 'www.nowgg.fun'
+                || /^\d+\.ip\.nowgg\.fun$/i.test(parsed.hostname);
+        } catch {
+            return false;
+        }
+    }
+
+    async function resolveLaunchTarget(targetUrl) {
+        if (!isResolvableNowggTarget(targetUrl)) {
+            return targetUrl;
+        }
+
+        const endpoint = `/api/nowgg/resolve?url=${encodeURIComponent(targetUrl)}`;
+        const response = await fetch(endpoint, {
+            headers: {
+                accept: 'application/json',
+            },
+            cache: 'no-store',
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.resolvedUrl) {
+            throw new Error(payload?.error || 'could not resolve a live now.gg session host');
+        }
+        return payload.resolvedUrl;
+    }
+
     function buildEmbedUrl(targetUrl) {
         return `/uv/index.html?url=${encodeURIComponent(targetUrl)}`;
     }
@@ -376,7 +408,8 @@
                 await prepareProxyMode();
             }
 
-            const nextUrl = direct ? entry.url : buildEmbedUrl(entry.url);
+            const launchTarget = await resolveLaunchTarget(entry.url);
+            const nextUrl = direct ? launchTarget : buildEmbedUrl(launchTarget);
             state.lastLaunch = {
                 id: entry.id,
                 at: Date.now(),

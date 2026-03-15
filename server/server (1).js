@@ -205,6 +205,16 @@ const TOTALLY_SCIENCE_RESOLVED_TTL_MS = 30 * 60 * 1000;
 const VELARA_CACHE_TTL_MS = 5 * 60 * 1000;
 const VELARA_RESOLVED_TTL_MS = 30 * 60 * 1000;
 const SERAPH_CACHE_TTL_MS = 5 * 60 * 1000;
+const NOWGG_RESOLVE_TTL_MS = Math.max(5 * 1000, Number(process.env.NOWGG_RESOLVE_TTL_MS || 2 * 60 * 1000));
+const NOWGG_RESOLVE_TIMEOUT_MS = Math.max(1500, Number(process.env.NOWGG_RESOLVE_TIMEOUT_MS || 5000));
+const NOWGG_RESOLVE_CONCURRENCY = Math.max(1, Math.min(24, Number(process.env.NOWGG_RESOLVE_CONCURRENCY || 8)));
+const NOWGG_RESOLVE_MAX_PREFIX = Math.max(8, Math.min(512, Number(process.env.NOWGG_RESOLVE_MAX_PREFIX || 255)));
+const NOWGG_PREFIX_HINTS = Array.from(new Set(
+    String(process.env.NOWGG_PREFIX_HINTS || '159,108')
+        .split(',')
+        .map((entry) => Number.parseInt(String(entry || '').trim(), 10))
+        .filter((value) => Number.isInteger(value) && value > 0 && value <= NOWGG_RESOLVE_MAX_PREFIX)
+));
 let authWriteLock = Promise.resolve();
 const sessionTouchWriteMap = new Map();
 let lastKnownGoodAuthDb = null;
@@ -223,6 +233,7 @@ let petezahCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let totallyScienceCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let velaraCatalogCache = { expiresAt: 0, items: [], map: new Map() };
 let seraphCatalogCache = { expiresAt: 0, items: [], map: new Map() };
+const nowggResolveCache = new Map();
 const totallyScienceResolvedLaunchCache = new Map();
 const velaraResolvedLaunchCache = new Map();
 const duckMathResolvedLaunchCache = new Map();
@@ -243,6 +254,182 @@ async function readRawBody(req) {
         req.on('end', () => resolve(Buffer.concat(chunks)));
         req.on('error', reject);
     });
+}
+
+function isResolvableNowggHost(hostname) {
+    const host = String(hostname || '').trim().toLowerCase();
+    return host === 'now.gg'
+        || host === 'www.now.gg'
+        || host === 'nowgg.fun'
+        || host === 'www.nowgg.fun'
+        || /^\d+\.ip\.nowgg\.fun$/i.test(host);
+}
+
+function hashString(input) {
+    let hash = 0;
+    const value = String(input || '');
+    for (let index = 0; index < value.length; index += 1) {
+        hash = ((hash << 5) - hash) + value.charCodeAt(index);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+
+function buildNowggCacheKey(targetUrl) {
+    const parsed = new URL(targetUrl);
+    return `${parsed.pathname}${parsed.search}`;
+}
+
+function isBrokenNowggHtml(html) {
+    const source = String(html || '');
+    return source.includes('undefined/undefined/undefined')
+        || /<title[^>]*>\s*<\/title>/i.test(source)
+        || /"url":"https?:\/\/[^"]*\/apps\/undefined\/undefined\/undefined\.html"/i.test(source);
+}
+
+function looksLikeResolvedNowggHtml(html, targetUrl) {
+    const source = String(html || '');
+    if (!source || isBrokenNowggHtml(source)) return false;
+    if (!source.includes('__NEXT_DATA__')) return false;
+
+    const parsed = new URL(targetUrl);
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments.length >= 4 && segments[0] === 'apps') {
+        const expectedIndex = JSON.stringify(segments.slice(1));
+        if (!source.includes(`"index":${expectedIndex}`)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function buildNowggPrefixPlan(targetUrl) {
+    const target = new URL(targetUrl);
+    const ordered = [];
+    const seen = new Set();
+    const add = (value) => {
+        const numeric = Number.parseInt(String(value || '').trim(), 10);
+        if (!Number.isInteger(numeric) || numeric <= 0 || numeric > NOWGG_RESOLVE_MAX_PREFIX || seen.has(numeric)) return;
+        seen.add(numeric);
+        ordered.push(numeric);
+    };
+    const currentHostMatch = target.hostname.match(/^(\d+)\.ip\.nowgg\.fun$/i);
+    if (currentHostMatch?.[1]) add(currentHostMatch[1]);
+    NOWGG_PREFIX_HINTS.forEach(add);
+    for (const hint of NOWGG_PREFIX_HINTS) {
+        for (let offset = 1; offset <= 4; offset += 1) {
+            add(hint - offset);
+            add(hint + offset);
+        }
+    }
+
+    const seed = hashString(`${target.pathname}${target.search}`);
+    const start = (seed % NOWGG_RESOLVE_MAX_PREFIX) + 1;
+    for (let offset = 0; offset < NOWGG_RESOLVE_MAX_PREFIX; offset += 1) {
+        add(((start + offset - 1) % NOWGG_RESOLVE_MAX_PREFIX) + 1);
+    }
+
+    return ordered;
+}
+
+async function fetchNowggCandidateHtml(candidateUrl) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), NOWGG_RESOLVE_TIMEOUT_MS);
+    try {
+        const response = await fetch(candidateUrl, {
+            redirect: 'follow',
+            signal: controller.signal,
+            headers: {
+                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'accept-language': 'en-US,en;q=0.9',
+                'cache-control': 'no-cache',
+                'pragma': 'no-cache',
+                'upgrade-insecure-requests': '1',
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+            },
+        });
+        const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+        const html = contentType.includes('text/html') || !contentType
+            ? await response.text()
+            : '';
+        return {
+            ok: response.ok,
+            status: response.status,
+            contentType,
+            html,
+            finalUrl: response.url || candidateUrl,
+        };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function resolveNowggLaunchUrl(targetUrl) {
+    const normalized = new URL(targetUrl);
+    if (!isResolvableNowggHost(normalized.hostname)) {
+        throw new Error('unsupported now.gg host');
+    }
+
+    const cacheKey = buildNowggCacheKey(normalized.href);
+    const cached = nowggResolveCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.value;
+    }
+
+    const tryCandidate = async (prefix) => {
+        const candidate = new URL(normalized.href);
+        candidate.protocol = 'https:';
+        candidate.host = `${prefix}.ip.nowgg.fun`;
+        const probe = await fetchNowggCandidateHtml(candidate.href);
+        if (!probe.ok) {
+            return { ok: false, prefix, url: candidate.href, status: probe.status, reason: `http ${probe.status}` };
+        }
+        if (!looksLikeResolvedNowggHtml(probe.html, candidate.href)) {
+            return { ok: false, prefix, url: candidate.href, status: probe.status, reason: 'fallback html' };
+        }
+        return {
+            ok: true,
+            prefix,
+            url: candidate.href,
+            status: probe.status,
+            finalUrl: probe.finalUrl,
+        };
+    };
+
+    const prefixes = buildNowggPrefixPlan(normalized.href);
+    const attempts = [];
+    for (let index = 0; index < prefixes.length; index += NOWGG_RESOLVE_CONCURRENCY) {
+        const batch = prefixes.slice(index, index + NOWGG_RESOLVE_CONCURRENCY);
+        const results = await Promise.all(batch.map(async (prefix) => {
+            try {
+                return await tryCandidate(prefix);
+            } catch (error) {
+                return { ok: false, prefix, url: `https://${prefix}.ip.nowgg.fun${normalized.pathname}${normalized.search}`, reason: error.message || 'probe failed' };
+            }
+        }));
+
+        for (const result of results) {
+            attempts.push(result);
+            if (!result.ok) continue;
+            const resolved = {
+                inputUrl: normalized.href,
+                resolvedUrl: result.url,
+                prefix: result.prefix,
+                host: `${result.prefix}.ip.nowgg.fun`,
+                cached: false,
+                attempts: attempts.slice(0, 12),
+            };
+            nowggResolveCache.set(cacheKey, {
+                expiresAt: Date.now() + NOWGG_RESOLVE_TTL_MS,
+                value: resolved,
+            });
+            return resolved;
+        }
+    }
+
+    const details = attempts.slice(0, 12).map((entry) => `${entry.prefix || '?'}:${entry.reason || entry.status || 'failed'}`).join(', ');
+    throw new Error(details ? `no working now.gg session host found (${details})` : 'no working now.gg session host found');
 }
 
 async function proxyVelara(req, res, basePath, tail = '') {
@@ -4548,6 +4735,33 @@ attachCloudControlRoutes({
     updateAuthDb,
     getSessionFromRequest,
     jsonError,
+});
+
+app.get('/api/nowgg/resolve', async (req, res) => {
+    try {
+        const rawUrl = String(req.query?.url || '').trim();
+        if (!rawUrl) return jsonError(res, 400, 'Missing now.gg target url');
+
+        let targetUrl;
+        try {
+            targetUrl = new URL(rawUrl).href;
+        } catch {
+            return jsonError(res, 400, 'Invalid target url');
+        }
+
+        const parsed = new URL(targetUrl);
+        if (!isResolvableNowggHost(parsed.hostname)) {
+            return jsonError(res, 400, 'Unsupported now.gg host');
+        }
+
+        const resolved = await resolveNowggLaunchUrl(targetUrl);
+        return res.json({
+            ok: true,
+            ...resolved,
+        });
+    } catch (error) {
+        return jsonError(res, 502, `now.gg resolve failed: ${error.message}`);
+    }
 });
 
 app.get('/api/stats/users', async (req, res) => {
