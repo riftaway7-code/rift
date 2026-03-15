@@ -44,14 +44,26 @@
       const defaultWisp = fallbackWisp;
       return wisp || defaultWisp;
     }
+    const epoxyTransportFactory = `
+      const { default: EpoxyTransport } = await import("https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs");
+      class RiftEpoxyTransport extends EpoxyTransport {
+        async request(remote, method, body, headers, signal) {
+          if (headers && typeof headers[Symbol.iterator] !== "function") {
+            headers = Object.entries(headers);
+          }
+          return await super.request(remote, method, body, headers, signal);
+        }
+      }
+      return [RiftEpoxyTransport, "rift-epoxy"];
+    `;
     async function setTransport(transportsel) {
       const wispUrl = getWispUrl();
       switch (transportsel) {
         case "libcurl":
-          await connection.setTransport("https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs", [{ wisp: wispUrl }]);
+          await connection.setManualTransport(epoxyTransportFactory, [{ wisp: wispUrl }]);
           break;
         default:
-          await connection.setTransport("https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs", [{ wisp: wispUrl }]);
+          await connection.setManualTransport(epoxyTransportFactory, [{ wisp: wispUrl }]);
           break;
       }
     }
