@@ -25,6 +25,8 @@ async function handleRequest(event) {
             url.pathname.startsWith("/scramjet/") ||
             url.pathname.startsWith("/baremux/") ||
             url.pathname.startsWith("/libcurl/") ||
+            url.pathname.startsWith("/epoxy/") ||
+            url.pathname.startsWith("/uv/") ||
             url.pathname.startsWith("/wisp/")
         );
         if (isInternalRoute) {

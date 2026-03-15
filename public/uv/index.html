@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Rift UV Launch</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #05070b;
+            --panel: rgba(18, 26, 38, 0.92);
+            --panel-border: rgba(140, 196, 255, 0.18);
+            --text: #eef5ff;
+            --muted: rgba(214, 228, 248, 0.72);
+            --accent: #8fc8ff;
+            --accent-soft: rgba(143, 200, 255, 0.18);
+            --danger: #ff8b8b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top, rgba(83, 139, 207, 0.25), transparent 45%),
+                linear-gradient(180deg, #071019 0%, var(--bg) 100%);
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .shell {
+            width: min(720px, 100%);
+            padding: 28px;
+            border-radius: 24px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        .kicker {
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 11px;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: clamp(28px, 4vw, 44px);
+            line-height: 1.05;
+        }
+
+        p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .stack {
+            display: grid;
+            gap: 18px;
+            margin-top: 28px;
+        }
+
+        .field {
+            display: grid;
+            gap: 10px;
+        }
+
+        label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        input {
+            width: 100%;
+            border: 1px solid rgba(143, 200, 255, 0.18);
+            background: rgba(8, 12, 18, 0.78);
+            color: var(--text);
+            border-radius: 14px;
+            padding: 14px 16px;
+            font-size: 14px;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        button,
+        a.action-link {
+            appearance: none;
+            border: 1px solid rgba(143, 200, 255, 0.2);
+            border-radius: 999px;
+            padding: 12px 18px;
+            font-size: 14px;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.04);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--accent-soft), rgba(255, 255, 255, 0.05));
+            border-color: rgba(143, 200, 255, 0.36);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .status {
+            min-height: 24px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .status.error {
+            color: var(--danger);
+        }
+
+        .note {
+            padding: 16px 18px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 13px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <div class="kicker">rift cloud</div>
+        <h1>Ultraviolet route for now.gg</h1>
+        <p>This launcher registers a dedicated UV service worker, connects UV to Rift's Wisp-backed BareMux transport, and then moves the tab onto the proxied now.gg session.</p>
+
+        <form id="uvLaunchForm" class="stack">
+            <div class="field">
+                <label for="uvTarget">Target URL</label>
+                <input id="uvTarget" name="url" type="url" autocomplete="off" placeholder="https://159.ip.nowgg.fun/apps/a/19900/b.html">
+            </div>
+            <div class="actions">
+                <button id="uvLaunchButton" class="primary" type="submit">Launch Through UV</button>
+                <a id="uvDirectButton" class="action-link" href="/">Open Direct</a>
+            </div>
+            <div id="uvStatus" class="status" aria-live="polite"></div>
+        </form>
+
+        <div class="stack">
+            <div class="note">TinyJet and Scramjet stay in Rift for the existing browser and embed flows. This path is separate and only handles UV-backed now.gg launches.</div>
+        </div>
+    </main>
+
+    <script src="/baremux/index.js"></script>
+    <script src="/uv/uv.bundle.js"></script>
+    <script src="/uv/uv.config.js"></script>
+    <script>
+        (function () {
+            const form = document.getElementById('uvLaunchForm');
+            const targetInput = document.getElementById('uvTarget');
+            const launchButton = document.getElementById('uvLaunchButton');
+            const directButton = document.getElementById('uvDirectButton');
+            const statusNode = document.getElementById('uvStatus');
+            const params = new URLSearchParams(window.location.search);
+            const connection = window.BareMux?.BareMuxConnection
+                ? new BareMux.BareMuxConnection('/baremux/worker.js')
+                : null;
+
+            function setStatus(message, isError) {
+                statusNode.textContent = message || '';
+                statusNode.classList.toggle('error', !!isError);
+            }
+
+            function normalizeTarget(raw) {
+                const value = String(raw || '').trim();
+                if (!value) {
+                    throw new TypeError('Enter a target URL first.');
+                }
+                return new URL(value, window.location.origin).toString();
+            }
+
+            function buildWispUrl() {
+                return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/wisp/`;
+            }
+
+            async function ensureUvWorker() {
+                if (!('serviceWorker' in navigator)) {
+                    throw new Error('Service workers are unavailable in this browser.');
+                }
+
+                const registration = await navigator.serviceWorker.register('/uv/sw.js', {
+                    scope: '/uv/service/',
+                    updateViaCache: 'none',
+                });
+
+                if (registration.active) {
+                    return registration;
+                }
+
+                const worker = registration.installing || registration.waiting;
+                if (!worker) {
+                    return registration;
+                }
+
+                await new Promise((resolve, reject) => {
+                    const timer = setTimeout(() => {
+                        reject(new Error('UV service worker did not activate in time.'));
+                    }, 10000);
+
+                    worker.addEventListener('statechange', () => {
+                        if (worker.state === 'activated') {
+                            clearTimeout(timer);
+                            resolve();
+                        } else if (worker.state === 'redundant') {
+                            clearTimeout(timer);
+                            reject(new Error('UV service worker became redundant.'));
+                        }
+                    });
+                });
+
+                return registration;
+            }
+
+            async function ensureTransport() {
+                if (!connection) {
+                    throw new Error('BareMux is unavailable on this deployment.');
+                }
+
+                await connection.setTransport('/uv/rift-epoxy.mjs', [{
+                    wisp: buildWispUrl(),
+                }]);
+            }
+
+            function buildUvUrl(target) {
+                return `${self.__uv$config.prefix}${self.__uv$config.encodeUrl(target)}`;
+            }
+
+            async function launch(rawTarget) {
+                const target = normalizeTarget(rawTarget);
+                directButton.href = target;
+                launchButton.disabled = true;
+
+                try {
+                    setStatus('Registering UV service worker...', false);
+                    await ensureUvWorker();
+
+                    setStatus('Connecting UV transport over Wisp...', false);
+                    await ensureTransport();
+
+                    setStatus('Opening proxied session...', false);
+                    window.location.assign(buildUvUrl(target));
+                } catch (error) {
+                    launchButton.disabled = false;
+                    setStatus(error?.message || 'UV launch failed.', true);
+                }
+            }
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                await launch(targetInput.value);
+            });
+
+            const initialTarget = params.get('url');
+            if (initialTarget) {
+                targetInput.value = initialTarget;
+                directButton.href = initialTarget;
+                launch(initialTarget);
+            }
+        })();
+    </script>
+</body>
+</html>
