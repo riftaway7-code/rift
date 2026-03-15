@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.14',
+    version: '2.3.15',
     notes: [
+        'changed Roblox cloud launch to target the resolved 108.ip.nowgg.fun session host directly instead of the generic nowgg launcher page',
         'reworked Rift cloud so supported nowgg games launch through Rift\'s top-level proxy route instead of the old nested cloud player',
         'changed the cloud bootstrap panel to show copyable Moonlight and Tailscale host values instead of relying on a placeholder deep link',
         'replaced the old nowgg cloud page with a Rift-native host queue and bootstrap panel for Sunshine and Moonlight sessions',
