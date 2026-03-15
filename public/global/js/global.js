@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.19',
+    version: '2.3.20',
     notes: [
+        'stopped the Rift service worker from proxying internal Scramjet, BareMux, libcurl, wisp, and embed assets so the cloud runtime can load without 500 loops',
         'vendored the Scramjet runtime into public/scramjet and fixed its config paths so cloud embed pages no longer depend on the server alias into node_modules',
         'corrected Rift cloud launches to use the real embed.html entrypoint instead of the missing /embed clean route',
         'changed Rift cloud launches to open nowgg titles through the dedicated embed shell so BareMux transport stays alive while the proxied session starts',

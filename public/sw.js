@@ -17,10 +17,15 @@ async function handleRequest(event) {
 
         const isInternalRoute = url.origin === self.location.origin && (
             url.pathname === "/proxy" ||
+            url.pathname === "/embed.html" ||
             url.pathname.startsWith("/assets/") ||
             url.pathname.startsWith("/components/") ||
             url.pathname.startsWith("/global/") ||
-            url.pathname.startsWith("/api/")
+            url.pathname.startsWith("/api/") ||
+            url.pathname.startsWith("/scramjet/") ||
+            url.pathname.startsWith("/baremux/") ||
+            url.pathname.startsWith("/libcurl/") ||
+            url.pathname.startsWith("/wisp/")
         );
         if (isInternalRoute) {
             return await fetch(request);
