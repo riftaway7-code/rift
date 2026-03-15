@@ -8,7 +8,7 @@
             quality: 'balanced',
             fit: 'best first test for the new flow',
             summary: 'Routes the Roblox nowgg session onto Rift so the game opens on the Rift domain instead of a separate nowgg tab.',
-            url: 'https://now.gg/apps/a/19900/b.html',
+            url: 'https://159.ip.nowgg.fun/apps/a/19900/b.html',
         },
         {
             id: 'fortnite',
