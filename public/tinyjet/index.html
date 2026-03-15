@@ -2,15 +2,15 @@
   <form id="search"><input id="url" type="text" class="search-input search" placeholder="Search the web or enter URL"></form>
   <form id="wisp"><input id="websocket" type="text" class="search-input search"></form>
   <iframe id="iframe" width="100%" height="100%"></iframe>
-  <script src="https://cdn.jsdelivr.net/gh/soap-phia/tinyjet@latest/tinyjet/scramjet.all.js" defer></script>
+  <script src="./tinyjet/scramjet.all.js" defer></script>
   <script type="module" defer>
-    import * as BareMux from "https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs";
+    import * as BareMux from "/baremux/index.mjs";
     const { ScramjetController } = $scramjetLoadController();
     const scramjet = new ScramjetController({ 
       files: { 
-        wasm: "https://cdn.jsdelivr.net/gh/soap-phia/tinyjet@latest/tinyjet/wasm.wasm", 
-        all: "https://cdn.jsdelivr.net/gh/soap-phia/tinyjet@latest/tinyjet/scramjet.all.js", 
-        sync: "https://cdn.jsdelivr.net/gh/soap-phia/tinyjet@latest/tinyjet/scramjet.sync.js" 
+        wasm: "./tinyjet/wasm.wasm", 
+        all: "./tinyjet/scramjet.all.js", 
+        sync: "./tinyjet/scramjet.sync.js" 
       } 
     });
     try {
@@ -30,20 +30,17 @@
     async function setTransport(transportsel) {
       const wispUrl = getWispUrl();
       switch (transportsel) {
-        case "epoxy":
-          await connection.setTransport("https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs", [{ wisp: wispUrl }]);
-          break;
         case "libcurl":
-          await connection.setTransport("https://cdn.jsdelivr.net/npm/@mercuryworkshop/libcurl-transport/dist/index.mjs", [{ websocket: wispUrl }]);
+          await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
           break;
         default:
-          await connection.setTransport("https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs", [{ wisp: wispUrl }]);
+          await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
           break;
       }
     }
     document.getElementById("wisp").addEventListener("submit", async (event) => {
         event.preventDefault();
-        await setTransport("epoxy");
+        await setTransport("libcurl");
     });
     function search(input) {
       let template = "https://search.brave.com/search?q=%s";
@@ -74,7 +71,7 @@
     const params = new URLSearchParams(window.location.search);
     const launchUrl = params.get("url");
 
-    await setTransport("epoxy");
+    await setTransport("libcurl");
     if (launchUrl) {
       document.getElementById("url").value = launchUrl;
       openTarget(launchUrl);
