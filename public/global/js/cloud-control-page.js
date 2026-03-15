@@ -287,7 +287,7 @@
     }
 
     function buildEmbedUrl(targetUrl) {
-        return `/embed.html?url=${encodeURIComponent(targetUrl)}`;
+        return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
     }
 
     function requiresScramjet(targetUrl) {
@@ -403,12 +403,12 @@
             ['game', entry.title],
             ['source', 'nowgg.fun'],
             ['last launch', lastLaunchTime],
-            ['active route', state.proxyMode === 'scramjet' ? 'rift embed shell + scramjet' : 'rift embed shell + compatibility proxy'],
+            ['active route', state.proxyMode === 'scramjet' ? 'tinyjet shell + scramjet' : 'tinyjet shell + compatibility proxy'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('');
 
         connectionSummary.innerHTML = [
             ['target', entry.url.replace(/^https?:\/\//i, '')],
-            ['embed model', 'rift embed shell'],
+            ['embed model', 'tinyjet shell'],
             ['session load', 'proxied inside rift'],
             ['fallback', 'open direct'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${escapeHtml(row[1])}</strong></div>`).join('');
@@ -429,11 +429,11 @@
         `;
 
         instructionList.innerHTML = [
-            'Rift now opens cloud sessions through its dedicated embed shell so the BareMux worker stays alive while the session starts.',
-            'That avoids the transport reset that happened when Rift jumped straight from the launcher page onto the proxied nowgg URL.',
+            'Rift now hands cloud sessions to the existing tinyjet shell, which already has its own Scramjet controller and BareMux worker setup.',
+            'That avoids the broken root-level embed path that kept failing with "there are no bare clients" before the proxied session could start.',
             state.proxyMode === 'scramjet'
-                ? 'Scramjet transport is available on this deployment, so Rift will load the session inside the embed shell with the stronger route.'
-                : 'If Scramjet transport is unavailable, Rift falls back to the compatibility proxy path inside the same embed shell.',
+                ? 'Scramjet transport is available on this deployment, so Rift will load the session inside the tinyjet shell with the stronger route.'
+                : 'If Scramjet transport is unavailable, Rift falls back to the compatibility proxy path inside the same tinyjet shell.',
             'If a game still rejects the proxied launch, use the direct button as a temporary fallback and report which title failed.',
         ].map((line) => `<li>${line}</li>`).join('');
 

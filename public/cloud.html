@@ -390,11 +390,11 @@
                     <div class="cloud-banner-copy">
                         <div class="cloud-kicker">cloud gaming</div>
                         <div class="cloud-hero">nowgg sessions routed through rift</div>
-                        <div class="cloud-copy">Rift cloud now launches supported nowgg games through Rift's embed shell. The goal is simple: keep the game on the Rift domain and keep the transport worker alive while the proxied session starts.</div>
+                        <div class="cloud-copy">Rift cloud now launches supported nowgg games through Rift's tinyjet shell. The goal is simple: keep the game on the Rift domain while using the proxy stack that already knows how to hold onto its transport state.</div>
                     </div>
                     <div class="cloud-stat-row">
                         <div class="cloud-stat"><span class="material-icons">computer</span><span id="cloudStatHosts">0 games ready</span></div>
-                        <div class="cloud-stat"><span class="material-icons">route</span><span id="cloudStatQueue">rift embed shell</span></div>
+                        <div class="cloud-stat"><span class="material-icons">route</span><span id="cloudStatQueue">tinyjet shell</span></div>
                         <div class="cloud-stat"><span class="material-icons">gamepad</span><span id="cloudStatProtocol">scramjet / wisp</span></div>
                     </div>
                 </div>
@@ -455,7 +455,7 @@
                     </section>
                     <section class="cloud-side-card">
                         <div class="cloud-kicker">notes</div>
-                        <div class="cloud-detail-note">This mode is now focused on nowgg-in-Rift. Rift now launches through its embed shell so the BareMux worker does not reset between the launcher and the proxied session. If the stronger route is unavailable, Rift stops and lets you use the direct fallback.</div>
+                        <div class="cloud-detail-note">This mode is now focused on nowgg-in-Rift. Rift now launches through its tinyjet shell so the cloud page uses the proxy stack that already survives long enough to start the session. If the stronger route is unavailable, Rift stops and lets you use the direct fallback.</div>
                     </section>
                 </aside>
             </div>
