@@ -302,25 +302,32 @@
                     updateViaCache: 'none',
                 });
 
-                if (!registration.active) {
-                    const worker = registration.installing || registration.waiting;
-                    if (worker) {
-                        await new Promise((resolve, reject) => {
-                            const timer = setTimeout(() => reject(new Error('UV service worker did not activate in time.')), 10000);
-                            worker.addEventListener('statechange', () => {
-                                if (worker.state === 'activated') {
-                                    clearTimeout(timer);
-                                    resolve();
-                                } else if (worker.state === 'redundant') {
-                                    clearTimeout(timer);
-                                    reject(new Error('UV service worker became redundant.'));
-                                }
-                            });
-                        });
-                    }
+                if (registration.active) {
+                    return registration;
                 }
 
-                await navigator.serviceWorker.ready;
+                const worker = registration.installing || registration.waiting;
+                if (!worker) {
+                    throw new Error('UV service worker did not expose an active worker.');
+                }
+
+                if (worker.state === 'activated') {
+                    return registration;
+                }
+
+                await new Promise((resolve, reject) => {
+                    const timer = setTimeout(() => reject(new Error('UV service worker did not activate in time.')), 10000);
+                    worker.addEventListener('statechange', () => {
+                        if (worker.state === 'activated') {
+                            clearTimeout(timer);
+                            resolve();
+                        } else if (worker.state === 'redundant') {
+                            clearTimeout(timer);
+                            reject(new Error('UV service worker became redundant.'));
+                        }
+                    });
+                });
+
                 return registration;
             }
 
