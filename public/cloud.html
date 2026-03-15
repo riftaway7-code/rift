@@ -381,7 +381,7 @@
     <div class="container">
         <header>
             <h1>rift cloud</h1>
-            <p class="page-subtitle">request a hosted Sunshine session and connect through Moonlight</p>
+            <p class="page-subtitle">launch cloud games through Rift without leaving the site</p>
         </header>
 
         <section class="cloud-shell">
@@ -389,13 +389,13 @@
                 <div class="cloud-banner-top">
                     <div class="cloud-banner-copy">
                         <div class="cloud-kicker">cloud gaming</div>
-                        <div class="cloud-hero">heavy games without a heavy device</div>
-                        <div class="cloud-copy">Rift cloud now works as a control plane for real host PCs. Request a slot, wait in queue if needed, then connect to the assigned Sunshine host through Moonlight over Tailscale.</div>
+                        <div class="cloud-hero">nowgg sessions routed through rift</div>
+                        <div class="cloud-copy">Rift cloud now launches supported nowgg games through Rift's top-level proxy route. The goal is simple: keep the game on the Rift domain and avoid the old iframe path that nowgg blocks.</div>
                     </div>
                     <div class="cloud-stat-row">
-                        <div class="cloud-stat"><span class="material-icons">computer</span><span id="cloudStatHosts">0 hosts online</span></div>
-                        <div class="cloud-stat"><span class="material-icons">queue</span><span id="cloudStatQueue">0 in queue</span></div>
-                        <div class="cloud-stat"><span class="material-icons">gamepad</span><span id="cloudStatProtocol">sunshine / moonlight</span></div>
+                        <div class="cloud-stat"><span class="material-icons">computer</span><span id="cloudStatHosts">0 games ready</span></div>
+                        <div class="cloud-stat"><span class="material-icons">route</span><span id="cloudStatQueue">top-level proxy route</span></div>
+                        <div class="cloud-stat"><span class="material-icons">gamepad</span><span id="cloudStatProtocol">scramjet / wisp</span></div>
                     </div>
                 </div>
                 <div class="cloud-toolbar">
@@ -409,17 +409,17 @@
                     <div class="cloud-player-head">
                         <div class="cloud-player-copy">
                             <div class="cloud-player-title">session status</div>
-                            <div id="cloudPlayerStatus" class="cloud-player-sub">sign in, request a session, and Rift will show your host bootstrap here</div>
+                            <div id="cloudPlayerStatus" class="cloud-player-sub">pick a game and Rift will move the main page onto the proxied session</div>
                         </div>
                         <div class="cloud-side-actions">
                             <button id="cloudRefreshStatus" class="cloud-action" type="button">
                                 <span class="material-icons">refresh</span>
-                                <span>refresh status</span>
+                                <span>refresh route</span>
                             </button>
                         </div>
                     </div>
                     <div class="cloud-player-frame-wrap">
-                        <div id="cloudPlayerEmpty" class="cloud-player-empty">No active session yet. Sign in on the account page, choose a game from the launcher, then request a slot. Rift will show queue position, assigned host, and Moonlight/Sunshine connection details here.</div>
+                        <div id="cloudPlayerEmpty" class="cloud-player-empty">Pick a cloud game and press <strong>play in rift</strong>. Rift will register its proxy stack, choose the active route, and navigate the main page onto the nowgg session.</div>
                         <div id="cloudSessionView" class="cloud-session-view" hidden>
                             <div id="cloudSessionPills" class="cloud-session-links"></div>
                             <div id="cloudSessionSummary" class="cloud-session-list"></div>
@@ -436,16 +436,16 @@
                         <div class="cloud-kicker">selected game</div>
                         <div id="cloudDetailTitle" class="cloud-side-title">pick a cloud game</div>
                         <div id="cloudDetailSub" class="cloud-side-sub">ready when you are</div>
-                        <div id="cloudDetailCopy" class="cloud-side-copy">Select a game from the launcher and Rift will show queue/host eligibility, stream fit, and request controls here.</div>
+                        <div id="cloudDetailCopy" class="cloud-side-copy">Select a game from the launcher and Rift will show the route it will use, the nowgg source target, and the play controls here.</div>
                         <div id="cloudDetailTags" class="cloud-tags"></div>
                         <div class="cloud-side-actions">
                             <button id="cloudRequestSession" class="cloud-action primary" type="button">
                                 <span class="material-icons">play_arrow</span>
-                                <span>request session</span>
+                                <span>play in rift</span>
                             </button>
                             <button id="cloudEndSession" class="cloud-action" type="button">
                                 <span class="material-icons">stop_circle</span>
-                                <span>end session</span>
+                                <span>open direct</span>
                             </button>
                         </div>
                     </section>
@@ -455,7 +455,7 @@
                     </section>
                     <section class="cloud-side-card">
                         <div class="cloud-kicker">notes</div>
-                        <div class="cloud-detail-note">This mode is built for real host PCs. Hosts report capacity and stream health to Rift, users queue for a slot, and the bootstrap panel tells them how to connect through Moonlight, Tailscale, and any launch links the host provides.</div>
+                        <div class="cloud-detail-note">This mode is now focused on nowgg-in-Rift. Rift first tries the top-level Scramjet route because nowgg blocks iframe embedding on the real session host. If the stronger route is unavailable, Rift falls back to the compatibility proxy path on the same domain.</div>
                     </section>
                 </aside>
             </div>
@@ -515,6 +515,11 @@
     <script src="/components/overlay.js"></script>
     <script src="/components/components.js"></script>
     <script src="/components/404.js"></script>
+    <script src="/register-sw.js"></script>
+    <script src="/baremux/index.js"></script>
+    <script src="/scramjet/scramjet.codecs.js"></script>
+    <script src="/scramjet/scramjet.config.js"></script>
+    <script src="/scramjet/scramjet.bundle.js"></script>
     <script src="/global/js/cloud-control-page.js"></script>
 </body>
 </html>

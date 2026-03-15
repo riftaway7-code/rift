@@ -58,7 +58,7 @@ const RIFT_UI = {
         '/apps': { subtitle: 'tools, utilities, and helper surfaces', kicker: 'tools', accent: 'apps' },
         '/music': { subtitle: 'tracks, playlists, and saved listening', kicker: 'media', accent: 'music' },
         '/soundboard': { subtitle: 'stacked sound libraries and quick preview pads', kicker: 'media', accent: 'soundboard' },
-        '/cloud': { subtitle: 'launch nowgg-powered cloud sessions through Rift', kicker: 'cloud', accent: 'cloud' },
+        '/cloud': { subtitle: 'launch nowgg sessions through Rift without leaving the site', kicker: 'cloud', accent: 'cloud' },
         '/chat': { subtitle: 'rooms, dms, and live status', kicker: 'social', accent: 'chat' },
         '/browser': { subtitle: 'tabs, console, and proxied browsing', kicker: 'browser', accent: 'browser' },
         '/account': { subtitle: 'identity, progress, and presets', kicker: 'identity', accent: 'account' },
@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.13',
+    version: '2.3.14',
     notes: [
+        'reworked Rift cloud so supported nowgg games launch through Rift\'s top-level proxy route instead of the old nested cloud player',
         'changed the cloud bootstrap panel to show copyable Moonlight and Tailscale host values instead of relying on a placeholder deep link',
         'replaced the old nowgg cloud page with a Rift-native host queue and bootstrap panel for Sunshine and Moonlight sessions',
         'added backend cloud-control endpoints for host registration, heartbeats, session requests, and stream bootstrap',

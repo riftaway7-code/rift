@@ -1,17 +1,125 @@
 (function () {
     const catalog = [
-        { id: 'roblox', title: 'roblox', genre: 'sandbox', tags: ['mobile', 'social', 'touch'], quality: 'balanced', fit: 'best on low-power devices', summary: 'Good fit for hosts that can keep a stable 60fps Sunshine stream without forcing a local Roblox install.' },
-        { id: 'fortnite', title: 'fortnite', genre: 'battle royale', tags: ['fps', 'competitive', 'heavy'], quality: 'high', fit: 'best on strong hosts', summary: 'Heavy competitive sessions benefit from host PCs with solid uplink and lower queue contention.' },
-        { id: 'pubg', title: 'pubg mobile', genre: 'battle royale', tags: ['fps', 'mobile', 'squad'], quality: 'balanced', fit: 'good on phones and school laptops', summary: 'A practical mobile-first pick for Sunshine/Moonlight streaming when local installs are blocked.' },
-        { id: 'amongus', title: 'among us', genre: 'party', tags: ['social', 'touch', 'light'], quality: 'low data', fit: 'great on weak devices', summary: 'Light enough to fit lower-end hosts while still giving users a quick party-game queue.' },
-        { id: 'genshin', title: 'genshin impact', genre: 'open world', tags: ['heavy', 'rpg', 'touch'], quality: 'high', fit: 'best on stable internet', summary: 'A stronger candidate for premium host machines with higher bitrate and lower jitter.' },
-        { id: 'cod', title: 'call of duty mobile', genre: 'shooter', tags: ['fps', 'competitive', 'touch'], quality: 'high', fit: 'works best with good latency', summary: 'Queue this when the host fleet has enough headroom for faster FPS streaming.' },
-        { id: 'stumble', title: 'stumble guys', genre: 'party', tags: ['social', 'light', 'mobile'], quality: 'low data', fit: 'very forgiving on weak hardware', summary: 'Useful as a low-pressure test game while you validate the host fleet and client setup.' },
-        { id: 'gd', title: 'geometry dash', genre: 'rhythm', tags: ['precision', 'mobile', 'light'], quality: 'balanced', fit: 'good for short sessions', summary: 'Short, lightweight sessions that can help smoke-test queueing and host availability.' },
-        { id: 'krunker', title: 'krunker', genre: 'arena fps', tags: ['fps', 'fast', 'browser'], quality: 'balanced', fit: 'works best with low latency', summary: 'Good latency-sensitive benchmark for higher-quality hosts.' },
-        { id: 'shell', title: 'shell shockers', genre: 'arena fps', tags: ['fps', 'fast', 'multiplayer'], quality: 'balanced', fit: 'best on low-latency wifi', summary: 'Another fast-action title for testing host placement and client network quality.' },
-        { id: 'crk', title: 'cookie run kingdom', genre: 'rpg', tags: ['touch', 'grind', 'mobile'], quality: 'balanced', fit: 'best for mobile-first users', summary: 'Long-running mobile account sessions work cleanly with Moonlight when the host is already paired.' },
-        { id: 'poppy', title: 'poppy playtime', genre: 'horror', tags: ['story', 'heavy', 'touch'], quality: 'high', fit: 'better with stronger connection', summary: 'A heavier story title that benefits from better bitrate and stronger host hardware.' },
+        {
+            id: 'roblox',
+            title: 'roblox',
+            genre: 'sandbox',
+            tags: ['social', 'mobile', 'touch'],
+            quality: 'balanced',
+            fit: 'best first test for the new flow',
+            summary: 'Routes the Roblox nowgg session onto Rift so the game opens on the Rift domain instead of a separate nowgg tab.',
+            url: 'https://nowgg.fun/apps/a/19900/b.html',
+        },
+        {
+            id: 'fortnite',
+            title: 'fortnite',
+            genre: 'battle royale',
+            tags: ['heavy', 'fps', 'competitive'],
+            quality: 'high',
+            fit: 'needs stronger connection quality',
+            summary: 'A heavier cloud target that benefits from the cleaner top-level proxy route instead of nested iframes.',
+            url: 'https://nowgg.fun/apps/a/10004/b.html',
+        },
+        {
+            id: 'pubg',
+            title: 'pubg mobile',
+            genre: 'battle royale',
+            tags: ['fps', 'mobile', 'squad'],
+            quality: 'balanced',
+            fit: 'good for phones and lighter laptops',
+            summary: 'Mobile-first shooter sessions that are a practical fit for Rift cloud on weaker client devices.',
+            url: 'https://nowgg.fun/apps/proxima-beta/2609/pubg-mobile-resistance.html',
+        },
+        {
+            id: 'amongus',
+            title: 'among us',
+            genre: 'party',
+            tags: ['social', 'light', 'touch'],
+            quality: 'low data',
+            fit: 'forgiving on weak devices',
+            summary: 'A lighter session that is useful for validating the nowgg launch flow without a heavy game load.',
+            url: 'https://nowgg.fun/apps/innersloth-llc/4047/among-us.html',
+        },
+        {
+            id: 'genshin',
+            title: 'genshin impact',
+            genre: 'open world',
+            tags: ['heavy', 'rpg', 'touch'],
+            quality: 'high',
+            fit: 'works best on stable internet',
+            summary: 'A stronger open-world cloud target that benefits from the top-level Rift proxy path.',
+            url: 'https://nowgg.fun/apps/cognosphere-pte-ltd-/1773/genshin-impact.html',
+        },
+        {
+            id: 'cod',
+            title: 'call of duty mobile',
+            genre: 'shooter',
+            tags: ['fps', 'competitive', 'touch'],
+            quality: 'high',
+            fit: 'best on lower-latency wifi',
+            summary: 'Fast-action mobile FPS sessions where the old iframe route was especially fragile.',
+            url: 'https://nowgg.fun/apps/a/10008/b.html',
+        },
+        {
+            id: 'stumble',
+            title: 'stumble guys',
+            genre: 'party',
+            tags: ['social', 'light', 'mobile'],
+            quality: 'low data',
+            fit: 'good low-pressure smoke test',
+            summary: 'A light multiplayer title for quickly checking whether the proxied launch route is healthy.',
+            url: 'https://nowgg.fun/apps/a/10011/b.html',
+        },
+        {
+            id: 'gd',
+            title: 'geometry dash',
+            genre: 'rhythm',
+            tags: ['precision', 'light', 'mobile'],
+            quality: 'balanced',
+            fit: 'short sessions and fast retries',
+            summary: 'Useful for short cloud sessions and repeated launch testing without a long warm-up.',
+            url: 'https://nowgg.fun/apps/robtop-games/1400/geometry-dash.html',
+        },
+        {
+            id: 'krunker',
+            title: 'krunker',
+            genre: 'arena fps',
+            tags: ['fps', 'fast', 'browser'],
+            quality: 'balanced',
+            fit: 'best on low-latency wifi',
+            summary: 'A good latency-sensitive title for testing the cleaner top-level launch model.',
+            url: 'https://nowgg.fun/apps/yendis-entertainment/51644/krunker.html',
+        },
+        {
+            id: 'shell',
+            title: 'shell shockers',
+            genre: 'arena fps',
+            tags: ['fps', 'fast', 'multiplayer'],
+            quality: 'balanced',
+            fit: 'best on steady wifi',
+            summary: 'Another fast-action title for checking how well Rift keeps nowgg inside the site flow.',
+            url: 'https://nowgg.fun/apps/blue-wizard-digital/51615/shell-shockers.html',
+        },
+        {
+            id: 'crk',
+            title: 'cookie run kingdom',
+            genre: 'rpg',
+            tags: ['touch', 'grind', 'mobile'],
+            quality: 'balanced',
+            fit: 'best for mobile-first users',
+            summary: 'Longer mobile sessions that are still more forgiving than the heavier shooters.',
+            url: 'https://nowgg.fun/apps/a/10019/b.html',
+        },
+        {
+            id: 'poppy',
+            title: 'poppy playtime',
+            genre: 'horror',
+            tags: ['story', 'heavy', 'touch'],
+            quality: 'high',
+            fit: 'better on stronger internet',
+            summary: 'A heavier story title that is useful once the basic nowgg-in-Rift route is stable.',
+            url: 'https://nowgg.fun/apps/a/10019/b.html',
+        },
     ];
 
     const filters = [
@@ -27,12 +135,10 @@
         filter: 'all',
         query: '',
         selectedId: catalog[0]?.id || '',
-        auth: { authenticated: false },
-        summary: null,
-        sessions: [],
-        bootstrap: null,
         loading: false,
-        pollTimer: null,
+        proxyMode: 'scramjet',
+        lastLaunch: null,
+        lastError: '',
     };
 
     const grid = document.getElementById('cloudGrid');
@@ -63,41 +169,9 @@
         return;
     }
 
-    async function api(path, options = {}) {
-        const response = await fetch(path, {
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(options.headers || {}),
-            },
-            ...options,
-        });
-        const text = await response.text();
-        let payload = null;
-        try {
-            payload = text ? JSON.parse(text) : null;
-        } catch {
-            payload = { raw: text };
-        }
-        if (!response.ok) {
-            const error = new Error(String(payload?.error || response.statusText || 'Request failed'));
-            error.status = response.status;
-            error.payload = payload;
-            throw error;
-        }
-        return payload;
-    }
-
-    async function fetchAuthState() {
-        try {
-            const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok) return { authenticated: false };
-            return payload;
-        } catch {
-            return { authenticated: false };
-        }
-    }
+    const connection = window.BareMux?.BareMuxConnection
+        ? new BareMux.BareMuxConnection('/baremux/worker.js')
+        : null;
 
     function escapeHtml(value) {
         return String(value || '')
@@ -106,17 +180,6 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
-    }
-
-    async function copyText(value, label) {
-        const text = String(value || '').trim();
-        if (!text) return;
-        try {
-            await navigator.clipboard.writeText(text);
-            playerStatus.textContent = `${label} copied`;
-        } catch {
-            playerStatus.textContent = `could not copy ${label}`;
-        }
     }
 
     function getSelectedGame() {
@@ -132,20 +195,108 @@
         });
     }
 
-    function getPrimarySession() {
-        const exact = state.sessions.find((entry) => entry.gameSlug === state.selectedId);
-        if (exact) return exact;
-        return state.sessions[0] || null;
-    }
-
     function setBusy(active, label = '') {
         state.loading = !!active;
         requestSessionBtn.disabled = !!active;
         endSessionBtn.disabled = !!active;
         refreshStatusBtn.disabled = !!active;
-        if (label) {
-            playerStatus.textContent = label;
+        if (label) playerStatus.textContent = label;
+    }
+
+    async function ensureTransport() {
+        if (!connection) return false;
+        const wispUrl =
+            (location.protocol === 'https:' ? 'wss' : 'ws') +
+            '://' +
+            location.host +
+            '/wisp/';
+        await connection.setTransport('/libcurl/index.mjs', [{ websocket: wispUrl }]);
+        return true;
+    }
+
+    async function testWispSocket(timeoutMs = 8000) {
+        const wispUrl =
+            (location.protocol === 'https:' ? 'wss' : 'ws') +
+            '://' +
+            location.host +
+            '/wisp/';
+
+        return await new Promise((resolve) => {
+            let settled = false;
+            const socket = new WebSocket(wispUrl, 'wisp-v2');
+            const finish = (ok) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                try { socket.close(); } catch {}
+                resolve(ok);
+            };
+            const timer = setTimeout(() => finish(false), timeoutMs);
+            socket.addEventListener('open', () => finish(true), { once: true });
+            socket.addEventListener('error', () => finish(false), { once: true });
+            socket.addEventListener('close', () => {
+                if (!settled) finish(false);
+            }, { once: true });
+        });
+    }
+
+    async function testWispHttp() {
+        try {
+            const response = await fetch('/wisp/', {
+                method: 'GET',
+                cache: 'no-store',
+                headers: { 'cache-control': 'no-cache' },
+            });
+            return response.status === 426;
+        } catch {
+            return false;
         }
+    }
+
+    async function prepareProxyMode() {
+        state.proxyMode = 'scramjet';
+        if (typeof registerSW === 'function') {
+            await registerSW();
+        }
+
+        let transportReady = false;
+        try {
+            transportReady = await ensureTransport();
+        } catch {
+            transportReady = false;
+        }
+
+        if (transportReady) {
+            let wispAvailable = await testWispSocket();
+            if (!wispAvailable) wispAvailable = await testWispHttp();
+            if (wispAvailable) return;
+        }
+
+        state.proxyMode = 'proxy';
+    }
+
+    function encodeTarget(targetUrl) {
+        const encoder = self.__scramjet$bundle?.rewriters?.url?.encodeUrl;
+        if (!encoder) return null;
+        const base = window.location.origin;
+        try {
+            return encoder(targetUrl, base);
+        } catch {
+            return null;
+        }
+    }
+
+    function buildLaunchUrl(targetUrl) {
+        if (state.proxyMode === 'scramjet') {
+            const encoded = encodeTarget(targetUrl);
+            if (encoded) return encoded;
+        }
+        return `/proxy?url=${encodeURIComponent(targetUrl)}`;
+    }
+
+    function updateActionLabels() {
+        requestSessionBtn.querySelector('span:last-child').textContent = 'play in rift';
+        endSessionBtn.querySelector('span:last-child').textContent = 'open direct';
     }
 
     function renderFilters() {
@@ -163,299 +314,276 @@
         if (!items.some((entry) => entry.id === state.selectedId)) {
             state.selectedId = items[0].id;
         }
-        const currentSession = getPrimarySession();
-        grid.innerHTML = items.map((entry) => {
-            const session = state.sessions.find((row) => row.gameSlug === entry.id);
-            const statusChip = session ? `<span class="cloud-chip">${session.status}${session.queuePosition ? ` · #${session.queuePosition}` : ''}</span>` : `<span class="cloud-chip">${entry.fit}</span>`;
-            return `
-                <article class="cloud-card ${entry.id === state.selectedId ? 'active' : ''}" data-cloud-id="${entry.id}">
-                    <div class="cloud-card-top">
-                        <div>
-                            <div class="cloud-card-title">${entry.title}</div>
-                            <div class="cloud-card-meta">${entry.genre} · ${entry.quality}</div>
-                        </div>
-                        ${statusChip}
+        grid.innerHTML = items.map((entry) => `
+            <article class="cloud-card ${entry.id === state.selectedId ? 'active' : ''}" data-cloud-id="${entry.id}">
+                <div class="cloud-card-top">
+                    <div>
+                        <div class="cloud-card-title">${entry.title}</div>
+                        <div class="cloud-card-meta">${entry.genre} · ${entry.quality}</div>
                     </div>
-                    <div class="cloud-tags">${entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('')}</div>
-                    <div class="cloud-card-copy">${entry.summary}</div>
-                    <div class="cloud-card-actions">
-                        <button class="cloud-action primary" type="button" data-cloud-request="${entry.id}">${session ? 'view session' : 'request session'}</button>
-                        <button class="cloud-action" type="button" data-cloud-select="${entry.id}">${currentSession && currentSession.gameSlug !== entry.id ? 'switch target' : 'details'}</button>
-                    </div>
-                </article>
-            `;
-        }).join('');
+                    <span class="cloud-chip">${entry.fit}</span>
+                </div>
+                <div class="cloud-tags">${entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('')}</div>
+                <div class="cloud-card-copy">${entry.summary}</div>
+                <div class="cloud-card-actions">
+                    <button class="cloud-action primary" type="button" data-cloud-launch="${entry.id}">play in rift</button>
+                    <button class="cloud-action" type="button" data-cloud-select="${entry.id}">details</button>
+                </div>
+            </article>
+        `).join('');
     }
 
     function renderDetailCard() {
         const entry = getSelectedGame();
-        const active = getPrimarySession();
         if (!entry) return;
+
         title.textContent = entry.title;
         sub.textContent = `${entry.genre} · ${entry.quality} · ${entry.fit}`;
         copy.textContent = entry.summary;
         tags.innerHTML = entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('');
 
-        const hostCount = Number(state.summary?.onlineHostCount || 0);
-        const queueDepth = Number(state.summary?.queueDepth || 0);
-        const currentSession = state.sessions.find((row) => row.gameSlug === entry.id) || null;
         stats.innerHTML = [
-            ['online hosts', hostCount || '0'],
-            ['queue depth', queueDepth || '0'],
-            ['selected status', currentSession ? currentSession.status : 'idle'],
-            ['stream fit', entry.fit],
+            ['launch mode', 'top-level'],
+            ['proxy route', state.proxyMode === 'scramjet' ? 'scramjet / wisp' : 'compatibility proxy'],
+            ['source', 'nowgg.fun'],
+            ['best fit', entry.fit],
         ].map((row) => `
             <div class="cloud-side-stat">
                 <span>${row[0]}</span>
                 <strong>${row[1]}</strong>
             </div>
         `).join('');
-
-        if (!state.auth.authenticated) {
-            requestSessionBtn.disabled = false;
-            requestSessionBtn.querySelector('span:last-child').textContent = 'sign in first';
-            endSessionBtn.disabled = true;
-        } else if (currentSession) {
-            requestSessionBtn.disabled = false;
-            requestSessionBtn.querySelector('span:last-child').textContent = currentSession.status === 'queued' ? 'queued already' : 'view session';
-            endSessionBtn.disabled = false;
-        } else if (active && active.gameSlug !== entry.id) {
-            requestSessionBtn.disabled = false;
-            requestSessionBtn.querySelector('span:last-child').textContent = 'request anyway';
-            endSessionBtn.disabled = false;
-        } else {
-            requestSessionBtn.disabled = false;
-            requestSessionBtn.querySelector('span:last-child').textContent = 'request session';
-            endSessionBtn.disabled = !active;
-        }
     }
 
     function renderSummaryStrip() {
-        const summary = state.summary || {};
-        statHosts.textContent = `${summary.onlineHostCount || 0} hosts online`;
-        statQueue.textContent = `${summary.queueDepth || 0} in queue`;
-        statProtocol.textContent = summary.hosts?.[0]?.streamHealth
-            ? `${summary.hosts[0].streamHealth.streamSoftware} / ${summary.hosts[0].streamHealth.streamProtocol}`
-            : 'sunshine / moonlight';
+        statHosts.textContent = `${catalog.length} games ready`;
+        statQueue.textContent = 'top-level proxy route';
+        statProtocol.textContent = state.proxyMode === 'scramjet' ? 'scramjet / wisp' : 'compatibility proxy';
     }
 
-    function renderSessionPanel() {
-        const session = getPrimarySession();
-        const bootstrap = state.bootstrap;
-        const onlineHosts = Array.isArray(state.summary?.hosts) ? state.summary.hosts : [];
-
-        if (!state.auth.authenticated) {
-            sessionEmpty.hidden = false;
-            sessionView.hidden = true;
-            sessionEmpty.innerHTML = 'Sign in on the <strong>account</strong> page first. Rift cloud uses your Rift account to request queue slots and keep track of active sessions.';
-            playerStatus.textContent = 'sign in to request a session';
-            return;
-        }
-
-        if (!session) {
-            sessionEmpty.hidden = false;
-            sessionView.hidden = true;
-            sessionEmpty.innerHTML = 'No queued or active session yet. Pick a game from the launcher and press <strong>request session</strong>.';
-            playerStatus.textContent = `${onlineHosts.length || 0} hosts available right now`;
-            return;
-        }
-
+    function renderLaunchPanel() {
+        const entry = getSelectedGame();
         sessionEmpty.hidden = true;
         sessionView.hidden = false;
-        playerStatus.textContent = session.status === 'queued'
-            ? `queued for ${session.gameTitle}${session.queuePosition ? ` at position #${session.queuePosition}` : ''}`
-            : `${session.gameTitle} is ${session.status} on ${bootstrap?.host?.name || session.hostId || 'assigned host'}`;
+
+        if (!entry) {
+            playerStatus.textContent = 'pick a game to launch through rift';
+            sessionPills.innerHTML = '';
+            sessionSummary.innerHTML = '';
+            connectionSummary.innerHTML = '';
+            sessionLinks.innerHTML = '';
+            instructionList.innerHTML = '';
+            hostList.innerHTML = '';
+            return;
+        }
+
+        const lastLaunchTime = state.lastLaunch?.at
+            ? new Date(state.lastLaunch.at).toLocaleString()
+            : 'not launched yet';
+
+        playerStatus.textContent = state.loading
+            ? `preparing ${entry.title} inside rift...`
+            : state.lastError
+                ? state.lastError
+                : `${entry.title} is ready to launch on the rift domain`;
 
         sessionPills.innerHTML = [
-            ['status', session.status],
-            session.queuePosition ? ['queue', `#${session.queuePosition}`] : null,
-            bootstrap?.host?.name ? ['host', bootstrap.host.name] : null,
-            bootstrap?.stream?.protocol ? ['protocol', bootstrap.stream.protocol] : null,
-        ].filter(Boolean).map((row) => `<div class="cloud-chip">${row[0]} · ${row[1]}</div>`).join('');
+            ['status', state.loading ? 'preparing' : 'ready'],
+            ['mode', 'in-rift'],
+            ['route', state.proxyMode === 'scramjet' ? 'scramjet' : 'compatibility'],
+        ].map((row) => `<div class="cloud-chip">${row[0]} · ${row[1]}</div>`).join('');
 
         sessionSummary.innerHTML = [
-            ['game', session.gameTitle],
-            ['requested', new Date(session.requestedAt).toLocaleString()],
-            ['host region', bootstrap?.host?.region || 'pending'],
-            ['status', session.status],
+            ['game', entry.title],
+            ['source', 'nowgg.fun'],
+            ['last launch', lastLaunchTime],
+            ['active route', state.proxyMode === 'scramjet' ? 'top-level scramjet page' : 'top-level compatibility proxy'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('');
 
-        connectionSummary.innerHTML = bootstrap ? [
-            ['software', bootstrap.stream.software],
-            ['network', bootstrap.stream.remoteNetwork],
-            ['bitrate', `${bootstrap.stream.profile.bitrateMbps} mbps`],
-            ['profile', `${bootstrap.stream.profile.resolution} / ${bootstrap.stream.profile.fps}fps / ${bootstrap.stream.profile.codec}`],
-        ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('') : '';
+        connectionSummary.innerHTML = [
+            ['target', entry.url.replace(/^https?:\/\//i, '')],
+            ['embed model', 'top-level page'],
+            ['iframe bypass', 'enabled by launch flow'],
+            ['fallback', 'open direct'],
+        ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${escapeHtml(row[1])}</strong></div>`).join('');
 
-        sessionLinks.innerHTML = '';
-        const moonlightHost = bootstrap?.connection?.moonlightHost || '';
-        const tailscaleIp = bootstrap?.connection?.tailscaleIp || '';
-        const launchUrl = bootstrap?.connection?.launchUrl || '';
-        const pairUrl = bootstrap?.connection?.pairUrl || '';
-        const parsecUrl = bootstrap?.connection?.parsecUrl || '';
-        const notes = bootstrap?.connection?.notes || '';
-        const hasDeepLink = /^moonlight:\/\//i.test(launchUrl);
+        sessionLinks.innerHTML = `
+            <button class="cloud-action primary" type="button" data-cloud-launch="${entry.id}">
+                <span class="material-icons">play_arrow</span>
+                <span>play in rift</span>
+            </button>
+            <button class="cloud-action" type="button" data-cloud-direct="${entry.id}">
+                <span class="material-icons">open_in_new</span>
+                <span>open direct</span>
+            </button>
+            <button class="cloud-action" type="button" data-cloud-copy="${escapeHtml(entry.url)}">
+                <span class="material-icons">content_copy</span>
+                <span>copy source url</span>
+            </button>
+        `;
 
-        if (moonlightHost) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<button class="cloud-action primary" type="button" data-cloud-copy="${escapeHtml(moonlightHost)}" data-cloud-copy-label="moonlight host"><span class="material-icons">content_copy</span><span>copy moonlight host</span></button>`);
-        }
-        if (tailscaleIp && tailscaleIp !== moonlightHost) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<button class="cloud-action" type="button" data-cloud-copy="${escapeHtml(tailscaleIp)}" data-cloud-copy-label="tailscale ip"><span class="material-icons">content_copy</span><span>copy tailscale ip</span></button>`);
-        }
-        if (pairUrl) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${escapeHtml(pairUrl)}" target="_blank" rel="noopener noreferrer"><span class="material-icons">link</span><span>pair host</span></a>`);
-        }
-        if (parsecUrl) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${escapeHtml(parsecUrl)}" target="_blank" rel="noopener noreferrer"><span class="material-icons">terminal</span><span>backup control</span></a>`);
-        }
-        if (hasDeepLink) {
-            sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="${escapeHtml(launchUrl)}"><span class="material-icons">rocket_launch</span><span>try moonlight deep link</span></a>`);
-        }
-        sessionLinks.insertAdjacentHTML('beforeend', `<a class="cloud-action" href="https://moonlight-stream.org/" target="_blank" rel="noopener noreferrer"><span class="material-icons">open_in_new</span><span>open moonlight site</span></a>`);
-        if (moonlightHost || tailscaleIp) {
-            const label = moonlightHost || tailscaleIp;
-            sessionLinks.insertAdjacentHTML('beforeend', `<div class="cloud-host-pill"><span class="material-icons">devices</span><strong>${escapeHtml(label)}</strong></div>`);
-        }
+        instructionList.innerHTML = [
+            'Rift launches supported nowgg pages as the main proxied page instead of nesting them inside the old cloud iframe.',
+            'That top-level route is the important change, because nowgg blocks iframe embedding on the real session host.',
+            state.proxyMode === 'scramjet'
+                ? 'Scramjet transport is available on this deployment, so Rift will try the stronger in-site launch path first.'
+                : 'If Scramjet transport is unavailable, Rift falls back to the compatibility proxy path on the same domain.',
+            'If a game still rejects the proxied launch, use the direct button as a temporary fallback and report which title failed.',
+        ].map((line) => `<li>${line}</li>`).join('');
 
-        const instructions = [];
-        if (moonlightHost || tailscaleIp) {
-            instructions.push(`Open Moonlight manually, add the host using ${escapeHtml(moonlightHost || tailscaleIp)}, and pair it if needed.`);
-        }
-        if (hasDeepLink) {
-            instructions.push('The Moonlight deep link is optional. If it does nothing on your device, use the copied host value in Moonlight manually.');
-        }
-        if (notes) {
-            instructions.push(`Host note: ${escapeHtml(notes)}`);
-        }
-        const mergedInstructions = instructions.concat(bootstrap?.instructions || []);
-        instructionList.innerHTML = (mergedInstructions.length ? mergedInstructions : ['Rift is waiting for an assigned host to expose bootstrap data.'])
-            .map((entry) => `<li>${entry}</li>`)
-            .join('');
-        hostList.innerHTML = onlineHosts.slice(0, 6).map((host) => `
-            <div class="cloud-host-pill">
-                <span class="material-icons">computer</span>
-                <strong>${host.name}</strong>
-                <span>${host.usedSlots}/${host.capacity}</span>
-            </div>
-        `).join('');
+        hostList.innerHTML = `
+            <div class="cloud-host-pill"><span class="material-icons">language</span><strong>${escapeHtml(window.location.host)}</strong></div>
+            <div class="cloud-host-pill"><span class="material-icons">sports_esports</span><strong>${entry.title}</strong></div>
+            <div class="cloud-host-pill"><span class="material-icons">shield</span><strong>${state.proxyMode === 'scramjet' ? 'wisp ready' : 'proxy fallback'}</strong></div>
+        `;
     }
 
-    function sync() {
+    async function copyText(value) {
+        try {
+            await navigator.clipboard.writeText(String(value || ''));
+            playerStatus.textContent = 'source url copied';
+        } catch {
+            playerStatus.textContent = 'could not copy source url';
+        }
+    }
+
+    async function launchSelected({ direct = false } = {}) {
+        const entry = getSelectedGame();
+        if (!entry) return;
+
+        state.lastError = '';
+        setBusy(true, direct ? `opening ${entry.title} directly...` : `preparing ${entry.title} inside rift...`);
+        renderSummaryStrip();
+        renderLaunchPanel();
+
+        try {
+            if (!direct) {
+                await prepareProxyMode();
+            }
+
+            const nextUrl = direct ? entry.url : buildLaunchUrl(entry.url);
+            state.lastLaunch = {
+                id: entry.id,
+                at: Date.now(),
+                mode: direct ? 'direct' : state.proxyMode,
+                url: nextUrl,
+            };
+            try {
+                localStorage.setItem('rift__cloud-last-game', entry.id);
+            } catch {}
+            window.location.assign(nextUrl);
+        } catch (error) {
+            state.lastError = error?.message || 'rift could not start this cloud session';
+            setBusy(false, state.lastError);
+            renderSummaryStrip();
+            renderLaunchPanel();
+        }
+    }
+
+    function bindEvents() {
+        search.addEventListener('input', () => {
+            state.query = search.value || '';
+            renderGrid();
+        });
+
+        filterHost.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-cloud-filter]');
+            if (!button) return;
+            state.filter = button.dataset.cloudFilter || 'all';
+            renderFilters();
+            renderGrid();
+        });
+
+        grid.addEventListener('click', (event) => {
+            const card = event.target.closest('[data-cloud-id]');
+            if (card?.dataset.cloudId) {
+                state.selectedId = card.dataset.cloudId;
+            }
+
+            const launchButton = event.target.closest('[data-cloud-launch]');
+            if (launchButton) {
+                state.selectedId = launchButton.dataset.cloudLaunch || state.selectedId;
+                renderGrid();
+                renderDetailCard();
+                renderLaunchPanel();
+                launchSelected({ direct: false });
+                return;
+            }
+
+            const selectButton = event.target.closest('[data-cloud-select]');
+            if (selectButton) {
+                state.selectedId = selectButton.dataset.cloudSelect || state.selectedId;
+            }
+
+            renderGrid();
+            renderDetailCard();
+            renderLaunchPanel();
+        });
+
+        sessionLinks.addEventListener('click', (event) => {
+            const launchButton = event.target.closest('[data-cloud-launch]');
+            if (launchButton) {
+                event.preventDefault();
+                launchSelected({ direct: false });
+                return;
+            }
+
+            const directButton = event.target.closest('[data-cloud-direct]');
+            if (directButton) {
+                event.preventDefault();
+                launchSelected({ direct: true });
+                return;
+            }
+
+            const copyButton = event.target.closest('[data-cloud-copy]');
+            if (copyButton) {
+                event.preventDefault();
+                copyText(copyButton.dataset.cloudCopy || '');
+            }
+        });
+
+        requestSessionBtn.addEventListener('click', () => {
+            launchSelected({ direct: false });
+        });
+
+        endSessionBtn.addEventListener('click', () => {
+            launchSelected({ direct: true });
+        });
+
+        refreshStatusBtn.addEventListener('click', async () => {
+            state.lastError = '';
+            setBusy(false, 'refreshing launch route...');
+            try {
+                await prepareProxyMode();
+            } catch {
+                state.proxyMode = 'proxy';
+            }
+            renderSummaryStrip();
+            renderDetailCard();
+            renderLaunchPanel();
+            setBusy(false, `route ready: ${state.proxyMode === 'scramjet' ? 'scramjet / wisp' : 'compatibility proxy'}`);
+        });
+    }
+
+    function restoreLastGame() {
+        try {
+            const saved = localStorage.getItem('rift__cloud-last-game');
+            if (saved && catalog.some((entry) => entry.id === saved)) {
+                state.selectedId = saved;
+            }
+        } catch {}
+    }
+
+    function init() {
+        restoreLastGame();
+        updateActionLabels();
+        bindEvents();
         renderFilters();
         renderGrid();
         renderDetailCard();
         renderSummaryStrip();
-        renderSessionPanel();
+        renderLaunchPanel();
     }
 
-    async function refreshCloudState() {
-        try {
-            const [summary, auth] = await Promise.all([
-                api('/api/cloud/summary').catch(() => ({ onlineHostCount: 0, queueDepth: 0, hosts: [] })),
-                fetchAuthState(),
-            ]);
-            state.summary = summary;
-            state.auth = auth || { authenticated: false };
-            state.sessions = [];
-            state.bootstrap = null;
-            if (state.auth.authenticated) {
-                state.sessions = await api('/api/sessions/me').catch(() => []);
-                const session = getPrimarySession();
-                if (session && (session.status === 'active' || session.status === 'disconnected')) {
-                    state.bootstrap = await api(`/api/stream/sessions/${encodeURIComponent(session.id)}/bootstrap`).catch(() => null);
-                }
-            }
-        } finally {
-            sync();
-        }
-    }
-
-    async function requestSelectedSession() {
-        const entry = getSelectedGame();
-        if (!entry) return;
-        if (!state.auth.authenticated) {
-            window.location.href = '/account';
-            return;
-        }
-        try {
-            setBusy(true, `requesting ${entry.title}...`);
-            await api('/api/sessions/request', {
-                method: 'POST',
-                body: JSON.stringify({ gameId: entry.id, gameTitle: entry.title }),
-            });
-            await refreshCloudState();
-        } catch (error) {
-            playerStatus.textContent = error.message || 'session request failed';
-        } finally {
-            setBusy(false);
-        }
-    }
-
-    async function endCurrentSession() {
-        const session = getPrimarySession();
-        if (!session) return;
-        try {
-            setBusy(true, `ending ${session.gameTitle}...`);
-            await api(`/api/sessions/${encodeURIComponent(session.id)}/end`, { method: 'POST' });
-            await refreshCloudState();
-        } catch (error) {
-            playerStatus.textContent = error.message || 'end session failed';
-        } finally {
-            setBusy(false);
-        }
-    }
-
-    function startPolling() {
-        if (state.pollTimer) clearInterval(state.pollTimer);
-        state.pollTimer = setInterval(() => {
-            if (document.hidden) return;
-            refreshCloudState();
-        }, 15000);
-    }
-
-    filterHost.addEventListener('click', (event) => {
-        const button = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-filter]') : null;
-        if (!(button instanceof HTMLElement)) return;
-        state.filter = String(button.getAttribute('data-cloud-filter') || 'all');
-        sync();
-    });
-
-    grid.addEventListener('click', (event) => {
-        const requestButton = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-request]') : null;
-        const selectButton = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-select]') : null;
-        const card = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-id]') : null;
-        if (requestButton instanceof HTMLElement) {
-            state.selectedId = String(requestButton.getAttribute('data-cloud-request') || state.selectedId);
-            sync();
-            requestSelectedSession();
-            return;
-        }
-        if (selectButton instanceof HTMLElement) {
-            state.selectedId = String(selectButton.getAttribute('data-cloud-select') || state.selectedId);
-            sync();
-            return;
-        }
-        if (!(card instanceof HTMLElement)) return;
-        state.selectedId = String(card.getAttribute('data-cloud-id') || state.selectedId);
-        sync();
-    });
-
-    search.addEventListener('input', () => {
-        state.query = search.value || '';
-        sync();
-    });
-
-    sessionLinks.addEventListener('click', (event) => {
-        const button = event.target instanceof HTMLElement ? event.target.closest('[data-cloud-copy]') : null;
-        if (!(button instanceof HTMLElement)) return;
-        event.preventDefault();
-        copyText(button.getAttribute('data-cloud-copy'), button.getAttribute('data-cloud-copy-label') || 'value');
-    });
-
-    requestSessionBtn.addEventListener('click', requestSelectedSession);
-    endSessionBtn.addEventListener('click', endCurrentSession);
-    refreshStatusBtn.addEventListener('click', refreshCloudState);
-
-    startPolling();
-    refreshCloudState();
+    init();
 })();
