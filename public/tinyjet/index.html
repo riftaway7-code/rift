@@ -48,16 +48,16 @@
       const wispUrl = getWispUrl();
       switch (transportsel) {
         case "libcurl":
-          await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
+          await connection.setTransport("https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs", [{ wisp: wispUrl }]);
           break;
         default:
-          await connection.setTransport("/libcurl/index.mjs", [{ websocket: wispUrl }]);
+          await connection.setTransport("https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs", [{ wisp: wispUrl }]);
           break;
       }
     }
     document.getElementById("wisp").addEventListener("submit", async (event) => {
         event.preventDefault();
-        await setTransport("libcurl");
+        await setTransport("epoxy");
     });
     function search(input) {
       let template = "https://search.brave.com/search?q=%s";
@@ -88,7 +88,7 @@
     const params = new URLSearchParams(window.location.search);
     const launchUrl = params.get("url");
 
-    await setTransport("libcurl");
+    await setTransport("epoxy");
     if (launchUrl) {
       document.getElementById("url").value = launchUrl;
       openTarget(launchUrl);

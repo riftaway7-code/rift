@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.28',
+    version: '2.3.29',
     notes: [
+        'switched tinyjet cloud launches off libcurl and back onto epoxy transport so nowgg sessions no longer fail on libcurl wasm bootstrap',
         'forced tinyjet to push its Scramjet prefix and file config into the active service worker before opening a cloud target so stale /scramjet config cannot survive across reloads',
         'moved tinyjet Scramjet traffic under /tinyjet/scramjet and added a one-time service-worker takeover reload so encoded cloud URLs stay inside tinyjet\'s worker scope',
         'switched Roblox cloud launch from the 404ing generic now.gg path to the currently working 159.ip.nowgg.fun session host',
