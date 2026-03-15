@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.23',
+    version: '2.3.24',
     notes: [
+        'fixed tinyjet BareMux startup by switching its worker path to the absolute /tinyjet/bareworker.js URL required by bare-mux v2',
         'replaced tinyjet cloud-launch CDN dependencies with local Scramjet, BareMux, libcurl, and wasm files so the tinyjet shell can boot on Rift deployments',
         'switched Rift cloud launches over to the existing tinyjet shell so nowgg sessions use the proxy stack that already initializes BareMux correctly',
         'moved the Scramjet runtime onto /assets/scramjet so cloud pages bypass stale service-worker proxying even before the new worker activates',
