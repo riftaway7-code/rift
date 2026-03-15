@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.34',
+    version: '2.3.35',
     notes: [
+        'switched Rift\'s UV asset recovery from fragile request-referrer guessing to service-worker client tracking so escaped now.gg chunk, css, image, and oapi requests inherit the active UV page context instead of falling back to local 404 HTML',
         'taught the root Rift service worker to recognize same-origin now.gg asset and API requests escaping a UV page and re-route them back through the UV prefix so Next.js CSS, JS, media, and oapi calls stop falling into local 404 HTML',
         'added a dedicated Ultraviolet runtime under /uv, wired it to Rift\'s Wisp-backed BareMux transport, and moved now.gg cloud launches onto that UV route while leaving TinyJet and Scramjet in place for the rest of Rift',
         'forced the tinyjet service worker to skip waiting, claim pages immediately, and bypass cache on registration so HTML response fixes take effect without stale worker lag',

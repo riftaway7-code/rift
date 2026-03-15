@@ -13,8 +13,20 @@ const uvContext = new Ultraviolet(self.__uv$config);
 uvContext.meta.origin = self.location.origin;
 const scramjet = new ScramjetServiceWorker(self.__scramjet$config);
 
-function getEscapedUvTarget(request) {
-    const referrer = String(request.referrer || '');
+async function getEscapedUvTarget(event) {
+    const { request, clientId } = event;
+    let activeClientUrl = '';
+
+    if (clientId) {
+        try {
+            const client = await self.clients.get(clientId);
+            activeClientUrl = String(client?.url || '');
+        } catch {
+            activeClientUrl = '';
+        }
+    }
+
+    const referrer = activeClientUrl || String(request.referrer || '');
     if (!referrer.startsWith(self.location.origin + self.__uv$config.prefix)) {
         return null;
     }
@@ -65,7 +77,7 @@ async function handleRequest(event) {
             return await uv.fetch({ request });
         }
 
-        const escapedUvTarget = getEscapedUvTarget(request);
+        const escapedUvTarget = await getEscapedUvTarget(event);
         if (escapedUvTarget) {
             const proxiedRequest = new Request(
                 `${self.location.origin}${self.__uv$config.prefix}${self.__uv$config.encodeUrl(escapedUvTarget)}`,
