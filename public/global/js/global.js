@@ -80,8 +80,9 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.27',
+    version: '2.3.28',
     notes: [
+        'forced tinyjet to push its Scramjet prefix and file config into the active service worker before opening a cloud target so stale /scramjet config cannot survive across reloads',
         'moved tinyjet Scramjet traffic under /tinyjet/scramjet and added a one-time service-worker takeover reload so encoded cloud URLs stay inside tinyjet\'s worker scope',
         'switched Roblox cloud launch from the 404ing generic now.gg path to the currently working 159.ip.nowgg.fun session host',
         'reverted Roblox cloud launches from the dead hard-coded 108.ip.nowgg.fun host back to the live generic now.gg launcher URL',

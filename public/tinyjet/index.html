@@ -32,6 +32,7 @@
     try {
       await ensureTinyjetControl();
       await scramjet.init();
+      await scramjet.modifyConfig(tinyjetConfig);
     } catch (e) { console.error("scramjet failed to initialize;", e); }
     const connection = new BareMux.BareMuxConnection("/tinyjet/bareworker.js");
     const websocketInput = document.getElementById("websocket");
