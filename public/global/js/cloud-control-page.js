@@ -6,9 +6,9 @@
             genre: 'sandbox',
             tags: ['social', 'mobile', 'touch'],
             quality: 'balanced',
-            fit: 'best first test for the new flow',
-            summary: 'Routes the Roblox nowgg session onto Rift so the game opens on the Rift domain instead of a separate nowgg tab.',
-            url: 'https://nowgg.lol/apps/a/19900/b.html',
+            fit: 'best first test for the frog-style flow',
+            summary: 'Loads the generic nowgg Roblox launcher into Rift\'s UV iframe shell so the page can keep its own session flow on the Rift domain.',
+            url: 'https://nowgg.fun/apps/a/19900/b.html',
         },
         {
             id: 'fortnite',
@@ -203,36 +203,8 @@
         state.proxyMode = 'uv';
     }
 
-    function isResolvableNowggTarget(targetUrl) {
-        try {
-            const parsed = new URL(targetUrl, window.location.origin);
-            return parsed.hostname === 'now.gg'
-                || parsed.hostname === 'www.now.gg'
-                || parsed.hostname === 'nowgg.fun'
-                || parsed.hostname === 'www.nowgg.fun'
-                || /^\d+\.ip\.nowgg\.fun$/i.test(parsed.hostname);
-        } catch {
-            return false;
-        }
-    }
-
     async function resolveLaunchTarget(targetUrl) {
-        if (!isResolvableNowggTarget(targetUrl)) {
-            return targetUrl;
-        }
-
-        const endpoint = `/api/nowgg/resolve?url=${encodeURIComponent(targetUrl)}`;
-        const response = await fetch(endpoint, {
-            headers: {
-                accept: 'application/json',
-            },
-            cache: 'no-store',
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.resolvedUrl) {
-            throw new Error(payload?.error || 'could not resolve a live now.gg session host');
-        }
-        return payload.resolvedUrl;
+        return targetUrl;
     }
 
     function buildEmbedUrl(targetUrl) {
@@ -292,9 +264,9 @@
         tags.innerHTML = entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('');
 
         stats.innerHTML = [
-            ['launch mode', 'top-level'],
+            ['launch mode', 'apex iframe shell'],
             ['proxy route', 'ultraviolet / wisp'],
-            ['source', 'now.gg session host'],
+            ['source', 'generic now.gg launcher'],
             ['best fit', entry.fit],
         ].map((row) => `
             <div class="cloud-side-stat">
@@ -306,7 +278,7 @@
 
     function renderSummaryStrip() {
         statHosts.textContent = `${catalog.length} games ready`;
-        statQueue.textContent = 'uv launcher';
+        statQueue.textContent = 'uv iframe shell';
         statProtocol.textContent = 'ultraviolet / wisp';
     }
 
@@ -344,15 +316,15 @@
 
         sessionSummary.innerHTML = [
             ['game', entry.title],
-            ['source', 'now.gg session host'],
+            ['source', 'generic now.gg launcher'],
             ['last launch', lastLaunchTime],
-            ['active route', 'uv service worker + wisp'],
+            ['active route', 'uv iframe + wisp'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('');
 
         connectionSummary.innerHTML = [
             ['target', entry.url.replace(/^https?:\/\//i, '')],
-            ['embed model', 'uv launcher page'],
-            ['session load', 'proxied inside rift'],
+            ['embed model', 'frog-style shell'],
+            ['session load', 'proxied inside iframe'],
             ['fallback', 'open direct'],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${escapeHtml(row[1])}</strong></div>`).join('');
 
@@ -372,10 +344,10 @@
         `;
 
         instructionList.innerHTML = [
-            'Rift now hands now.gg launches to a dedicated UV route instead of forcing them through TinyJet.',
-            'That UV route still uses Rift\'s Wisp-backed BareMux transport, so the new path keeps the existing transport stack instead of replacing it.',
-            'TinyJet and Scramjet stay in Rift for the browser and embed flows. This cloud page only changes the now.gg launch route.',
-            'If a game still rejects the proxied launch, use the direct button as a temporary fallback and report which title failed.',
+            'Rift now keeps now.gg inside a dedicated UV iframe shell instead of navigating the whole tab onto the encoded UV url.',
+            'That shell still runs on Rift\'s Wisp-backed BareMux transport, so TinyJet and Scramjet stay intact for the rest of Rift.',
+            'Roblox now uses the generic nowgg launcher again so the page can manage its own session handoff like Frogies does.',
+            'If a game still rejects the proxied launch, use the direct button and report the exact launcher url that worked or failed.',
         ].map((line) => `<li>${line}</li>`).join('');
 
         hostList.innerHTML = `

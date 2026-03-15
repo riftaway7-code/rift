@@ -80,10 +80,10 @@ const RiftUiState = {
 };
 
 const RIFT_RELEASE = {
-    version: '2.3.37',
+    version: '2.3.38',
     notes: [
-        'switched Roblox cloud launch to the nowgg.lol app URL and left that host on the direct UV path so Rift stops sending it back through the failing *.ip.nowgg.fun resolver scan',
-        'added a backend now.gg session-host resolver and changed cloud launches to ask Rift for a fresh *.ip.nowgg.fun target before entering the UV route instead of hard-coding a stale Roblox host',
+        'reworked the UV cloud launcher into a Frogies-style apex-domain iframe shell so now.gg stays inside Rift instead of moving the whole tab onto the encoded UV document',
+        'switched Roblox cloud launch back to the generic nowgg.fun launcher and removed the broken in-page resolver hop from the Rift cloud flow',
         'switched Rift\'s UV asset recovery from fragile request-referrer guessing to service-worker client tracking so escaped now.gg chunk, css, image, and oapi requests inherit the active UV page context instead of falling back to local 404 HTML',
         'taught the root Rift service worker to recognize same-origin now.gg asset and API requests escaping a UV page and re-route them back through the UV prefix so Next.js CSS, JS, media, and oapi calls stop falling into local 404 HTML',
         'added a dedicated Ultraviolet runtime under /uv, wired it to Rift\'s Wisp-backed BareMux transport, and moved now.gg cloud launches onto that UV route while leaving TinyJet and Scramjet in place for the rest of Rift',
