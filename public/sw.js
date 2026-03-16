@@ -62,6 +62,21 @@ function buildNowggNavigationPatch(targetUrl) {
     return `<script>(function(){const upstreamOrigin=${JSON.stringify(upstreamOrigin)};const upstreamHost=${JSON.stringify(upstreamHost)};function rewriteUrl(input){try{const resolved=new URL(String(input),upstreamOrigin);const bad=resolved.hostname.match(/^(\\d+)\\.ip\\.[^.]+\\.onrender\\.com$/i);if(bad){resolved.protocol='https:';resolved.hostname=bad[1]+'.ip.nowgg.fun';return resolved.toString()}return resolved.toString()}catch{return input}}function patchMethod(target,key){const original=target&&target[key];if(typeof original!=='function')return;target[key]=function(){if(arguments.length>0&&arguments[0])arguments[0]=rewriteUrl(arguments[0]);return original.apply(this,arguments)}}try{const proto=Location.prototype;const hostDesc=Object.getOwnPropertyDescriptor(proto,'host');const hostnameDesc=Object.getOwnPropertyDescriptor(proto,'hostname');const originDesc=Object.getOwnPropertyDescriptor(proto,'origin');if(hostDesc&&hostDesc.get)Object.defineProperty(proto,'host',{configurable:true,enumerable:hostDesc.enumerable,get(){return upstreamHost},set:hostDesc.set});if(hostnameDesc&&hostnameDesc.get)Object.defineProperty(proto,'hostname',{configurable:true,enumerable:hostnameDesc.enumerable,get(){return upstreamHost.split(':')[0]},set:hostnameDesc.set});if(originDesc&&originDesc.get)Object.defineProperty(proto,'origin',{configurable:true,enumerable:originDesc.enumerable,get(){return upstreamOrigin}})}catch{}patchMethod(window.location,'assign');patchMethod(window.location,'replace');patchMethod(window,'open');document.addEventListener('click',function(event){const anchor=event.target&&event.target.closest?event.target.closest('a[href]'):null;if(!anchor)return;const next=rewriteUrl(anchor.href);if(next!==anchor.href)anchor.href=next},true);document.addEventListener('submit',function(event){const form=event.target;if(!form||!form.action)return;const next=rewriteUrl(form.action);if(next!==form.action)form.action=next},true);const pushState=history.pushState;const replaceState=history.replaceState;history.pushState=function(state,title,url){if(url)url=rewriteUrl(url);return pushState.call(this,state,title,url)};history.replaceState=function(state,title,url){if(url)url=rewriteUrl(url);return replaceState.call(this,state,title,url)};})();</script>`;
 }
 
+function isNowggTarget(targetUrl) {
+    try {
+        const host = new URL(targetUrl).hostname.toLowerCase();
+        return host === "nowgg.fun"
+            || host === "www.nowgg.fun"
+            || host === "nowgg.lol"
+            || host === "www.nowgg.lol"
+            || host === "now.gg"
+            || host === "www.now.gg"
+            || /^\d+\.ip\.nowgg\.fun$/i.test(host);
+    } catch {
+        return false;
+    }
+}
+
 async function maybePatchNowggDocument(response, requestUrl, destination) {
     if (!["document", "iframe"].includes(destination)) {
         return response;
@@ -184,14 +199,30 @@ async function handleRequest(event) {
         }
 
         if (scramjet.route({ request })) {
-            const rewrittenTarget = rewriteScramjetTarget(request.url);
-            if (rewrittenTarget && rewrittenTarget !== request.url) {
-                const proxiedRequest = new Request(rewrittenTarget, request);
-                const response = await scramjet.fetch({ request: proxiedRequest });
-                return await maybePatchNowggDocument(response, proxiedRequest.url, request.destination);
+            try {
+                const rewrittenTarget = rewriteScramjetTarget(request.url);
+                if (rewrittenTarget && rewrittenTarget !== request.url) {
+                    const proxiedRequest = new Request(rewrittenTarget, request);
+                    const response = await scramjet.fetch({ request: proxiedRequest });
+                    return await maybePatchNowggDocument(response, proxiedRequest.url, request.destination);
+                }
+                const response = await scramjet.fetch({ request });
+                return await maybePatchNowggDocument(response, request.url, request.destination);
+            } catch (error) {
+                const decodedTarget = decodeScramjetTarget(request.url);
+                if (
+                    decodedTarget &&
+                    !isNowggTarget(decodedTarget) &&
+                    ["document", "iframe"].includes(request.destination) &&
+                    /there are no bare clients/i.test(String(error?.message || error || ""))
+                ) {
+                    return Response.redirect(
+                        `/proxy?url=${encodeURIComponent(decodedTarget)}`,
+                        302
+                    );
+                }
+                throw error;
             }
-            const response = await scramjet.fetch({ request });
-            return await maybePatchNowggDocument(response, request.url, request.destination);
         }
 
         return await fetch(request);
