@@ -627,7 +627,8 @@
                     '://' +
                     location.host +
                     '/wisp/';
-                await connection.setTransport('/libcurl/index.mjs', [{ websocket: wispUrl }]);
+                await connection.setTransport('/uv/rift-epoxy.mjs', [{ wisp: wispUrl }]);
+                await new Promise((resolve) => setTimeout(resolve, 150));
             }
 
             async function testWispSocket(timeoutMs = 8000) {
