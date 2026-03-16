@@ -204,6 +204,7 @@
             const MAX_GLOBAL_HISTORY = 160;
             const MAX_BOOKMARKS = 120;
             const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug'];
+            const BAREMUX_BOOT_KEY = `${modeKey}__browser-baremux-boot-v1`;
             const panels = [{ history: [], historyIndex: -1 }];
             let activePanel = 0;
             let browserHistory = [];
@@ -676,6 +677,11 @@
                     let wispAvailable = await testWispSocket();
                     if (!wispAvailable) wispAvailable = await testWispHttp();
                     if (!wispAvailable) proxyMode = 'proxy';
+                    if (wispAvailable && !sessionStorage.getItem(BAREMUX_BOOT_KEY)) {
+                        sessionStorage.setItem(BAREMUX_BOOT_KEY, '1');
+                        window.location.reload();
+                        await new Promise(() => {});
+                    }
                 } catch {
                     proxyMode = 'proxy';
                 }
