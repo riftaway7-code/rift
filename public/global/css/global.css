@@ -4870,15 +4870,11 @@ body.rift-ui-ready .rift-reveal {
 @media (min-width: 1240px) {
   .rift-context-rail,
   .rift-pinned-dock {
-    display: grid;
-  }
-
-  .rift-pinned-dock {
-    display: flex;
+    display: none !important;
   }
 
   body:not(.nav-pos-right) .container {
-    padding-right: 318px;
+    padding-right: 22px;
   }
 
   body.nav-pos-right .container {
@@ -4915,15 +4911,15 @@ body.rift-ui-ready .rift-reveal {
   }
 
   body.route-home .container {
-    padding-left: 318px;
+    padding-left: 22px;
   }
 
   body.route-home.nav-pos-left .container {
-    padding-left: 412px;
+    padding-left: 22px;
   }
 
   body.route-home.nav-pos-right .container {
-    padding-left: 318px;
+    padding-left: 22px;
     padding-right: 22px;
   }
 

@@ -4523,13 +4523,21 @@ app.get(/^\/nova(?:\/(.*))?$/, async (req, res, next) => {
     if (req.path.includes('.')) return next();
 
     const tail = String(req.params?.[0] || '').replace(/^\/+/, '').replace(/\/+$/, '');
-    const htmlPath = tail ? `${tail}.html` : 'account.html';
+    const htmlPath = tail ? `${tail}.html` : 'index.html';
     if (!htmlPath || htmlPath.includes('..')) return next();
 
-    const file = path.join(NOVA_PUBLIC_DIR, htmlPath);
+    const primaryFile = path.join(NOVA_PUBLIC_DIR, htmlPath);
+    const fallbackFile = path.join(PUBLIC_DIR, htmlPath);
+
     try {
-        await fs.access(file);
-        return res.sendFile(file);
+        await fs.access(primaryFile);
+        return res.sendFile(primaryFile);
+    } catch {
+    }
+
+    try {
+        await fs.access(fallbackFile);
+        return res.sendFile(fallbackFile);
     } catch {
         return next();
     }

@@ -5,7 +5,20 @@
     const UI_STYLE_ID = 'riftx-mode-style';
     const SWAP_BUTTON_ID = 'riftx-mode-swap';
     const MODAL_ID = 'riftx-mode-modal';
-    const ROUTE_KEYS = new Set(['/', '/chat', '/account', '/nova', '/nova/chat', '/nova/account']);
+    const MODE_BLOCKED_PREFIXES = [
+        '/api',
+        '/assets',
+        '/components',
+        '/global',
+        '/scramjet',
+        '/baremux',
+        '/libcurl',
+        '/epoxy',
+        '/uv',
+        '/wisp',
+        '/font',
+        '/dist',
+    ];
 
     function normalizeMode(value) {
         return String(value || '').trim().toLowerCase() === 'nova' ? 'nova' : 'rift';
@@ -63,21 +76,27 @@
         return next ? `?${next}` : '';
     }
 
+    function isModeAwarePath(pathname) {
+        const path = normalizePathname(pathname);
+        if (!path.startsWith('/')) return false;
+        if (MODE_BLOCKED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) return false;
+        if (/\.[a-z0-9]+$/i.test(path)) return false;
+        return true;
+    }
+
     function resolveRouteForMode(targetMode, pathname = window.location.pathname, search = window.location.search) {
         const mode = normalizeMode(targetMode);
         const path = normalizePathname(pathname);
         const cleanSearch = removeRxParam(search);
+        const basePath = path === '/nova'
+            ? '/'
+            : (path.startsWith('/nova/') ? `/${path.slice('/nova/'.length)}` : path);
 
-        if (path === '/chat' || path === '/nova/chat') {
-            return mode === 'nova' ? `/nova/chat${cleanSearch}` : `/chat${cleanSearch}`;
+        if (!isModeAwarePath(basePath)) return `${path}${cleanSearch}`;
+        if (mode === 'nova') {
+            return basePath === '/' ? '/nova' : `/nova${basePath}${cleanSearch}`;
         }
-        if (path === '/account' || path === '/nova/account' || path === '/nova') {
-            return mode === 'nova' ? '/nova/account' : '/account';
-        }
-        if (path === '/') {
-            return mode === 'nova' ? '/nova' : '/';
-        }
-        return `${path}${cleanSearch}`;
+        return `${basePath}${cleanSearch}`;
     }
 
     function rewriteModeAwareHref(rawHref, mode) {
@@ -87,7 +106,7 @@
             const url = new URL(value, window.location.origin);
             if (url.origin !== window.location.origin) return value;
             const path = normalizePathname(url.pathname);
-            if (!ROUTE_KEYS.has(path)) return value;
+            if (!isModeAwarePath(path) && !(path === '/nova' || path.startsWith('/nova/'))) return value;
             return resolveRouteForMode(mode, path, url.search);
         } catch {
             return value;

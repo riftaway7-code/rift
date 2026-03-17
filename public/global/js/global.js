@@ -1094,7 +1094,6 @@ function ensureRiftUiShell() {
             </div>
             <div id="rift-context-menu-items" class="rift-context-menu-items"></div>
         </div>
-        <div id="rift-pinned-dock" class="rift-pinned-dock"></div>
     `;
     document.body.appendChild(shell);
 
@@ -1378,20 +1377,7 @@ function syncRiftContextRail() {
 }
 
 function syncRiftPinnedDock() {
-    const dock = document.getElementById('rift-pinned-dock');
-    if (!dock) return;
-    const pinned = readPinnedRoutes();
-    const catalog = getRouteCatalog();
-    const items = pinned.map((href) => catalog.find((entry) => entry.href === href)).filter(Boolean);
-    const current = getCurrentPath();
-    const pinLabel = isPinnedRoute(current) ? 'unpin page' : 'pin page';
-    dock.innerHTML = `
-        <button type="button" class="rift-dock-action" data-rift-action="pin-current">
-            <span class="material-icons">push_pin</span>
-            <span>${pinLabel}</span>
-        </button>
-        ${items.length ? items.map((item) => createRouteLinkHtml(item, 'rift-dock-link')).join('') : '<div class="rift-dock-empty">pin pages for a personal dock.</div>'}
-    `;
+    return;
 }
 
 function enhancePageHeader() {
