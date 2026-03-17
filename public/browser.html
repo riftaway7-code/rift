@@ -219,7 +219,7 @@
     <script src="/uv/uv.config.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v2';
+            const resetKey = 'rift__scramjet-idb-reset-v3';
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
@@ -230,7 +230,7 @@
 
             try {
                 if (!sessionStorage.getItem(resetKey) && typeof indexedDB !== 'undefined') {
-                    const names = new Set(['scramjet', 'bare-mux', 'baremux']);
+                    const names = new Set(['$scramjet', 'scramjet', '$bare-mux', 'bare-mux', 'baremux']);
                     if (typeof indexedDB.databases === 'function') {
                         const databases = await indexedDB.databases();
                         for (const row of databases || []) {
@@ -994,10 +994,33 @@
                 }
             }
 
+            function getPreferredProxyChain(targetUrl) {
+                try {
+                    const u = new URL(targetUrl, window.location.origin);
+                    const host = (u.hostname || '').toLowerCase();
+                    if (
+                        host === 'roblox.com' ||
+                        host.endsWith('.roblox.com') ||
+                        host === 'www.roblox.com' ||
+                        host === 'nowgg.fun' ||
+                        host.endsWith('.nowgg.fun') ||
+                        host === 'nowgg.lol' ||
+                        host.endsWith('.nowgg.lol') ||
+                        host === 'now.gg' ||
+                        host.endsWith('.now.gg')
+                    ) {
+                        return ['ultraviolet', 'proxy'];
+                    }
+                } catch {
+                }
+
+                return PROXY_CHAIN;
+            }
+
             async function resolveProxyRoute(targetUrl, options = {}) {
                 const forcePlain = shouldForcePlainProxy(targetUrl);
                 const skippedModes = new Set(Array.isArray(options?.skipModes) ? options.skipModes : []);
-                const chain = (forcePlain ? ['proxy'] : PROXY_CHAIN).filter((mode) => !skippedModes.has(mode));
+                const chain = (forcePlain ? ['proxy'] : getPreferredProxyChain(targetUrl)).filter((mode) => !skippedModes.has(mode));
 
                 for (const mode of chain) {
                     if (mode === 'scramjet') {

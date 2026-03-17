@@ -4,7 +4,7 @@
   <iframe id="iframe" width="100%" height="100%"></iframe>
   <script>
     window.__riftTinyjetScramjetReady = (async () => {
-      const resetKey = "rift__tinyjet-scramjet-idb-reset-v2";
+      const resetKey = "rift__tinyjet-scramjet-idb-reset-v3";
       const loadScript = (src) => new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = src;
@@ -15,7 +15,7 @@
 
       try {
         if (!sessionStorage.getItem(resetKey) && typeof indexedDB !== "undefined") {
-          const names = new Set(["scramjet", "bare-mux", "baremux"]);
+          const names = new Set(["$scramjet", "scramjet", "$bare-mux", "bare-mux", "baremux"]);
           if (typeof indexedDB.databases === "function") {
             const databases = await indexedDB.databases();
             for (const row of databases || []) {
