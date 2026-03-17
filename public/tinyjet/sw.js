@@ -45,7 +45,7 @@ async function ensureScramjetWorker() {
   if (!scramjetPromise) {
     scramjetPromise = (async () => {
       await resetScramjetIdbOnce();
-      importScripts("./tinyjet/scramjet.all.js");
+      importScripts("/tinyjet/tinyjet/scramjet.all.js");
       const { ScramjetServiceWorker } = $scramjetLoadWorker();
       const scramjet = new ScramjetServiceWorker();
       await scramjet.loadConfig();

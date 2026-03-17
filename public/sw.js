@@ -139,6 +139,20 @@ async function getEscapedUvTarget(event) {
         }
     }
 
+    if (!activeClientUrl.startsWith(self.location.origin + self.__uv$config.prefix)) {
+        try {
+            const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+            const uvClients = clients.filter((client) =>
+                String(client?.url || "").startsWith(self.location.origin + self.__uv$config.prefix)
+            );
+            if (uvClients.length === 1) {
+                activeClientUrl = String(uvClients[0].url || "");
+            }
+        } catch {
+            activeClientUrl = activeClientUrl || '';
+        }
+    }
+
     const referrer = activeClientUrl || String(request.referrer || '');
     if (!referrer.startsWith(self.location.origin + self.__uv$config.prefix)) {
         return null;
