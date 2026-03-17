@@ -127,7 +127,7 @@ async function maybePatchNowggDocument(response, requestUrl, destination) {
     });
 }
 
-async function getEscapedUvTarget(event) {
+async function getUvClientSource(event) {
     const { request, clientId } = event;
     let activeClientUrl = '';
     const cachedSourceUrl = clientId ? String(uvClientDocumentSources.get(clientId) || '') : '';
@@ -156,18 +156,26 @@ async function getEscapedUvTarget(event) {
     }
 
     try {
-        const requestUrl = new URL(request.url);
-        if (requestUrl.origin !== self.location.origin) {
-            return null;
-        }
-
-        let sourceReferrer = null;
         const referrer = activeClientUrl || String(request.referrer || '');
         if (referrer.startsWith(self.location.origin + self.__uv$config.prefix)) {
-            sourceReferrer = new URL(uvContext.sourceUrl(referrer));
-        } else if (cachedSourceUrl) {
-            sourceReferrer = new URL(cachedSourceUrl);
-        } else {
+            return new URL(uvContext.sourceUrl(referrer));
+        }
+        if (cachedSourceUrl) {
+            return new URL(cachedSourceUrl);
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+async function getEscapedUvTarget(event) {
+    const sourceReferrer = await getUvClientSource(event);
+    if (!sourceReferrer) return null;
+
+    try {
+        const requestUrl = new URL(event.request.url);
+        if (requestUrl.origin !== self.location.origin) {
             return null;
         }
 
@@ -241,6 +249,15 @@ async function handleRequest(event) {
         if (uv.route({ request })) {
             rememberUvDocumentSource(event.clientId, request.url, request);
             return await uv.fetch({ request });
+        }
+
+        const uvSourceReferrer = await getUvClientSource(event);
+        if (uvSourceReferrer && url.origin !== self.location.origin) {
+            const proxiedRequest = buildReroutedRequest(
+                `${self.location.origin}${self.__uv$config.prefix}${self.__uv$config.encodeUrl(url.toString())}`,
+                request
+            );
+            return await uv.fetch({ request: proxiedRequest });
         }
 
         const escapedUvTarget = await getEscapedUvTarget(event);
