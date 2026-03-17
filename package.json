@@ -4,6 +4,7 @@
   "description": "Rift unblocked proxy",
   "main": "server/server.js",
   "scripts": {
+    "build:amplify": "node scripts/build-amplify.js",
     "start": "node server/server.js",
     "validate:vercel": "node -e \"const fs=require('fs');const v=JSON.parse(fs.readFileSync('vercel.json','utf8'));const d=v?.rewrites?.[0]?.destination;if(d!=='/api/index'&&d!=='/api/index.js'){throw new Error('vercel.json must rewrite to /api/index(.js)')}console.log('vercel.json ok')\""
   },
