@@ -488,6 +488,7 @@
             const BAREMUX_BOOT_KEY = `${modeKey}__browser-baremux-boot-v1`;
             const PROXY_CHAIN = ['scramjet', 'ultraviolet', 'proxy'];
             const panels = [{ history: [], historyIndex: -1 }];
+            const panelFrames = new WeakMap();
             let activePanel = 0;
             let browserHistory = [];
             let browserBookmarks = [];
@@ -557,11 +558,13 @@
             }
 
             function getFrameExecutionWindow() {
-                const currentSrc = String(frame.getAttribute('src') || frame.src || '');
+                const activeFrame = getFrameForPanel(activePanel, false);
+                if (!activeFrame) return null;
+                const currentSrc = String(activeFrame.getAttribute('src') || activeFrame.src || '');
                 if (!currentSrc || currentSrc.includes('about:blank')) return null;
                 try {
-                    const win = frame.contentWindow;
-                    const doc = frame.contentDocument;
+                    const win = activeFrame.contentWindow;
+                    const doc = activeFrame.contentDocument;
                     if (!win || !doc) return null;
                     void doc.body;
                     return win;
@@ -976,6 +979,91 @@
                 forward.disabled = panel.historyIndex >= panel.history.length - 1;
             }
 
+            function bindFrameEvents(frameEl) {
+                if (!frameEl || frameEl.dataset.riftBound === '1') return;
+                frameEl.dataset.riftBound = '1';
+                frameEl.addEventListener('load', () => {
+                    const activeFrame = getFrameForPanel(activePanel, false);
+                    if (frameEl !== activeFrame) return;
+                    if (String(frameEl.src || '').includes('about:blank')) {
+                        browserHome.classList.add('active');
+                    } else {
+                        browserHome.classList.remove('active');
+                    }
+                    setLoading(false);
+                    updateChrome();
+                    if (consoleOpen) {
+                        setTimeout(() => {
+                            attachBrowserConsole();
+                        }, 120);
+                    }
+                });
+            }
+
+            function createPanelFrame() {
+                const frameEl = document.createElement('iframe');
+                frameEl.className = 'browser-frame-panel';
+                frameEl.title = 'Rift Browser Viewer';
+                frameEl.src = 'about:blank';
+                frameEl.loading = 'eager';
+                frameEl.referrerPolicy = 'strict-origin-when-cross-origin';
+                frameEl.hidden = true;
+                browserView.appendChild(frameEl);
+                bindFrameEvents(frameEl);
+                return frameEl;
+            }
+
+            function getFrameForPanel(index = activePanel, create = true) {
+                const panel = panels[index];
+                if (!panel) return null;
+                let frameEl = panelFrames.get(panel);
+                if (!frameEl && create) {
+                    if (index === 0 && !frame.dataset.riftClaimed) {
+                        frameEl = frame;
+                        frame.classList.add('browser-frame-panel');
+                        frame.dataset.riftClaimed = '1';
+                        bindFrameEvents(frameEl);
+                    } else {
+                        frameEl = createPanelFrame();
+                    }
+                    panelFrames.set(panel, frameEl);
+                }
+                return frameEl || null;
+            }
+
+            function syncVisiblePanel() {
+                panels.forEach((panel, index) => {
+                    const frameEl = getFrameForPanel(index, false);
+                    if (!frameEl) return;
+                    frameEl.hidden = index !== activePanel;
+                });
+
+                const current = currentTargetForPanel();
+                browserHome.classList.toggle('active', current === HOME_TARGET);
+            }
+
+            function closePanel(index) {
+                const panel = panels[index];
+                const frameEl = panel ? getFrameForPanel(index, false) : null;
+                if (frameEl && frameEl !== frame) {
+                    frameEl.remove();
+                } else if (frameEl === frame) {
+                    frameEl.src = 'about:blank';
+                    frameEl.hidden = true;
+                }
+
+                panels.splice(index, 1);
+                if (activePanel >= panels.length) activePanel = panels.length - 1;
+                if (activePanel > index) activePanel -= 1;
+                syncVisiblePanel();
+                const current = currentTargetForPanel() || HOME_TARGET;
+                input.value = current === HOME_TARGET ? '' : current;
+                updateButtons();
+                renderPanelSwitcher();
+                updateBookmarkToggleLabel();
+                persistSession();
+            }
+
             function closeMoreMenu() {
                 moreMenu.hidden = true;
             }
@@ -1237,15 +1325,17 @@
                 }
                 const resolvedTarget = normalizeKnownMirrorTarget(targetUrl);
                 const panel = panels[activePanel];
+                const panelFrame = getFrameForPanel(activePanel);
                 const navigationId = ++navigationSequence;
 
                 const isBlank = resolvedTarget === 'about:blank';
                 if (isBlank) {
                     proxyMode = 'scramjet';
-                    frame.src = 'about:blank';
+                    panelFrame.src = 'about:blank';
                     input.value = '';
                     setLoading(false);
                     browserHome.classList.add('active');
+                    syncVisiblePanel();
                     setConsoleStatus('open a page first, then the console can attach.', 'neutral');
                 } else {
                     input.value = resolvedTarget;
@@ -1255,7 +1345,8 @@
                     const resolvedRoute = await resolveProxyRoute(resolvedTarget, options);
                     if (navigationId !== navigationSequence) return;
                     proxyMode = resolvedRoute.mode;
-                    frame.src = resolvedRoute.routeUrl;
+                    panelFrame.src = resolvedRoute.routeUrl;
+                    syncVisiblePanel();
                     setConsoleStatus(`loading via ${labelForEngine(resolvedRoute.mode)}...`, 'neutral');
                 }
 
@@ -1306,9 +1397,31 @@
                     btn.addEventListener('click', () => {
                         if (index === activePanel) return;
                         activePanel = index;
-                        const panel = panels[activePanel];
-                        const current = panel.history[panel.historyIndex] || HOME_TARGET;
-                        loadTarget(current, false);
+                        const current = currentTargetForPanel();
+                        const activeFrame = getFrameForPanel(activePanel);
+                        input.value = current === HOME_TARGET ? '' : current;
+                        if (activeFrame && current !== HOME_TARGET) {
+                            try {
+                                const currentSrc = String(activeFrame.getAttribute('src') || activeFrame.src || '');
+                                if (!currentSrc || currentSrc.includes('about:blank')) {
+                                    loadTarget(current, false);
+                                } else {
+                                    syncVisiblePanel();
+                                    setLoading(false);
+                                    updateButtons();
+                                    updateBookmarkToggleLabel();
+                                    updateChrome();
+                                    if (consoleOpen) attachBrowserConsole();
+                                }
+                            } catch {
+                                loadTarget(current, false);
+                            }
+                        } else {
+                            syncVisiblePanel();
+                            updateButtons();
+                            updateBookmarkToggleLabel();
+                            updateChrome();
+                        }
                         persistSession();
                     });
 
@@ -1321,13 +1434,7 @@
                         closeBtn.innerHTML = '<span class="material-icons">close</span>';
                         closeBtn.addEventListener('click', (event) => {
                             event.stopPropagation();
-                            panels.splice(index, 1);
-                            if (activePanel >= panels.length) activePanel = panels.length - 1;
-                            if (activePanel > index) activePanel -= 1;
-                            const panel = panels[activePanel];
-                            const current = panel.history[panel.historyIndex] || HOME_TARGET;
-                            loadTarget(current, false);
-                            persistSession();
+                            closePanel(index);
                         });
                         btn.appendChild(closeBtn);
                     }
@@ -1473,21 +1580,7 @@
                     closeMoreMenu();
                 }
             });
-
-            frame.addEventListener('load', () => {
-                if (frame.src.includes('about:blank')) {
-                    browserHome.classList.add('active');
-                } else {
-                    browserHome.classList.remove('active');
-                }
-                setLoading(false);
-                updateChrome();
-                if (consoleOpen) {
-                    setTimeout(() => {
-                        attachBrowserConsole();
-                    }, 120);
-                }
-            });
+            getFrameForPanel(0);
 
             const query = new URLSearchParams(window.location.search);
             const initialUrlParam = query.get('url');
