@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             chatBtn.innerHTML = '<span class="material-icons">chat</span>';
             chatBtn.addEventListener('click', () => {
-                window.location.href = '/chat?rx=nova';
+                window.location.href = '/nova/chat';
             });
 
             const settingsBtn = Array.from(nav.querySelectorAll('.nav-button')).find((button) => {

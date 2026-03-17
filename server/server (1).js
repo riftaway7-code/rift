@@ -25,8 +25,9 @@ const VALIDATE_TARGET_IPS = String(process.env.VALIDATE_TARGET_IPS || '')
 
 const validateCache = new Map();
 const VALIDATE_TTL_MS = 60 * 1000;
-const SDXP_HTML_ROOT = path.join(__dirname, '..', 'public', 'sdxp', 'html');
-const NOVA_PUBLIC_DIR = path.join(__dirname, '..', 'public', 'nova');
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const SDXP_HTML_ROOT = path.join(PUBLIC_DIR, 'sdxp', 'html');
+const NOVA_PUBLIC_DIR = path.join(PUBLIC_DIR, 'nova');
 const GN_MATH_ZONES_JSON = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/zones.json';
 const GN_MATH_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/';
 const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_BASE).href;
@@ -4517,7 +4518,26 @@ app.use(async (req, res, next) => {
     }
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public'), { redirect: false }));
+app.get(/^\/nova(?:\/(.*))?$/, async (req, res, next) => {
+    if ((req.method || 'GET').toUpperCase() !== 'GET') return next();
+    if (req.path.includes('.')) return next();
+
+    const tail = String(req.params?.[0] || '').replace(/^\/+/, '').replace(/\/+$/, '');
+    const htmlPath = tail ? `${tail}.html` : 'account.html';
+    if (!htmlPath || htmlPath.includes('..')) return next();
+
+    const file = path.join(NOVA_PUBLIC_DIR, htmlPath);
+    try {
+        await fs.access(file);
+        return res.sendFile(file);
+    } catch {
+        return next();
+    }
+});
+
+app.use('/nova', express.static(NOVA_PUBLIC_DIR, { redirect: false }));
+app.use('/nova', express.static(PUBLIC_DIR, { redirect: false }));
+app.use(express.static(PUBLIC_DIR, { redirect: false }));
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 app.use('/components', express.static(path.join(__dirname, '..', 'components')));
 app.use('/scramjet', express.static(path.join(__dirname, '..', 'node_modules', '@mercuryworkshop', 'scramjet', 'dist')));
