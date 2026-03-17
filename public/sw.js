@@ -186,6 +186,7 @@ async function handleRequest(event) {
             url.pathname === "/proxy" ||
             url.pathname === "/embed.html" ||
             url.pathname.startsWith("/assets/") ||
+            url.pathname.startsWith("/tinyjet/") ||
             url.pathname.startsWith("/components/") ||
             url.pathname.startsWith("/global/") ||
             url.pathname.startsWith("/api/") ||

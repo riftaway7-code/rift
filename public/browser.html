@@ -215,6 +215,8 @@
     <script src="/components/404.js"></script>
     <script src="/register-sw.js"></script>
     <script src="/baremux/index.js"></script>
+    <script src="/uv/uv.bundle.js"></script>
+    <script src="/uv/uv.config.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
             const resetKey = 'rift__scramjet-idb-reset-v2';
@@ -950,7 +952,13 @@
                     return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
                 }
                 if (mode === 'ultraviolet') {
-                    return `/uv/index.html?url=${encodeURIComponent(targetUrl)}`;
+                    const encoder = self.__uv$config?.encodeUrl;
+                    if (typeof encoder !== 'function') return null;
+                    try {
+                        return `${self.__uv$config.prefix}${encoder(targetUrl)}`;
+                    } catch {
+                        return null;
+                    }
                 }
                 return `/proxy?url=${encodeURIComponent(targetUrl)}`;
             }
