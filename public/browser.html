@@ -928,6 +928,7 @@
                     const host = (u.hostname || '').toLowerCase();
                     const path = (u.pathname || '').toLowerCase();
                     if (host === 'websitesball.com' || host.endsWith('.websitesball.com')) return true;
+                    if (host === 'duckduckgo.com' || host.endsWith('.duckduckgo.com')) return true;
                     if (host === 'cdn.jsdelivr.net' && path.startsWith('/gh/gn-math/')) return true;
                     return false;
                 } catch {
