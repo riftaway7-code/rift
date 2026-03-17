@@ -1231,15 +1231,24 @@
                 return false;
             }
 
-            function requiresTopLevelContext(targetUrl) {
+            function isDirectOnlySite(targetUrl) {
                 try {
                     const u = new URL(targetUrl, window.location.origin);
                     const host = (u.hostname || '').toLowerCase();
                     return host === 'youtube.com'
                         || host.endsWith('.youtube.com')
                         || host === 'youtu.be'
-                        || host.endsWith('.youtu.be')
-                        || host === 'roblox.com'
+                        || host.endsWith('.youtu.be');
+                } catch {
+                    return false;
+                }
+            }
+
+            function requiresTopLevelContext(targetUrl) {
+                try {
+                    const u = new URL(targetUrl, window.location.origin);
+                    const host = (u.hostname || '').toLowerCase();
+                    return host === 'roblox.com'
                         || host.endsWith('.roblox.com')
                         || host === 'nowgg.fun'
                         || host.endsWith('.nowgg.fun')
@@ -1409,6 +1418,10 @@
                     setLoading(true);
                     browserHome.classList.remove('active');
                     setConsoleStatus(`connecting to ${labelForUrl(resolvedTarget)}...`, 'neutral');
+                    if (isDirectOnlySite(resolvedTarget) && options?.allowTopLevelEscape !== false) {
+                        window.location.assign(resolvedTarget);
+                        return;
+                    }
                     const resolvedRoute = await resolveProxyRoute(resolvedTarget, options);
                     if (navigationId !== navigationSequence) return;
                     if (requiresTopLevelContext(resolvedTarget) && options?.allowTopLevelEscape !== false) {
