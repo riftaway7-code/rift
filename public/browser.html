@@ -317,7 +317,7 @@
             const MAX_BOOKMARKS = 120;
             const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug'];
             const BAREMUX_BOOT_KEY = `${modeKey}__browser-baremux-boot-v1`;
-            const PROXY_CHAIN = ['scramjet', 'tinyjet', 'ultraviolet', 'proxy'];
+            const PROXY_CHAIN = ['scramjet', 'ultraviolet', 'proxy'];
             const panels = [{ history: [], historyIndex: -1 }];
             let activePanel = 0;
             let browserHistory = [];
@@ -606,11 +606,9 @@
                 browserEnginePill.textContent =
                     proxyMode === 'scramjet'
                         ? 'scramjet'
-                        : proxyMode === 'tinyjet'
-                            ? 'tinyjet'
-                            : proxyMode === 'ultraviolet'
-                                ? 'ultraviolet'
-                                : 'plain proxy';
+                        : proxyMode === 'ultraviolet'
+                            ? 'ultraviolet'
+                            : 'plain proxy';
                 browserEnginePill.dataset.mode = proxyMode;
 
                 if (bookmarkIcon) bookmarkIcon.textContent = isBookmarked ? 'bookmark' : 'bookmark_add';
@@ -626,7 +624,6 @@
 
             function labelForEngine(mode) {
                 if (mode === 'scramjet') return 'scramjet';
-                if (mode === 'tinyjet') return 'tinyjet';
                 if (mode === 'ultraviolet') return 'ultraviolet';
                 return 'plain proxy';
             }
@@ -949,9 +946,6 @@
                     const encoded = encodeTarget(targetUrl);
                     return encoded || null;
                 }
-                if (mode === 'tinyjet') {
-                    return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
-                }
                 if (mode === 'ultraviolet') {
                     const encoder = self.__uv$config?.encodeUrl;
                     if (typeof encoder !== 'function') return null;
@@ -1044,29 +1038,6 @@
                 };
             }
 
-            function scheduleTinyjetFallbackCheck(navigationId, resolvedTarget, options = {}) {
-                window.setTimeout(() => {
-                    if (navigationId !== navigationSequence || proxyMode !== 'tinyjet') return;
-
-                    let innerSrc = '';
-                    try {
-                        const tinyjetDoc = frame.contentDocument;
-                        const tinyjetFrame = tinyjetDoc?.getElementById('iframe');
-                        innerSrc = String(tinyjetFrame?.getAttribute('src') || tinyjetFrame?.src || '').trim();
-                    } catch {
-                        return;
-                    }
-
-                    if (!innerSrc || innerSrc.includes('about:blank')) {
-                        setConsoleStatus('tinyjet stalled, falling through to ultraviolet...', 'warn');
-                        loadTarget(resolvedTarget, false, {
-                            ...options,
-                            skipModes: ['scramjet', 'tinyjet', ...(Array.isArray(options?.skipModes) ? options.skipModes : [])],
-                        });
-                    }
-                }, 2500);
-            }
-
             async function loadTarget(targetUrl, pushHistory = true, options = {}) {
                 if (!targetUrl) {
                     return;
@@ -1093,9 +1064,6 @@
                     proxyMode = resolvedRoute.mode;
                     frame.src = resolvedRoute.routeUrl;
                     setConsoleStatus(`loading via ${labelForEngine(resolvedRoute.mode)}...`, 'neutral');
-                    if (resolvedRoute.mode === 'tinyjet') {
-                        scheduleTinyjetFallbackCheck(navigationId, resolvedTarget, options);
-                    }
                 }
 
                 if (pushHistory) {
