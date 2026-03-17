@@ -852,6 +852,9 @@
         <button class="nav-button" onclick="location.href='/soundboard'">
             <span class="material-icons">graphic_eq</span>
         </button>
+        <button class="nav-button" onclick="location.href='/cloud'">
+            <span class="material-icons">cloud</span>
+        </button>
         <button class="nav-button active" onclick="location.href='/chat'">
             <span class="material-icons">forum</span>
         </button>
@@ -878,7 +881,6 @@
     <script src="/config.js"></script>
     <script src="/global/js/ads.js"></script>
     <script src="/global/js/global.js"></script>
-    <script src="/global/js/riftx-gate.js"></script>
     <script src="/components/cloaker.js"></script>
     <script src="/components/overlay.js"></script>
     <script src="/components/components.js"></script>
@@ -1011,20 +1013,11 @@
         }
 
         function getClientMode() {
-            try {
-                if (window.RiftXMode && typeof window.RiftXMode.get === 'function') {
-                    const value = String(window.RiftXMode.get() || '').toLowerCase();
-                    return value === 'nova' ? 'nova' : 'rift';
-                }
-                const params = new URLSearchParams(window.location.search || '');
-                return String(params.get('rx') || '').toLowerCase() === 'nova' ? 'nova' : 'rift';
-            } catch {
-                return 'rift';
-            }
+            return 'rift';
         }
 
         function normalizeMessageMode(value) {
-            return String(value || '').toLowerCase() === 'nova' ? 'nova' : 'rift';
+            return 'rift';
         }
 
         function closeProfileModal() {
@@ -1684,7 +1677,6 @@
             if (!dmRoom || !dmRoom.id) return;
             const url = new URL('/chat', window.location.origin);
             url.searchParams.set('room', String(room.id || ''));
-            if (getClientMode() === 'nova') url.searchParams.set('rx', 'nova');
             const inviteText = room.isPrivate
                 ? `join me in ${displayRoomName(room)} (private room - ask for password): ${url.toString()}`
                 : `join me in ${displayRoomName(room)}: ${url.toString()}`;
@@ -2504,6 +2496,10 @@
     </script>
 </body>
 </html>
+
+
+
+
 
 
 

@@ -1984,7 +1984,7 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
     if (window.__riftReplyNotifierBooted) return;
     window.__riftReplyNotifierBooted = true;
     const currentPath = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
-    if (currentPath === '/chat' || currentPath === '/nova/chat') return;
+    if (currentPath === '/chat') return;
 
     const POLL_MS = 4000;
     let since = Date.now();
@@ -1994,22 +1994,12 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
     let pollTimer = null;
 
     function getMode() {
-        try {
-            if (window.RiftXMode && typeof window.RiftXMode.get === 'function') {
-                return String(window.RiftXMode.get() || '').toLowerCase() === 'nova' ? 'nova' : 'rift';
-            }
-            const params = new URLSearchParams(window.location.search || '');
-            return String(params.get('rx') || '').toLowerCase() === 'nova' ? 'nova' : 'rift';
-        } catch {
-            return 'rift';
-        }
+        return 'rift';
     }
 
     function getChatLink(roomId) {
-        const mode = getMode();
         const url = new URL('/chat', window.location.origin);
         if (roomId) url.searchParams.set('room', roomId);
-        if (mode === 'nova') url.searchParams.set('rx', 'nova');
         return `${url.pathname}${url.search}`;
     }
 
@@ -2195,7 +2185,7 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
     if (window.__riftCallDockBooted) return;
     window.__riftCallDockBooted = true;
     const currentPath = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
-    if (currentPath === '/chat' || currentPath === '/nova/chat') return;
+    if (currentPath === '/chat') return;
 
     const INCOMING_POLL_MS = 1600;
     const CALL_STATE_POLL_MS = 2200;
@@ -2226,21 +2216,12 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
     };
 
     function getMode() {
-        try {
-            if (window.RiftXMode && typeof window.RiftXMode.get === 'function') {
-                return String(window.RiftXMode.get() || '').toLowerCase() === 'nova' ? 'nova' : 'rift';
-            }
-            const params = new URLSearchParams(window.location.search || '');
-            return String(params.get('rx') || '').toLowerCase() === 'nova' ? 'nova' : 'rift';
-        } catch {
-            return 'rift';
-        }
+        return 'rift';
     }
 
     function getChatLink(roomId) {
         const url = new URL('/chat', window.location.origin);
         if (roomId) url.searchParams.set('room', roomId);
-        if (getMode() === 'nova') url.searchParams.set('rx', 'nova');
         return `${url.pathname}${url.search}`;
     }
 
@@ -2882,4 +2863,5 @@ function riftGetCachedAuthMe(requestFn, ttlMs = 15000) {
         notify();
     });
 })();
+
 

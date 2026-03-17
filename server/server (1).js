@@ -27,7 +27,6 @@ const validateCache = new Map();
 const VALIDATE_TTL_MS = 60 * 1000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const SDXP_HTML_ROOT = path.join(PUBLIC_DIR, 'sdxp', 'html');
-const NOVA_PUBLIC_DIR = path.join(PUBLIC_DIR, 'nova');
 const GN_MATH_ZONES_JSON = 'https://cdn.jsdelivr.net/gh/gn-math/assets@main/zones.json';
 const GN_MATH_BASE = 'https://cdn.jsdelivr.net/gh/gn-math/';
 const GN_MATH_HTML_BASE = new URL('html@main/', GN_MATH_BASE).href;
@@ -130,13 +129,6 @@ const BUILTIN_PROFILE_PRESETS = [
         code: 'RIFT01',
         name: 'rift pulse',
         style: { themeId: 'midnight', frameEffect: 'pulse', accentAnimation: 'breathe', accent: '#8ecbff' },
-        builtIn: true,
-        creatorUsername: 'system',
-    },
-    {
-        code: 'NOVA01',
-        name: 'nova shimmer',
-        style: { themeId: 'starlight', frameEffect: 'glow', accentAnimation: 'shimmer', accent: '#ff7a4d' },
         builtIn: true,
         creatorUsername: 'system',
     },
@@ -3624,9 +3616,7 @@ function computeSaveStats(save) {
         if (game.favorite === true) favoriteGames += 1;
     }
     const collections = normalizeCollections(save?.collections);
-    const hasCustomTheme =
-        !!save?.settings?.['rift__theme-custom-v1'] ||
-        !!save?.settings?.['nova__theme-custom-v1'];
+    const hasCustomTheme = !!save?.settings?.['rift__theme-custom-v1'];
     return {
         totalLaunches,
         uniqueGames,
@@ -4235,7 +4225,7 @@ function sanitizeChatText(input) {
 }
 
 function normalizeChatClientMode(input) {
-    return String(input || '').trim().toLowerCase() === 'nova' ? 'nova' : 'rift';
+    return 'rift';
 }
 
 function normalizeChatReplyId(input) {
@@ -4493,58 +4483,6 @@ async function hostnamePointsToAllowedIp(hostname) {
     }
 }
 
-app.use(async (req, res, next) => {
-    if ((req.method || 'GET').toUpperCase() !== 'GET') return next();
-
-    const mode = String(req.query?.rx || '').trim().toLowerCase();
-    if (mode !== 'nova') return next();
-    if (req.path.includes('.')) return next();
-
-    const normalizedPath = req.path.length > 1
-        ? req.path.replace(/\/+$/, '')
-        : req.path;
-    const htmlPath = normalizedPath === '/'
-        ? 'index.html'
-        : `${normalizedPath.replace(/^\/+/, '')}.html`;
-
-    if (!htmlPath || htmlPath.includes('..')) return next();
-    const file = path.join(NOVA_PUBLIC_DIR, htmlPath);
-
-    try {
-        await fs.access(file);
-        return res.sendFile(file);
-    } catch {
-        return next();
-    }
-});
-
-app.get(/^\/nova(?:\/(.*))?$/, async (req, res, next) => {
-    if ((req.method || 'GET').toUpperCase() !== 'GET') return next();
-    if (req.path.includes('.')) return next();
-
-    const tail = String(req.params?.[0] || '').replace(/^\/+/, '').replace(/\/+$/, '');
-    const htmlPath = tail ? `${tail}.html` : 'index.html';
-    if (!htmlPath || htmlPath.includes('..')) return next();
-
-    const primaryFile = path.join(NOVA_PUBLIC_DIR, htmlPath);
-    const fallbackFile = path.join(PUBLIC_DIR, htmlPath);
-
-    try {
-        await fs.access(primaryFile);
-        return res.sendFile(primaryFile);
-    } catch {
-    }
-
-    try {
-        await fs.access(fallbackFile);
-        return res.sendFile(fallbackFile);
-    } catch {
-        return next();
-    }
-});
-
-app.use('/nova', express.static(NOVA_PUBLIC_DIR, { redirect: false }));
-app.use('/nova', express.static(PUBLIC_DIR, { redirect: false }));
 app.use(express.static(PUBLIC_DIR, { redirect: false }));
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 app.use('/components', express.static(path.join(__dirname, '..', 'components')));
@@ -8536,4 +8474,5 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
 
