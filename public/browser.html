@@ -17,60 +17,115 @@
 <body class="browser-page">
     <div class="container browser-container">
         <section class="browser-shell" aria-label="Rift browser">
-            <aside class="browser-side-panel">
-                <div class="browser-corner">
-                    <div id="browser-loading" class="browser-loading" aria-label="Loading" title="Loading"></div>
-                </div>
+            <div class="browser-main">
+                <header class="browser-chrome">
+                    <div class="browser-tabs-row">
+                        <div class="browser-brand" aria-label="Rift browser brand">
+                            <div id="browser-loading" class="browser-loading" aria-label="Loading" title="Loading"></div>
+                            <div class="browser-brand-copy">
+                                <span class="browser-brand-kicker">rift proxy</span>
+                                <strong>browser workspace</strong>
+                            </div>
+                        </div>
+                        <div id="panel-switcher" class="browser-panel-switcher" aria-label="Tabs"></div>
+                    </div>
 
-                <div class="browser-side-main">
-                    <div class="browser-side-nav">
-                        <button type="button" id="browser-back" class="nav-button browser-side-btn" aria-label="Go back" title="Back">
-                            <span class="material-icons">arrow_back</span>
+                    <form id="browser-form" class="browser-toolbar browser-topbar" autocomplete="off" onsubmit="return false;">
+                        <div class="browser-nav-group">
+                            <button type="button" id="browser-back" class="browser-toolbar-btn" aria-label="Go back" title="Back">
+                                <span class="material-icons">arrow_back</span>
+                            </button>
+                            <button type="button" id="browser-forward" class="browser-toolbar-btn" aria-label="Go forward" title="Forward">
+                                <span class="material-icons">arrow_forward</span>
+                            </button>
+                            <button type="button" id="browser-reload" class="browser-toolbar-btn" aria-label="Reload page" title="Reload">
+                                <span class="material-icons">refresh</span>
+                            </button>
+                        </div>
+
+                        <label class="browser-omnibox" for="browser-input">
+                            <span class="material-icons">search</span>
+                            <input
+                                id="browser-input"
+                                type="text"
+                                placeholder="Search or enter URL"
+                                aria-label="Search or enter URL"
+                            >
+                        </label>
+
+                        <button type="submit" id="browser-go" class="browser-go-btn">Go</button>
+                        <button type="button" id="browser-bookmark" class="browser-toolbar-btn" aria-label="Save bookmark" title="Bookmark">
+                            <span class="material-icons">bookmark_add</span>
                         </button>
-                        <button type="button" id="browser-forward" class="nav-button browser-side-btn" aria-label="Go forward" title="Forward">
-                            <span class="material-icons">arrow_forward</span>
+                        <button type="button" id="browser-console-toggle" class="browser-toolbar-btn" aria-label="Toggle console" title="Console">
+                            <span class="material-icons">terminal</span>
                         </button>
-                    <button type="button" id="browser-reload" class="nav-button browser-side-btn" aria-label="Reload page" title="Reload">
-                        <span class="material-icons">refresh</span>
-                    </button>
-                    <button type="button" id="browser-more" class="nav-button browser-side-btn" aria-label="More actions" title="More">
-                        <span class="material-icons">more_horiz</span>
-                    </button>
-                </div>
+                        <button type="button" id="browser-more" class="browser-toolbar-btn" aria-label="More actions" title="More">
+                            <span class="material-icons">more_horiz</span>
+                        </button>
+                    </form>
+
+                    <div class="browser-statusbar">
+                        <div id="browser-engine-pill" class="browser-status-pill">scramjet</div>
+                        <div class="browser-active-stack">
+                            <span id="browser-active-label" class="browser-active-label">New tab</span>
+                            <span id="browser-active-subtitle" class="browser-active-subtitle">Search the web or enter a URL.</span>
+                        </div>
+                        <div class="browser-shortcuts">
+                            <button type="button" id="browser-home-shortcut" class="browser-shortcut-btn">Home</button>
+                            <button type="button" id="browser-open-bookmarks-shortcut" class="browser-shortcut-btn">Bookmarks</button>
+                            <button type="button" id="browser-open-history-shortcut" class="browser-shortcut-btn">History</button>
+                        </div>
+                    </div>
+
                     <div id="browser-more-menu" class="browser-more-menu" hidden>
                         <button type="button" id="browser-popout" class="browser-more-item" aria-label="Pop out current tab">
                             <span class="material-icons">open_in_new</span>
                             <span>Pop out</span>
                         </button>
                     </div>
-                    <div id="panel-switcher" class="browser-panel-switcher" aria-label="Panels"></div>
+                </header>
+
+                <div class="browser-view">
+                    <div id="browser-home" class="browser-home">
+                        <div class="browser-home-hero">
+                            <span class="browser-home-kicker">browser-first proxy shell</span>
+                            <h2>Proxy inside a real browser workspace.</h2>
+                            <p>Rift keeps its session restore, bookmarks, history, popout, and console tools while behaving more like a full browser tab experience.</p>
+                            <div class="browser-home-actions">
+                                <button type="button" id="browser-home-restore" class="browser-home-action">Restore last session</button>
+                                <button type="button" id="browser-home-bookmarks-btn" class="browser-home-action secondary">Open bookmarks</button>
+                                <button type="button" id="browser-home-history-btn" class="browser-home-action secondary">Open history</button>
+                            </div>
+                        </div>
+
+                        <div class="browser-home-grid">
+                            <section class="browser-home-card" aria-label="Saved bookmarks">
+                                <div class="browser-home-card-head">
+                                    <span>Bookmarks</span>
+                                    <small>saved locally</small>
+                                </div>
+                                <div id="browser-home-bookmarks" class="browser-home-list"></div>
+                            </section>
+
+                            <section class="browser-home-card" aria-label="Recent history">
+                                <div class="browser-home-card-head">
+                                    <span>Recent history</span>
+                                    <small>latest launches</small>
+                                </div>
+                                <div id="browser-home-history" class="browser-home-list"></div>
+                            </section>
+                        </div>
+                    </div>
+
+                    <iframe
+                        id="browser-frame"
+                        title="Rift Browser Viewer"
+                        src="about:blank"
+                        loading="eager"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                    ></iframe>
                 </div>
-            </aside>
-
-            <div class="browser-view">
-                <form id="browser-form" class="browser-toolbar browser-topbar" autocomplete="off" onsubmit="return false;">
-                    <input
-                        id="browser-input"
-                        type="text"
-                        placeholder="Search or enter URL"
-                        aria-label="Search or enter URL"
-                    >
-                    <button type="submit" id="browser-go" class="browser-go-btn">Go</button>
-                </form>
-
-                <div id="browser-home" class="browser-home">
-                    <h2>rift browser</h2>
-                    <p>search a url above to begin your session</p>
-                </div>
-
-                <iframe
-                    id="browser-frame"
-                    title="Rift Browser Viewer"
-                    src="about:blank"
-                    loading="eager"
-                    referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
-
             </div>
 
             <aside id="browser-console" class="browser-console" hidden aria-label="Browser console">
@@ -173,13 +228,27 @@
             const back = document.getElementById('browser-back');
             const forward = document.getElementById('browser-forward');
             const reload = document.getElementById('browser-reload');
+            const bookmark = document.getElementById('browser-bookmark');
+            const consoleToggle = document.getElementById('browser-console-toggle');
             const more = document.getElementById('browser-more');
             const moreMenu = document.getElementById('browser-more-menu');
             const popout = document.getElementById('browser-popout');
             const panelSwitcher = document.getElementById('panel-switcher');
             const browserShell = document.querySelector('.browser-shell');
+            const browserMain = document.querySelector('.browser-main');
             const browserView = document.querySelector('.browser-view');
             const browserHome = document.getElementById('browser-home');
+            const browserHomeBookmarks = document.getElementById('browser-home-bookmarks');
+            const browserHomeHistory = document.getElementById('browser-home-history');
+            const browserHomeRestore = document.getElementById('browser-home-restore');
+            const browserHomeBookmarksBtn = document.getElementById('browser-home-bookmarks-btn');
+            const browserHomeHistoryBtn = document.getElementById('browser-home-history-btn');
+            const browserHomeShortcut = document.getElementById('browser-home-shortcut');
+            const browserBookmarksShortcut = document.getElementById('browser-open-bookmarks-shortcut');
+            const browserHistoryShortcut = document.getElementById('browser-open-history-shortcut');
+            const browserEnginePill = document.getElementById('browser-engine-pill');
+            const browserActiveLabel = document.getElementById('browser-active-label');
+            const browserActiveSubtitle = document.getElementById('browser-active-subtitle');
             const consolePanel = document.getElementById('browser-console');
             const consoleStatus = document.getElementById('browser-console-status');
             const consoleOutput = document.getElementById('browser-console-output');
@@ -193,9 +262,9 @@
                 ? new BareMux.BareMuxConnection('/baremux/worker.js')
                 : null;
 
-            if (!form || !input || !frame || !back || !forward || !reload || !more || !moreMenu || !popout || !panelSwitcher || !browserShell || !browserView || !browserHome || !consolePanel || !consoleStatus || !consoleOutput || !consoleInput || !consoleRun || !consoleClear || !consoleClose) return;
+            if (!form || !input || !frame || !back || !forward || !reload || !bookmark || !consoleToggle || !more || !moreMenu || !popout || !panelSwitcher || !browserShell || !browserMain || !browserView || !browserHome || !browserHomeBookmarks || !browserHomeHistory || !browserHomeRestore || !browserHomeBookmarksBtn || !browserHomeHistoryBtn || !browserHomeShortcut || !browserBookmarksShortcut || !browserHistoryShortcut || !browserEnginePill || !browserActiveLabel || !browserActiveSubtitle || !consolePanel || !consoleStatus || !consoleOutput || !consoleInput || !consoleRun || !consoleClear || !consoleClose) return;
 
-            const MAX_PANELS = 3;
+            const MAX_PANELS = 5;
             const modeKey = window.location.pathname.startsWith('/nova/') ? 'nova' : 'rift';
             const SESSION_KEY = `${modeKey}__browser-session-v2`;
             const LAST_SESSION_KEY = `${modeKey}__browser-last-session-v2`;
@@ -266,7 +335,7 @@
             function setConsoleOpen(open) {
                 consoleOpen = !!open;
                 consolePanel.hidden = !consoleOpen;
-                browserShell.classList.toggle('browser-console-open', consoleOpen);
+                updateChrome();
             }
 
             function clearConsoleOutput() {
@@ -409,6 +478,100 @@
                 }
             }
 
+            function compactUrl(url) {
+                if (!url || url === HOME_TARGET) return 'Search the web or enter a URL.';
+                try {
+                    const parsed = new URL(url, window.location.origin);
+                    const host = String(parsed.hostname || '').replace(/^www\./i, '');
+                    const suffix = `${parsed.pathname || ''}${parsed.search || ''}`.replace(/\/$/, '');
+                    return `${host}${suffix}`.slice(0, 84) || url;
+                } catch {
+                    return String(url).slice(0, 84);
+                }
+            }
+
+            function currentTargetForPanel(panel = panels[activePanel]) {
+                return panel?.history?.[panel.historyIndex] || HOME_TARGET;
+            }
+
+            function titleForPanel(panel = panels[activePanel]) {
+                const current = currentTargetForPanel(panel);
+                return current === HOME_TARGET ? 'New tab' : labelForUrl(current);
+            }
+
+            function subtitleForPanel(panel = panels[activePanel]) {
+                const current = currentTargetForPanel(panel);
+                return current === HOME_TARGET ? 'Search the web or enter a URL.' : compactUrl(current);
+            }
+
+            function renderHomeList(container, rows, emptyMessage, heading) {
+                container.innerHTML = '';
+                const list = Array.isArray(rows) ? rows.slice(0, 6) : [];
+                if (!list.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'browser-home-empty';
+                    empty.textContent = emptyMessage;
+                    container.appendChild(empty);
+                    return;
+                }
+
+                list.forEach((row) => {
+                    if (!row?.url) return;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'browser-home-link';
+                    btn.setAttribute('aria-label', `${heading}: ${row.label || labelForUrl(row.url)}`);
+
+                    const title = document.createElement('span');
+                    title.className = 'browser-home-link-title';
+                    title.textContent = row.label || labelForUrl(row.url);
+
+                    const meta = document.createElement('span');
+                    meta.className = 'browser-home-link-meta';
+                    meta.textContent = compactUrl(row.url);
+
+                    btn.append(title, meta);
+                    btn.addEventListener('click', () => {
+                        loadTarget(row.url, true);
+                    });
+                    container.appendChild(btn);
+                });
+            }
+
+            function renderHomeCollections() {
+                renderHomeList(browserHomeBookmarks, browserBookmarks, 'No bookmarks saved yet.', 'Bookmark');
+                renderHomeList(browserHomeHistory, browserHistory, 'No recent history yet.', 'History');
+            }
+
+            function updateChrome() {
+                const panel = panels[activePanel];
+                const current = currentTargetForPanel(panel);
+                const isBookmarked =
+                    current !== HOME_TARGET &&
+                    browserBookmarks.some((row) => row.url === current);
+                const bookmarkIcon = bookmark.querySelector('.material-icons');
+                const consoleIcon = consoleToggle.querySelector('.material-icons');
+
+                browserShell.classList.toggle('browser-console-open', consoleOpen);
+                browserMain.dataset.proxyMode = proxyMode;
+
+                browserActiveLabel.textContent = titleForPanel(panel);
+                browserActiveSubtitle.textContent = subtitleForPanel(panel);
+
+                browserEnginePill.textContent = proxyMode === 'scramjet' ? 'scramjet' : 'proxy fallback';
+                browserEnginePill.dataset.mode = proxyMode;
+
+                if (bookmarkIcon) bookmarkIcon.textContent = isBookmarked ? 'bookmark' : 'bookmark_add';
+                bookmark.classList.toggle('active', isBookmarked);
+                bookmark.setAttribute('aria-pressed', isBookmarked ? 'true' : 'false');
+                bookmark.setAttribute('title', isBookmarked ? 'Remove bookmark' : 'Save bookmark');
+                bookmark.setAttribute('aria-label', isBookmarked ? 'Remove bookmark' : 'Save bookmark');
+
+                if (consoleIcon) consoleIcon.textContent = consoleOpen ? 'terminal' : 'terminal';
+                consoleToggle.classList.toggle('active', consoleOpen);
+                consoleToggle.setAttribute('aria-pressed', consoleOpen ? 'true' : 'false');
+            }
+
             function loadBookmarks() {
                 const rows = readJson(BOOKMARKS_KEY, []);
                 browserBookmarks = Array.isArray(rows)
@@ -425,6 +588,7 @@
 
             function saveBookmarks() {
                 writeJson(BOOKMARKS_KEY, browserBookmarks.slice(0, MAX_BOOKMARKS));
+                renderHomeCollections();
             }
 
             function loadGlobalHistory() {
@@ -442,6 +606,7 @@
 
             function saveGlobalHistory() {
                 writeJson(HISTORY_KEY, browserHistory.slice(0, MAX_GLOBAL_HISTORY));
+                renderHomeCollections();
             }
 
             function rememberGlobalHistory(url) {
@@ -466,6 +631,7 @@
                     if (browserBookmarks.length > MAX_BOOKMARKS) browserBookmarks = browserBookmarks.slice(0, MAX_BOOKMARKS);
                 }
                 saveBookmarks();
+                updateChrome();
             }
 
             function pickAndOpen(rows, heading) {
@@ -493,7 +659,6 @@
                 panels.splice(0, panels.length, { history: [], historyIndex: -1 });
                 activePanel = 0;
                 loadTarget(HOME_TARGET, true);
-                renderPanelSwitcher();
                 persistSession();
             }
 
@@ -507,13 +672,13 @@
                 const panel = panels[activePanel];
                 const current = panel.history[panel.historyIndex] || HOME_TARGET;
                 loadTarget(current, false);
-                renderPanelSwitcher();
                 persistSession();
             }
 
             restoreSession();
             loadBookmarks();
             loadGlobalHistory();
+            renderHomeCollections();
 
             function toTarget(value) {
                 const trimmed = value.trim();
@@ -614,6 +779,7 @@
                 const current = panel.history[panel.historyIndex] || '';
                 const isMarked = !!current && current !== HOME_TARGET && browserBookmarks.some((row) => row.url === current);
                 bookmarkToggleBtn.innerHTML = `<span class="material-icons">${isMarked ? 'bookmark' : 'bookmark_add'}</span><span>${isMarked ? 'remove bookmark' : 'save bookmark'}</span>`;
+                updateChrome();
             }
 
             function setLoading(active) {
@@ -685,6 +851,7 @@
                 } catch {
                     proxyMode = 'proxy';
                 }
+                updateChrome();
             }
 
             function encodeTarget(targetUrl) {
@@ -778,9 +945,10 @@
                         if (!popup) {
                             window.location.assign(resolvedTarget);
                         }
+                        frame.src = 'about:blank';
                         input.value = resolvedTarget;
                         setLoading(false);
-                        browserHome.classList.remove('active');
+                        browserHome.classList.add('active');
                         setConsoleStatus('direct-open pages cannot be inspected in the embedded console.', 'warn');
                     } else {
                         frame.src = buildProxyUrl(resolvedTarget);
@@ -803,6 +971,7 @@
                 }
 
                 updateButtons();
+                renderPanelSwitcher();
                 updateBookmarkToggleLabel();
                 persistSession();
             }
@@ -810,20 +979,35 @@
             function renderPanelSwitcher() {
                 panelSwitcher.innerHTML = '';
 
-                panels.forEach((_, index) => {
+                panels.forEach((panelState, index) => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'browser-panel-btn' + (index === activePanel ? ' active' : '');
-                    btn.setAttribute('aria-label', `Panel ${index + 1}`);
-                    btn.title = `Panel ${index + 1}`;
-                    btn.innerHTML = `<span class="material-icons">web_asset</span><span class="panel-number">${index + 1}</span>`;
+                    btn.setAttribute('aria-label', `${titleForPanel(panelState)} tab`);
+                    btn.title = subtitleForPanel(panelState);
+
+                    const dot = document.createElement('span');
+                    dot.className = 'browser-tab-dot' + (currentTargetForPanel(panelState) === HOME_TARGET ? ' blank' : '');
+
+                    const copy = document.createElement('span');
+                    copy.className = 'browser-tab-copy';
+
+                    const title = document.createElement('span');
+                    title.className = 'browser-tab-title';
+                    title.textContent = titleForPanel(panelState);
+
+                    const subtitle = document.createElement('span');
+                    subtitle.className = 'browser-tab-url';
+                    subtitle.textContent = subtitleForPanel(panelState);
+
+                    copy.append(title, subtitle);
+                    btn.append(dot, copy);
                     btn.addEventListener('click', () => {
                         if (index === activePanel) return;
                         activePanel = index;
                         const panel = panels[activePanel];
                         const current = panel.history[panel.historyIndex] || HOME_TARGET;
                         loadTarget(current, false);
-                        renderPanelSwitcher();
                         persistSession();
                     });
 
@@ -842,7 +1026,6 @@
                             const panel = panels[activePanel];
                             const current = panel.history[panel.historyIndex] || HOME_TARGET;
                             loadTarget(current, false);
-                            renderPanelSwitcher();
                             persistSession();
                         });
                         btn.appendChild(closeBtn);
@@ -857,12 +1040,11 @@
                     addBtn.className = 'browser-panel-btn add';
                     addBtn.setAttribute('aria-label', 'Add panel');
                     addBtn.title = 'Add panel';
-                    addBtn.innerHTML = '<span class="material-icons">add</span>';
+                    addBtn.innerHTML = '<span class="material-icons">add</span><span>new tab</span>';
                     addBtn.addEventListener('click', () => {
                         panels.push({ history: [], historyIndex: -1 });
                         activePanel = panels.length - 1;
                         loadTarget(HOME_TARGET, true);
-                        renderPanelSwitcher();
                         persistSession();
                     });
                     panelSwitcher.appendChild(addBtn);
@@ -898,6 +1080,40 @@
                 const panel = panels[activePanel];
                 if (panel.historyIndex < 0) return;
                 loadTarget(panel.history[panel.historyIndex], false);
+            });
+
+            bookmark.addEventListener('click', () => {
+                saveCurrentBookmark();
+                updateBookmarkToggleLabel();
+            });
+
+            consoleToggle.addEventListener('click', () => {
+                setConsoleOpen(!consoleOpen);
+                if (consoleOpen) attachBrowserConsole();
+            });
+
+            browserHomeShortcut.addEventListener('click', () => {
+                loadTarget(HOME_TARGET, true);
+            });
+
+            browserBookmarksShortcut.addEventListener('click', () => {
+                pickAndOpen(browserBookmarks, 'bookmarks');
+            });
+
+            browserHistoryShortcut.addEventListener('click', () => {
+                pickAndOpen(browserHistory, 'history');
+            });
+
+            browserHomeRestore.addEventListener('click', () => {
+                restoreLastSession();
+            });
+
+            browserHomeBookmarksBtn.addEventListener('click', () => {
+                pickAndOpen(browserBookmarks, 'bookmarks');
+            });
+
+            browserHomeHistoryBtn.addEventListener('click', () => {
+                pickAndOpen(browserHistory, 'history');
             });
 
             consoleRun.addEventListener('click', () => {
@@ -960,6 +1176,7 @@
                     browserHome.classList.remove('active');
                 }
                 setLoading(false);
+                updateChrome();
                 if (consoleOpen) {
                     setTimeout(() => {
                         attachBrowserConsole();
@@ -994,6 +1211,7 @@
             updateBookmarkToggleLabel();
             persistSession();
             setConsoleStatus('open a page first, then the console can attach.', 'neutral');
+            updateChrome();
         })();
     </script>
 
