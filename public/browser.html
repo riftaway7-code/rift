@@ -905,6 +905,30 @@
             loadGlobalHistory();
             renderHomeCollections();
 
+            const CANONICAL_HOSTS = new Map([
+                ['google.com', 'www.google.com'],
+                ['youtube.com', 'www.youtube.com'],
+                ['roblox.com', 'www.roblox.com'],
+                ['reddit.com', 'www.reddit.com'],
+                ['twitter.com', 'x.com'],
+                ['x.com', 'x.com'],
+                ['wikipedia.org', 'www.wikipedia.org'],
+            ]);
+
+            function normalizeBrowserHost(rawUrl) {
+                try {
+                    const url = new URL(rawUrl);
+                    const host = (url.hostname || '').toLowerCase();
+                    const canonical = CANONICAL_HOSTS.get(host);
+                    if (canonical && canonical !== host) {
+                        url.hostname = canonical;
+                    }
+                    return url.toString();
+                } catch {
+                    return rawUrl;
+                }
+            }
+
             function toTarget(value) {
                 const trimmed = value.trim();
                 if (!trimmed) return null;
@@ -917,7 +941,7 @@
                         ? `https://${trimmed}`
                         : `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
 
-                return url;
+                return normalizeBrowserHost(url);
             }
 
             function mergeTargetUrl(targetUrl, explicitTarget) {
