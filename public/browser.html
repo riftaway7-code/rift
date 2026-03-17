@@ -1282,10 +1282,28 @@
                 }
             }
 
+            function requiresRewriteAwareProxy(targetUrl) {
+                try {
+                    const u = new URL(targetUrl, window.location.origin);
+                    const host = (u.hostname || '').toLowerCase();
+                    return host === 'youtube.com'
+                        || host.endsWith('.youtube.com')
+                        || host === 'youtu.be'
+                        || host.endsWith('.youtu.be')
+                        || host === 'google.com'
+                        || host.endsWith('.google.com');
+                } catch {
+                    return false;
+                }
+            }
+
             function getPreferredProxyChain(targetUrl) {
                 try {
                     const u = new URL(targetUrl, window.location.origin);
                     const host = (u.hostname || '').toLowerCase();
+                    if (requiresRewriteAwareProxy(targetUrl)) {
+                        return ['ultraviolet', 'scramjet'];
+                    }
                     if (
                         host === 'roblox.com' ||
                         host.endsWith('.roblox.com') ||
@@ -1307,8 +1325,9 @@
 
             async function resolveProxyRoute(targetUrl, options = {}) {
                 const forcePlain = shouldForcePlainProxy(targetUrl);
+                const disallowPlain = requiresRewriteAwareProxy(targetUrl);
                 const skippedModes = new Set(Array.isArray(options?.skipModes) ? options.skipModes : []);
-                const chain = (forcePlain ? ['proxy'] : getPreferredProxyChain(targetUrl)).filter((mode) => !skippedModes.has(mode));
+                const chain = (forcePlain ? ['proxy'] : getPreferredProxyChain(targetUrl)).filter((mode) => !skippedModes.has(mode) && (!disallowPlain || mode !== 'proxy'));
 
                 for (const mode of chain) {
                     if (mode === 'scramjet') {
@@ -1323,6 +1342,20 @@
                     const works = await probeRoute(routeUrl);
                     if (works) {
                         return { mode, routeUrl };
+                    }
+                }
+
+                if (disallowPlain) {
+                    for (const mode of ['ultraviolet', 'scramjet']) {
+                        if (skippedModes.has(mode)) continue;
+                        if (mode === 'scramjet') {
+                            const ready = await ensureScramjetReady();
+                            if (!ready) continue;
+                        }
+                        const routeUrl = buildProxyUrlForMode(targetUrl, mode);
+                        if (routeUrl) {
+                            return { mode, routeUrl };
+                        }
                     }
                 }
 
