@@ -215,12 +215,53 @@
     <script src="/components/404.js"></script>
     <script src="/register-sw.js"></script>
     <script src="/baremux/index.js"></script>
-    <script src="/assets/scramjet/scramjet.codecs.js"></script>
-    <script src="/assets/scramjet/scramjet.config.js"></script>
-    <script src="/assets/scramjet/scramjet.bundle.js"></script>
- <script src="https://laptopchoose.com/09/96/f1/0996f1fd6e5014f3da662d494fbfe224.js"></script>
+    <script>
+        window.__riftScramjetReady = (async () => {
+            const resetKey = 'rift__scramjet-idb-reset-v1';
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error(`failed to load ${src}`));
+                document.head.appendChild(script);
+            });
+
+            try {
+                if (!sessionStorage.getItem(resetKey) && typeof indexedDB !== 'undefined') {
+                    const names = new Set(['scramjet', 'bare-mux', 'baremux']);
+                    if (typeof indexedDB.databases === 'function') {
+                        const databases = await indexedDB.databases();
+                        for (const row of databases || []) {
+                            const name = String(row?.name || '').trim();
+                            if (!name) continue;
+                            if (/scramjet|bare-?mux|mercury/i.test(name)) names.add(name);
+                        }
+                    }
+
+                    await Promise.all(Array.from(names).map((name) => new Promise((resolve) => {
+                        try {
+                            const request = indexedDB.deleteDatabase(name);
+                            request.onsuccess = () => resolve();
+                            request.onerror = () => resolve();
+                            request.onblocked = () => resolve();
+                        } catch {
+                            resolve();
+                        }
+                    })));
+                    sessionStorage.setItem(resetKey, '1');
+                }
+            } catch (error) {
+                console.warn('[rift-browser] scramjet idb reset skipped', error);
+            }
+
+            await loadScript('/assets/scramjet/scramjet.codecs.js');
+            await loadScript('/assets/scramjet/scramjet.config.js');
+            await loadScript('/assets/scramjet/scramjet.bundle.js');
+        })();
+    </script>
     <script>
         (async () => {
+            await (window.__riftScramjetReady || Promise.resolve());
             const form = document.getElementById('browser-form');
             const input = document.getElementById('browser-input');
             const frame = document.getElementById('browser-frame');
