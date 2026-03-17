@@ -5004,3 +5004,158 @@ body.reduced-effects .rift-context-chip.is-skeleton::after {
   animation: none !important;
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* Final browser layout override: shallow chrome, full-height page area, keep nav */
+body.browser-page .container.browser-container {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: calc(100vh - 72px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body.browser-page .browser-shell {
+  height: 100% !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+body.browser-page .browser-main {
+  grid-template-rows: minmax(96px, 14.25vh) minmax(0, 1fr) !important;
+  min-height: 0 !important;
+}
+
+body.browser-page .browser-chrome {
+  display: grid !important;
+  grid-template-rows: auto auto auto !important;
+  gap: 8px !important;
+  padding: 10px 14px 8px !important;
+  min-height: 0 !important;
+}
+
+body.browser-page .browser-tabs-row {
+  margin-bottom: 0 !important;
+  gap: 10px !important;
+}
+
+body.browser-page .browser-brand {
+  min-width: 156px !important;
+  padding: 7px 10px !important;
+  border-radius: 16px !important;
+}
+
+body.browser-page .browser-brand-copy strong {
+  font-size: 15px !important;
+}
+
+body.browser-page .browser-brand-kicker {
+  font-size: 9px !important;
+}
+
+body.browser-page .browser-panel-switcher {
+  padding: 0 4px 2px !important;
+  gap: 8px !important;
+}
+
+body.browser-page .browser-panel-btn {
+  min-width: 144px !important;
+  max-width: 210px !important;
+  min-height: 38px !important;
+  padding: 8px 32px 8px 12px !important;
+  border-radius: 14px !important;
+}
+
+body.browser-page .browser-tab-title {
+  font-size: 12px !important;
+}
+
+body.browser-page .browser-tab-url {
+  font-size: 10px !important;
+}
+
+body.browser-page .browser-toolbar {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto !important;
+  gap: 10px !important;
+}
+
+body.browser-page .browser-nav-group,
+body.browser-page .browser-shortcuts {
+  gap: 6px !important;
+}
+
+body.browser-page .browser-toolbar-btn,
+body.browser-page .browser-shortcut-btn {
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 13px !important;
+  padding: 0 12px !important;
+}
+
+body.browser-page .browser-omnibox {
+  height: 44px !important;
+  border-radius: 16px !important;
+  padding: 0 14px !important;
+}
+
+body.browser-page #browser-input {
+  font-size: 13px !important;
+}
+
+body.browser-page .browser-go-btn,
+body.browser-page .browser-home-action {
+  height: 42px !important;
+  border-radius: 14px !important;
+  padding: 0 16px !important;
+  font-size: 12px !important;
+}
+
+body.browser-page .browser-statusbar {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  gap: 10px !important;
+}
+
+body.browser-page .browser-status-pill {
+  padding: 7px 10px !important;
+  font-size: 10px !important;
+}
+
+body.browser-page .browser-active-label {
+  font-size: 12px !important;
+}
+
+body.browser-page .browser-active-subtitle {
+  font-size: 11px !important;
+}
+
+body.browser-page .browser-view {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+body.browser-page #browser-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+body.browser-page .browser-home {
+  inset: 0 !important;
+  padding: 20px 22px 24px !important;
+}
+
+@media (max-width: 920px) {
+  body.browser-page .container.browser-container {
+    height: calc(100vh - 92px) !important;
+  }
+
+  body.browser-page .browser-main {
+    grid-template-rows: minmax(124px, auto) minmax(0, 1fr) !important;
+  }
+
+  body.browser-page .browser-chrome {
+    padding: 10px 10px 8px !important;
+  }
+}
