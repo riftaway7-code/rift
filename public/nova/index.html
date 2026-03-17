@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+        document.documentElement.classList.add('nova-home-lock');
+    </script>
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-W1SEMRGLRR"></script>
     <script>
@@ -14,6 +17,41 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="/global/css/global.css">
     <style>
+        body.nova-home-page {
+            overflow-x: hidden;
+        }
+
+        body.nova-home-page .container {
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        body.nova-home-page .bottom-nav {
+            left: 50% !important;
+            right: auto !important;
+            top: auto !important;
+            bottom: 18px !important;
+            transform: translateX(-50%) !important;
+            flex-direction: row !important;
+            width: min(720px, calc(100vw - 32px)) !important;
+            max-width: calc(100vw - 32px) !important;
+            padding: 10px 12px !important;
+            justify-content: center !important;
+            align-items: center !important;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        body.nova-home-page .nav-toggle {
+            left: 50% !important;
+            right: auto !important;
+            top: auto !important;
+            bottom: 74px !important;
+            transform: translateX(-50%) !important;
+        }
+
         .nova-home-shell {
             display: grid;
             gap: 18px;
@@ -200,7 +238,7 @@
         }
     </style>
 </head>
-<body>
+<body class="nova-home-page">
     <div class="container">
         <header>
             <h1>Nova</h1>
@@ -355,5 +393,23 @@
     <script src="/components/overlay.js"></script>
     <script src="/components/components.js"></script>
     <script src="/components/404.js"></script>
+    <script>
+        (function () {
+            const lockNovaHomeLayout = () => {
+                if (!document.body) return;
+                document.body.classList.remove('nav-pos-top', 'nav-pos-left', 'nav-pos-right');
+                document.body.classList.add('nav-pos-bottom');
+            };
+
+            lockNovaHomeLayout();
+
+            if (document.body) {
+                new MutationObserver(lockNovaHomeLayout).observe(document.body, {
+                    attributes: true,
+                    attributeFilter: ['class'],
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
