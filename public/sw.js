@@ -145,7 +145,7 @@ async function getEscapedUvTarget(event) {
             const uvClients = clients.filter((client) =>
                 String(client?.url || "").startsWith(self.location.origin + self.__uv$config.prefix)
             );
-            if (uvClients.length === 1) {
+            if (uvClients.length >= 1) {
                 activeClientUrl = String(uvClients[0].url || "");
             }
         } catch {

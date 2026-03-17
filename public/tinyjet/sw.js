@@ -1,63 +1,6 @@
-const SCRAMJET_SW_RESET_KEY = "rift__tinyjet-sw-scramjet-idb-reset-v2";
-let scramjetPromise = null;
-
-async function resetScramjetIdbOnce() {
-  if (typeof indexedDB === "undefined") {
-    return;
-  }
-
-  const alreadyReset = self.registration && self.registration[SCRAMJET_SW_RESET_KEY];
-  if (alreadyReset) {
-    return;
-  }
-
-  const names = new Set(["scramjet", "bare-mux", "baremux"]);
-  try {
-    if (typeof indexedDB.databases === "function") {
-      const databases = await indexedDB.databases();
-      for (const row of databases || []) {
-        const name = String(row?.name || "").trim();
-        if (!name) continue;
-        if (/scramjet|bare-?mux|mercury/i.test(name)) names.add(name);
-      }
-    }
-  } catch (error) {
-    console.warn("[tinyjet-sw] failed to inspect indexeddb databases", error);
-  }
-
-  await Promise.all(Array.from(names).map((name) => new Promise((resolve) => {
-    try {
-      const request = indexedDB.deleteDatabase(name);
-      request.onsuccess = () => resolve();
-      request.onerror = () => resolve();
-      request.onblocked = () => resolve();
-    } catch {
-      resolve();
-    }
-  })));
-
-  if (self.registration) {
-    self.registration[SCRAMJET_SW_RESET_KEY] = true;
-  }
-}
-
-async function ensureScramjetWorker() {
-  if (!scramjetPromise) {
-    scramjetPromise = (async () => {
-      await resetScramjetIdbOnce();
-      importScripts("/tinyjet/tinyjet/scramjet.all.js");
-      const { ScramjetServiceWorker } = $scramjetLoadWorker();
-      const scramjet = new ScramjetServiceWorker();
-      await scramjet.loadConfig();
-      return scramjet;
-    })().catch((error) => {
-      scramjetPromise = null;
-      throw error;
-    });
-  }
-
-  return await scramjetPromise;
-}
+importScripts("/tinyjet/tinyjet/scramjet.all.js");
+const { ScramjetServiceWorker } = $scramjetLoadWorker();
+const scramjet = new ScramjetServiceWorker();
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -93,7 +36,7 @@ async function normalizeHtmlResponse(request, response) {
   }
 }
 async function handleRequest(event) {
-  const scramjet = await ensureScramjetWorker();
+  await scramjet.loadConfig();
   if (scramjet.route(event)) {
     const response = await scramjet.fetch(event);
     return await normalizeHtmlResponse(event.request, response);
