@@ -3477,8 +3477,8 @@ body.accent-home {
 }
 
 body.browser-page .container.browser-container {
-  width: min(1400px, 97vw) !important;
-  height: calc(100vh - 112px) !important;
+  width: min(1480px, 98vw) !important;
+  height: calc(100vh - 96px) !important;
   margin: 0 auto !important;
   padding: 0 !important;
 }
@@ -3490,16 +3490,19 @@ body.browser-page .browser-shell {
   min-height: 0 !important;
   height: 100% !important;
   overflow: hidden;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(circle at top left, rgba(101, 198, 255, 0.14), transparent 30%),
-    linear-gradient(180deg, rgba(11, 16, 21, 0.98), rgba(4, 7, 10, 0.98));
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42);
+    radial-gradient(circle at top left, rgba(255, 204, 128, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(120, 178, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(17, 20, 25, 0.98), rgba(7, 9, 13, 0.98));
+  box-shadow:
+    0 36px 90px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 body.browser-page .browser-shell.browser-console-open {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 400px) !important;
 }
 
 body.browser-page .browser-main {
@@ -3507,35 +3510,38 @@ body.browser-page .browser-main {
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  background: rgba(6, 9, 12, 0.56);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+    rgba(10, 12, 16, 0.62);
 }
 
 body.browser-page .browser-chrome {
   position: relative;
-  padding: 14px 14px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   background:
-    linear-gradient(180deg, rgba(16, 22, 29, 0.98), rgba(12, 17, 22, 0.92));
-  backdrop-filter: blur(16px);
+    linear-gradient(180deg, rgba(28, 31, 36, 0.98), rgba(16, 18, 22, 0.94));
+  backdrop-filter: blur(22px);
 }
 
 body.browser-page .browser-tabs-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 14px;
   min-width: 0;
 }
 
 body.browser-page .browser-brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  min-width: 170px;
-  padding: 8px 10px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  gap: 14px;
+  min-width: 200px;
+  padding: 10px 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 210, 150, 0.16);
+  background: linear-gradient(135deg, rgba(255, 205, 136, 0.12), rgba(255, 255, 255, 0.04));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 body.browser-page .browser-brand-copy {
@@ -3549,19 +3555,19 @@ body.browser-page .browser-brand-kicker {
   font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(170, 192, 210, 0.72);
+  color: rgba(245, 199, 130, 0.76);
 }
 
 body.browser-page .browser-brand-copy strong {
   font-family: "Run", Arial, sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   text-transform: lowercase;
   color: rgba(245, 249, 255, 0.96);
 }
 
 body.browser-page .browser-loading {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   margin: 0;
   border-width: 2px;
   flex: 0 0 auto;
@@ -3572,9 +3578,11 @@ body.browser-page .browser-panel-switcher {
   min-width: 0;
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding: 2px 6px 4px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.035);
   scrollbar-width: thin;
 }
 
@@ -3582,30 +3590,33 @@ body.browser-page .browser-panel-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  min-width: 188px;
-  max-width: 240px;
-  padding: 12px 38px 12px 14px;
+  gap: 11px;
+  min-width: 172px;
+  max-width: 230px;
+  padding: 11px 36px 11px 14px;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   color: rgba(247, 250, 255, 0.94);
   cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 body.browser-page .browser-panel-btn:hover,
 body.browser-page .browser-panel-btn:focus-visible {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.065);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
   outline: none;
 }
 
 body.browser-page .browser-panel-btn.active {
-  background: linear-gradient(180deg, rgba(155, 225, 255, 0.16), rgba(255, 255, 255, 0.08));
-  border-color: rgba(155, 225, 255, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(255, 195, 116, 0.18), rgba(103, 174, 255, 0.12));
+  border-color: rgba(255, 202, 131, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 16px 28px rgba(0, 0, 0, 0.16);
 }
 
 body.browser-page .browser-panel-btn.add {
@@ -3625,8 +3636,8 @@ body.browser-page .browser-tab-dot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #90ebff, #48b5f7);
-  box-shadow: 0 0 14px rgba(72, 181, 247, 0.4);
+  background: linear-gradient(180deg, #ffd59a, #e48b46);
+  box-shadow: 0 0 14px rgba(228, 139, 70, 0.34);
   flex: 0 0 auto;
 }
 
@@ -3683,7 +3694,7 @@ body.browser-page .panel-close-btn .material-icons {
 body.browser-page .browser-toolbar {
   display: grid !important;
   grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
   padding: 0 !important;
 }
@@ -3697,11 +3708,11 @@ body.browser-page .browser-shortcuts {
 
 body.browser-page .browser-toolbar-btn,
 body.browser-page .browser-shortcut-btn {
-  height: 44px;
-  min-width: 44px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
+  height: 46px;
+  min-width: 46px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04));
   color: rgba(245, 249, 255, 0.94);
   display: inline-flex;
   align-items: center;
@@ -3723,14 +3734,15 @@ body.browser-page .browser-home-action:focus-visible,
 body.browser-page .browser-home-link:hover,
 body.browser-page .browser-home-link:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 212, 146, 0.24);
+  background: linear-gradient(180deg, rgba(255, 206, 140, 0.12), rgba(255, 255, 255, 0.06));
   outline: none;
 }
 
 body.browser-page .browser-toolbar-btn.active,
 body.browser-page .browser-toolbar-btn[aria-pressed="true"] {
-  background: rgba(126, 212, 255, 0.16);
-  border-color: rgba(126, 212, 255, 0.28);
+  background: rgba(255, 199, 116, 0.16);
+  border-color: rgba(255, 199, 116, 0.26);
 }
 
 body.browser-page .browser-toolbar-btn .material-icons {
@@ -3738,21 +3750,22 @@ body.browser-page .browser-toolbar-btn .material-icons {
 }
 
 body.browser-page .browser-omnibox {
-  height: 48px;
+  height: 52px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
-  padding: 0 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  gap: 12px;
+  border-radius: 19px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
+  padding: 0 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 26px rgba(0, 0, 0, 0.12);
 }
 
 body.browser-page .browser-omnibox .material-icons {
   font-size: 20px;
-  color: rgba(176, 193, 209, 0.78);
+  color: rgba(244, 199, 132, 0.76);
 }
 
 body.browser-page #browser-input {
@@ -3776,72 +3789,72 @@ body.browser-page #browser-input:focus {
 
 body.browser-page .browser-go-btn,
 body.browser-page .browser-home-action {
-  height: 46px;
-  border-radius: 16px;
-  border: 1px solid rgba(136, 214, 255, 0.32);
-  background: linear-gradient(180deg, rgba(122, 218, 255, 0.9), rgba(53, 168, 235, 0.92));
-  color: #031018;
+  height: 48px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 201, 133, 0.34);
+  background: linear-gradient(180deg, rgba(255, 205, 139, 0.94), rgba(224, 143, 68, 0.92));
+  color: #1e0d00;
   padding: 0 18px;
   font-family: "Run", Arial, sans-serif;
   font-size: 13px;
   text-transform: lowercase;
   letter-spacing: 0.04em;
   cursor: pointer;
-  box-shadow: 0 14px 26px rgba(53, 168, 235, 0.18);
+  box-shadow: 0 14px 28px rgba(224, 143, 68, 0.2);
 }
 
 body.browser-page .browser-home-action.secondary,
 body.browser-page .browser-shortcut-btn {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04));
   color: rgba(245, 249, 255, 0.94);
   box-shadow: none;
 }
 
 body.browser-page .browser-statusbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 2px;
 }
 
 body.browser-page .browser-status-pill {
   flex: 0 0 auto;
-  padding: 8px 12px;
+  padding: 9px 13px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(200, 233, 255, 0.92);
+  color: rgba(244, 214, 163, 0.92);
 }
 
 body.browser-page .browser-status-pill[data-mode="proxy"] {
-  color: rgba(255, 220, 170, 0.96);
-  border-color: rgba(255, 188, 105, 0.22);
-  background: rgba(255, 188, 105, 0.08);
+  color: rgba(255, 228, 182, 0.96);
+  border-color: rgba(255, 188, 105, 0.28);
+  background: rgba(255, 188, 105, 0.1);
 }
 
 body.browser-page .browser-active-stack {
   min-width: 0;
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 body.browser-page .browser-active-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: rgba(245, 249, 255, 0.95);
 }
 
 body.browser-page .browser-active-subtitle {
-  font-size: 11px;
-  color: rgba(184, 198, 210, 0.66);
+  font-size: 12px;
+  color: rgba(184, 198, 210, 0.7);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3849,13 +3862,13 @@ body.browser-page .browser-active-subtitle {
 
 body.browser-page .browser-more-menu {
   position: absolute;
-  top: 88px;
-  right: 14px;
+  top: 98px;
+  right: 18px;
   min-width: 220px;
   padding: 8px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(8, 12, 16, 0.96);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 16, 20, 0.97);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.36);
   backdrop-filter: blur(16px);
   z-index: 20;
@@ -3889,8 +3902,9 @@ body.browser-page .browser-view {
   height: 100% !important;
   overflow: hidden;
   background:
-    radial-gradient(circle at top, rgba(110, 196, 255, 0.12), transparent 36%),
-    rgba(4, 7, 10, 0.94);
+    radial-gradient(circle at top, rgba(255, 190, 122, 0.12), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(110, 162, 255, 0.1), transparent 30%),
+    rgba(6, 9, 12, 0.96);
 }
 
 body.browser-page #browser-frame {
@@ -3906,12 +3920,13 @@ body.browser-page .browser-home {
   inset: 0 !important;
   display: none;
   flex-direction: column;
-  gap: 24px;
-  padding: clamp(26px, 4vw, 42px);
+  gap: 28px;
+  padding: clamp(28px, 4vw, 46px);
   overflow: auto;
   background:
-    radial-gradient(circle at top left, rgba(138, 223, 255, 0.2), transparent 28%),
-    linear-gradient(180deg, rgba(5, 9, 13, 0.94), rgba(7, 11, 15, 0.9));
+    radial-gradient(circle at top left, rgba(255, 194, 126, 0.18), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(88, 158, 255, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(8, 12, 16, 0.96), rgba(10, 13, 17, 0.92));
   z-index: 2;
 }
 
@@ -3929,32 +3944,32 @@ body.browser-page .browser-home-hero {
 body.browser-page .browser-home-kicker {
   display: inline-flex;
   width: fit-content;
-  padding: 7px 11px;
+  padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 206, 140, 0.18);
+  background: rgba(255, 206, 140, 0.08);
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(184, 223, 247, 0.82);
+  color: rgba(255, 220, 175, 0.84);
 }
 
 body.browser-page .browser-home h2 {
   margin: 0;
   font-family: "Run", Arial, sans-serif;
-  font-size: clamp(34px, 5vw, 58px);
-  line-height: 0.96;
+  font-size: clamp(34px, 5vw, 60px);
+  line-height: 0.94;
   text-transform: lowercase;
   color: rgba(248, 251, 255, 0.97);
-  text-shadow: 0 0 32px rgba(126, 212, 255, 0.18);
+  text-shadow: 0 0 34px rgba(255, 191, 120, 0.18);
 }
 
 body.browser-page .browser-home p {
   margin: 0;
   max-width: 680px;
   font-size: 15px;
-  line-height: 1.65;
-  color: rgba(205, 218, 230, 0.78);
+  line-height: 1.7;
+  color: rgba(216, 223, 232, 0.78);
 }
 
 body.browser-page .browser-home-actions {
@@ -3966,7 +3981,7 @@ body.browser-page .browser-home-actions {
 body.browser-page .browser-home-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 body.browser-page .browser-home-card {
@@ -3974,11 +3989,13 @@ body.browser-page .browser-home-card {
   flex-direction: column;
   gap: 12px;
   min-height: 240px;
-  padding: 18px;
-  border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 20px 42px rgba(0, 0, 0, 0.14);
 }
 
 body.browser-page .browser-home-card-head {
@@ -4009,10 +4026,10 @@ body.browser-page .browser-home-list {
 
 body.browser-page .browser-home-link {
   text-align: left;
-  padding: 14px 15px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  padding: 15px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.035);
   color: rgba(245, 249, 255, 0.94);
   display: flex;
   flex-direction: column;
@@ -4047,9 +4064,8 @@ body.browser-page .browser-console {
   margin: 0;
   border-radius: 0;
   border: none;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    linear-gradient(180deg, rgba(8, 12, 16, 0.98), rgba(4, 7, 10, 0.98));
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(14, 17, 21, 0.98), rgba(8, 11, 14, 0.98));
   box-shadow: none;
 }
 
@@ -4066,7 +4082,12 @@ body.browser-page .browser-shell.browser-console-open #browser-frame {
     grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   }
 
+  body.browser-page .browser-statusbar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
   body.browser-page .browser-shortcuts {
+    grid-column: 1 / -1;
     width: 100%;
     justify-content: flex-start;
   }
@@ -4082,7 +4103,7 @@ body.browser-page .browser-shell.browser-console-open #browser-frame {
   body.browser-page .browser-shell.browser-console-open {
     grid-template-columns: 1fr !important;
     grid-template-rows: minmax(0, 1fr) auto !important;
-    border-radius: 20px;
+    border-radius: 24px;
   }
 
   body.browser-page .browser-tabs-row {
@@ -4113,13 +4134,13 @@ body.browser-page .browser-shell.browser-console-open #browser-frame {
   body.browser-page .browser-console {
     min-height: 280px;
     border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
   }
 }
 
 @media (max-width: 680px) {
   body.browser-page .browser-chrome {
-    padding: 12px 12px 10px;
+    padding: 14px 14px 12px;
   }
 
   body.browser-page .browser-toolbar {
@@ -4144,7 +4165,7 @@ body.browser-page .browser-shell.browser-console-open #browser-frame {
   }
 
   body.browser-page .browser-home {
-    padding: 22px 18px 28px;
+    padding: 24px 18px 30px;
   }
 
   body.browser-page .browser-home-actions {
@@ -4152,7 +4173,6 @@ body.browser-page .browser-shell.browser-console-open #browser-frame {
     grid-template-columns: 1fr;
   }
 }
-
 body.accent-games {
   --rift-section-accent: #7ff5c1;
 }
