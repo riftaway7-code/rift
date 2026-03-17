@@ -985,9 +985,10 @@
                 }
             }
 
-            async function resolveProxyRoute(targetUrl) {
+            async function resolveProxyRoute(targetUrl, options = {}) {
                 const forcePlain = shouldForcePlainProxy(targetUrl);
-                const chain = forcePlain ? ['proxy'] : PROXY_CHAIN;
+                const skippedModes = new Set(Array.isArray(options?.skipModes) ? options.skipModes : []);
+                const chain = (forcePlain ? ['proxy'] : PROXY_CHAIN).filter((mode) => !skippedModes.has(mode));
 
                 for (const mode of chain) {
                     if (mode === 'scramjet') {
@@ -1009,6 +1010,29 @@
                     mode: 'proxy',
                     routeUrl: buildProxyUrlForMode(targetUrl, 'proxy'),
                 };
+            }
+
+            function scheduleTinyjetFallbackCheck(navigationId, resolvedTarget, options = {}) {
+                window.setTimeout(() => {
+                    if (navigationId !== navigationSequence || proxyMode !== 'tinyjet') return;
+
+                    let innerSrc = '';
+                    try {
+                        const tinyjetDoc = frame.contentDocument;
+                        const tinyjetFrame = tinyjetDoc?.getElementById('iframe');
+                        innerSrc = String(tinyjetFrame?.getAttribute('src') || tinyjetFrame?.src || '').trim();
+                    } catch {
+                        return;
+                    }
+
+                    if (!innerSrc || innerSrc.includes('about:blank')) {
+                        setConsoleStatus('tinyjet stalled, falling through to ultraviolet...', 'warn');
+                        loadTarget(resolvedTarget, false, {
+                            ...options,
+                            skipModes: ['scramjet', 'tinyjet', ...(Array.isArray(options?.skipModes) ? options.skipModes : [])],
+                        });
+                    }
+                }, 2500);
             }
 
             async function loadTarget(targetUrl, pushHistory = true, options = {}) {
@@ -1037,6 +1061,9 @@
                     proxyMode = resolvedRoute.mode;
                     frame.src = resolvedRoute.routeUrl;
                     setConsoleStatus(`loading via ${labelForEngine(resolvedRoute.mode)}...`, 'neutral');
+                    if (resolvedRoute.mode === 'tinyjet') {
+                        scheduleTinyjetFallbackCheck(navigationId, resolvedTarget, options);
+                    }
                 }
 
                 if (pushHistory) {
