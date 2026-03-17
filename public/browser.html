@@ -1085,6 +1085,7 @@
 
             function renderPanelSwitcher() {
                 panelSwitcher.innerHTML = '';
+                let activeBtn = null;
 
                 panels.forEach((panelState, index) => {
                     const btn = document.createElement('button');
@@ -1139,6 +1140,7 @@
                     }
 
                     panelSwitcher.appendChild(btn);
+                    if (index === activePanel) activeBtn = btn;
                 });
 
                 if (panels.length < MAX_PANELS) {
@@ -1154,7 +1156,11 @@
                         loadTarget(HOME_TARGET, true);
                         persistSession();
                     });
-                    panelSwitcher.appendChild(addBtn);
+                    if (activeBtn?.nextSibling) {
+                        panelSwitcher.insertBefore(addBtn, activeBtn.nextSibling);
+                    } else {
+                        panelSwitcher.appendChild(addBtn);
+                    }
                 }
             }
 
