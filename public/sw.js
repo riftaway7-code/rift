@@ -174,6 +174,24 @@ async function getEscapedUvTarget(event) {
     }
 }
 
+function buildReroutedRequest(targetUrl, request) {
+    if (request.mode === "navigate") {
+        return new Request(targetUrl, {
+            method: "GET",
+            headers: request.headers,
+            redirect: request.redirect,
+            referrer: request.referrer,
+            referrerPolicy: request.referrerPolicy,
+            credentials: request.credentials,
+            cache: request.cache,
+            integrity: request.integrity,
+            keepalive: request.keepalive,
+        });
+    }
+
+    return new Request(targetUrl, request);
+}
+
 async function handleRequest(event) {
     const { request } = event;
     try {
@@ -206,7 +224,7 @@ async function handleRequest(event) {
 
         const escapedUvTarget = await getEscapedUvTarget(event);
         if (escapedUvTarget) {
-            const proxiedRequest = new Request(
+            const proxiedRequest = buildReroutedRequest(
                 `${self.location.origin}${self.__uv$config.prefix}${self.__uv$config.encodeUrl(escapedUvTarget)}`,
                 request
             );
@@ -217,7 +235,7 @@ async function handleRequest(event) {
             try {
                 const rewrittenTarget = rewriteScramjetTarget(request.url);
                 if (rewrittenTarget && rewrittenTarget !== request.url) {
-                    const proxiedRequest = new Request(rewrittenTarget, request);
+                    const proxiedRequest = buildReroutedRequest(rewrittenTarget, request);
                     const response = await scramjet.fetch({ request: proxiedRequest });
                     return await maybePatchNowggDocument(response, proxiedRequest.url, request.destination);
                 }
