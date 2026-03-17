@@ -1231,6 +1231,27 @@
                 return false;
             }
 
+            function requiresTopLevelContext(targetUrl) {
+                try {
+                    const u = new URL(targetUrl, window.location.origin);
+                    const host = (u.hostname || '').toLowerCase();
+                    return host === 'youtube.com'
+                        || host.endsWith('.youtube.com')
+                        || host === 'youtu.be'
+                        || host.endsWith('.youtu.be')
+                        || host === 'roblox.com'
+                        || host.endsWith('.roblox.com')
+                        || host === 'nowgg.fun'
+                        || host.endsWith('.nowgg.fun')
+                        || host === 'nowgg.lol'
+                        || host.endsWith('.nowgg.lol')
+                        || host === 'now.gg'
+                        || host.endsWith('.now.gg');
+                } catch {
+                    return false;
+                }
+            }
+
             function normalizeKnownMirrorTarget(targetUrl) {
                 return targetUrl;
             }
@@ -1390,6 +1411,13 @@
                     setConsoleStatus(`connecting to ${labelForUrl(resolvedTarget)}...`, 'neutral');
                     const resolvedRoute = await resolveProxyRoute(resolvedTarget, options);
                     if (navigationId !== navigationSequence) return;
+                    if (requiresTopLevelContext(resolvedTarget) && options?.allowTopLevelEscape !== false) {
+                        const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
+                            ? resolvedRoute.routeUrl
+                            : `${window.location.origin}${resolvedRoute.routeUrl}`;
+                        window.location.assign(proxyUrl);
+                        return;
+                    }
                     proxyMode = resolvedRoute.mode;
                     panelFrame.src = resolvedRoute.routeUrl;
                     syncVisiblePanel();
