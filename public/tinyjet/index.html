@@ -141,10 +141,20 @@
 
     const params = new URLSearchParams(window.location.search);
     const launchUrl = params.get("url");
-
-    await setTransport("epoxy");
+    const urlInput = document.getElementById("url");
     if (launchUrl) {
-      document.getElementById("url").value = launchUrl;
+      urlInput.value = launchUrl;
+    }
+
+    let transportReady = false;
+    try {
+      await setTransport("epoxy");
+      transportReady = true;
+    } catch (error) {
+      console.error("[tinyjet] transport bootstrap failed", error);
+    }
+
+    if (launchUrl && transportReady) {
       openTarget(launchUrl);
     }
   </script>
