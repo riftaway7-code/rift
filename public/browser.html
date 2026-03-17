@@ -12,7 +12,176 @@
     </script><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rift Browser</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="/global/css/global.css">
+    <link rel="stylesheet" href="/global/css/global.css?v=browser-layout-2">
+    <style>
+        body.browser-page {
+            min-height: 100vh;
+            align-items: stretch;
+            justify-content: flex-start;
+            padding: 0 0 72px;
+            overflow: hidden;
+        }
+
+        body.browser-page .container.browser-container {
+            flex: 1 1 auto;
+            width: 100vw;
+            max-width: 100vw;
+            height: calc(100vh - 72px);
+            margin: 0;
+            padding: 0;
+        }
+
+        body.browser-page .browser-shell {
+            height: 100%;
+            min-height: 0;
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            box-shadow: none;
+        }
+
+        body.browser-page .browser-main {
+            grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+            min-height: 0;
+            height: 100%;
+        }
+
+        body.browser-page .browser-chrome {
+            display: grid;
+            grid-template-columns: 140px minmax(0, 1fr);
+            grid-template-areas:
+                "brand tabs"
+                "toolbar toolbar";
+            gap: 3px 8px;
+            padding: 4px 10px 8px;
+            min-height: 0;
+        }
+
+        body.browser-page .browser-tabs-row {
+            display: contents;
+        }
+
+        body.browser-page .browser-brand {
+            grid-area: brand;
+            align-self: center;
+            justify-self: start;
+            width: 140px;
+            min-width: 0;
+            padding: 4px 6px;
+            border-radius: 10px;
+            gap: 8px;
+        }
+
+        body.browser-page .browser-brand-kicker {
+            display: none;
+        }
+
+        body.browser-page .browser-brand-copy strong {
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        body.browser-page .browser-panel-switcher {
+            grid-area: tabs;
+            align-self: center;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding: 0;
+            gap: 6px;
+            background: transparent;
+            border-radius: 0;
+        }
+
+        body.browser-page .browser-panel-btn {
+            flex: 0 0 auto;
+            min-width: 160px;
+            max-width: 210px;
+            min-height: 32px;
+            padding: 6px 28px 6px 11px;
+            border-radius: 11px;
+        }
+
+        body.browser-page .browser-panel-btn.add {
+            min-width: 42px;
+            max-width: 42px;
+            width: 42px;
+            padding: 0;
+            justify-content: center;
+        }
+
+        body.browser-page .browser-panel-btn.add span:last-child {
+            display: none;
+        }
+
+        body.browser-page .browser-tab-title {
+            font-size: 11px;
+        }
+
+        body.browser-page .browser-tab-url,
+        body.browser-page .browser-statusbar {
+            display: none;
+        }
+
+        body.browser-page .browser-toolbar {
+            grid-area: toolbar;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+            align-items: center;
+            gap: 6px;
+            padding: 0;
+            border: none;
+        }
+
+        body.browser-page .browser-toolbar-btn,
+        body.browser-page .browser-go-btn {
+            height: 36px;
+            min-width: 36px;
+            border-radius: 11px;
+            padding: 0 10px;
+        }
+
+        body.browser-page .browser-omnibox {
+            height: 36px;
+            border-radius: 12px;
+            padding: 0 12px;
+        }
+
+        body.browser-page .browser-view,
+        body.browser-page #browser-frame {
+            height: 100%;
+            min-height: 0;
+        }
+
+        body.browser-page #browser-frame {
+            display: block;
+            width: 100%;
+        }
+
+        @media (max-width: 920px) {
+            body.browser-page {
+                padding-bottom: 92px;
+            }
+
+            body.browser-page .container.browser-container {
+                height: calc(100vh - 92px);
+            }
+
+            body.browser-page .browser-chrome {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "brand"
+                    "tabs"
+                    "toolbar";
+            }
+
+            body.browser-page .browser-brand {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body class="browser-page">
     <div class="container browser-container">
