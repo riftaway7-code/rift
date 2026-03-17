@@ -347,11 +347,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Apply saved nav position on all pages
-document.addEventListener('DOMContentLoaded', () => {
-    const savedPosition = localStorage.getItem('nova__nav-position') || 'bottom';
+    // Keep the dedicated Nova home on a stable bottom nav so the landing
+    // layout does not inherit a stale left/right dock preference.
+    const currentPath = String(window.location.pathname || '').replace(/\/+$/, '') || '/';
+    const isNovaHome = currentPath === '/nova';
+    const savedPosition = isNovaHome ? 'bottom' : (localStorage.getItem('nova__nav-position') || 'bottom');
+    document.body.classList.remove('nav-pos-top', 'nav-pos-left', 'nav-pos-right', 'nav-pos-bottom');
     document.body.classList.add('nav-pos-' + savedPosition);
-});
 
 });
 
