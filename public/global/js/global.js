@@ -1087,26 +1087,6 @@ function ensureRiftUiShell() {
                 <button type="button" class="rift-utility-btn" data-rift-action="open-palette">open command palette</button>
             </div>
         </aside>
-        <aside id="rift-context-rail" class="rift-context-rail">
-            <div class="rift-context-card">
-                <div class="rift-context-kicker">current page</div>
-                <div id="rift-context-page" class="rift-context-title">loading...</div>
-                <div id="rift-context-subtitle" class="rift-context-subtitle">building context</div>
-                <div class="rift-context-actions">
-                    <button type="button" class="rift-utility-btn" data-rift-action="open-palette">palette</button>
-                    <button type="button" class="rift-utility-btn" data-rift-action="open-drawer">settings</button>
-                </div>
-            </div>
-            <div class="rift-context-card">
-                <div class="rift-context-kicker">session</div>
-                <div id="rift-context-auth" class="rift-context-chip is-skeleton">checking...</div>
-            </div>
-            <div class="rift-context-card">
-                <div class="rift-context-kicker">rift update ${RIFT_RELEASE.version}</div>
-                <div class="rift-context-title">what shipped</div>
-                <div id="rift-context-release" class="rift-release-list"></div>
-            </div>
-        </aside>
         <div id="rift-context-menu" class="rift-context-menu" hidden>
             <div class="rift-context-menu-head">
                 <div id="rift-context-menu-title" class="rift-context-menu-title">page</div>
@@ -1394,19 +1374,7 @@ function renderRiftReleaseNotes() {
 }
 
 function syncRiftContextRail() {
-    const meta = getRouteMeta();
-    const page = document.getElementById('rift-context-page');
-    const subtitle = document.getElementById('rift-context-subtitle');
-    const auth = document.getElementById('rift-context-auth');
-    if (page) page.textContent = meta.label;
-    if (subtitle) subtitle.textContent = meta.subtitle || `${meta.kicker} surface`;
-    if (auth) {
-        auth.classList.remove('is-skeleton');
-        auth.textContent = RiftUiState.auth.authenticated
-            ? `${RiftUiState.auth.username || 'signed in'} · ${RiftUiState.auth.clientMode || 'rift'}`
-            : 'guest session';
-    }
-    renderRiftReleaseNotes();
+    return;
 }
 
 function syncRiftPinnedDock() {
@@ -1475,61 +1443,11 @@ function syncPageHeaderActions() {
 }
 
 function initHomeWorkspace() {
-    if (getCurrentPath() !== '/') return;
-    const header = document.querySelector('.container > header');
-    const cards = document.querySelector('.home-cards');
-    if (!(header instanceof HTMLElement) || !(cards instanceof HTMLElement) || document.getElementById('rift-home-workspace')) return;
-
-    const workspace = document.createElement('section');
-    workspace.id = 'rift-home-workspace';
-    workspace.className = 'rift-home-workspace rift-reveal';
-    workspace.innerHTML = `
-        <article class="rift-home-panel rift-home-pulse">
-            <div class="rift-panel-kicker">workspace</div>
-            <div class="rift-panel-title">jump back in fast</div>
-            <div class="rift-panel-copy">recent pages, pinned tools, and quick controls live here now.</div>
-            <div class="rift-panel-actions">
-                <button type="button" class="rift-utility-btn" data-rift-action="open-palette">open palette</button>
-                <button type="button" class="rift-utility-btn" data-rift-action="open-drawer">quick settings</button>
-            </div>
-        </article>
-        <article class="rift-home-panel">
-            <div class="rift-panel-row-head">
-                <div class="rift-panel-kicker">pinned</div>
-                <button type="button" class="rift-inline-action" data-rift-action="pin-current">toggle current</button>
-            </div>
-            <div id="rift-home-pinned" class="rift-pill-grid rift-is-loading"></div>
-        </article>
-        <article class="rift-home-panel">
-            <div class="rift-panel-kicker">recent</div>
-            <div id="rift-home-recent" class="rift-pill-grid rift-is-loading"></div>
-        </article>
-    `;
-    cards.classList.add('rift-home-launchpad');
-    cards.after(workspace);
-
-    workspace.addEventListener('click', (event) => {
-        const target = event.target instanceof HTMLElement ? event.target : null;
-        if (!target) return;
-        const action = target.getAttribute('data-rift-action');
-        if (action === 'open-palette') openRiftCommandPalette();
-        if (action === 'open-drawer') openRiftQuickSettings();
-        if (action === 'pin-current') togglePinnedRoute(getCurrentPath());
-    });
+    document.getElementById('rift-home-workspace')?.remove();
 }
 
 function syncHomeWorkspace() {
-    if (getCurrentPath() !== '/') return;
-    const pinnedHost = document.getElementById('rift-home-pinned');
-    const recentHost = document.getElementById('rift-home-recent');
-    if (pinnedHost) {
-        renderRiftLinkStack(pinnedHost, readPinnedRoutes(), 'pin pages to keep them one tap away.');
-        pinnedHost.classList.add('rift-pill-grid');
-    }
-    if (recentHost) {
-        renderRiftLinkStack(recentHost, readRecentRoutes().map((entry) => entry.href).filter((href) => href !== '/'), 'your next launches will show up here.');
-        recentHost.classList.add('rift-pill-grid');
-    }
+    return;
 }
 
 function applySectionIdentity() {
