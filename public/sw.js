@@ -12,6 +12,7 @@ const uv = new UVServiceWorker(self.__uv$config);
 const uvContext = new Ultraviolet(self.__uv$config);
 uvContext.meta.origin = self.location.origin;
 const scramjet = new ScramjetServiceWorker(self.__scramjet$config);
+const uvClientDocumentSources = new Map();
 
 function rewriteScramjetTarget(requestUrl) {
     try {
@@ -129,6 +130,7 @@ async function maybePatchNowggDocument(response, requestUrl, destination) {
 async function getEscapedUvTarget(event) {
     const { request, clientId } = event;
     let activeClientUrl = '';
+    const cachedSourceUrl = clientId ? String(uvClientDocumentSources.get(clientId) || '') : '';
 
     if (clientId) {
         try {
@@ -153,24 +155,42 @@ async function getEscapedUvTarget(event) {
         }
     }
 
-    const referrer = activeClientUrl || String(request.referrer || '');
-    if (!referrer.startsWith(self.location.origin + self.__uv$config.prefix)) {
-        return null;
-    }
-
     try {
         const requestUrl = new URL(request.url);
         if (requestUrl.origin !== self.location.origin) {
             return null;
         }
 
-        const sourceReferrer = new URL(uvContext.sourceUrl(referrer));
+        let sourceReferrer = null;
+        const referrer = activeClientUrl || String(request.referrer || '');
+        if (referrer.startsWith(self.location.origin + self.__uv$config.prefix)) {
+            sourceReferrer = new URL(uvContext.sourceUrl(referrer));
+        } else if (cachedSourceUrl) {
+            sourceReferrer = new URL(cachedSourceUrl);
+        } else {
+            return null;
+        }
+
         return new URL(
             `${requestUrl.pathname}${requestUrl.search}${requestUrl.hash}`,
             sourceReferrer
         ).toString();
     } catch {
         return null;
+    }
+}
+
+function rememberUvDocumentSource(clientId, requestUrl, request) {
+    if (!clientId) return;
+    if (request.mode !== "navigate" && !["document", "iframe"].includes(request.destination)) {
+        return;
+    }
+
+    try {
+        const decoded = uvContext.sourceUrl(requestUrl);
+        const sourceUrl = new URL(decoded).toString();
+        uvClientDocumentSources.set(clientId, sourceUrl);
+    } catch {
     }
 }
 
@@ -219,11 +239,15 @@ async function handleRequest(event) {
         }
 
         if (uv.route({ request })) {
+            rememberUvDocumentSource(event.clientId, request.url, request);
             return await uv.fetch({ request });
         }
 
         const escapedUvTarget = await getEscapedUvTarget(event);
         if (escapedUvTarget) {
+            if (event.clientId && (request.mode === "navigate" || ["document", "iframe"].includes(request.destination))) {
+                uvClientDocumentSources.set(event.clientId, escapedUvTarget);
+            }
             const proxiedRequest = buildReroutedRequest(
                 `${self.location.origin}${self.__uv$config.prefix}${self.__uv$config.encodeUrl(escapedUvTarget)}`,
                 request
