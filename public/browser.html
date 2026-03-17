@@ -912,7 +912,7 @@
                 activePanel = Number.isFinite(nextActive) && nextActive >= 0 && nextActive < panels.length ? nextActive : 0;
                 const panel = panels[activePanel];
                 const current = panel.history[panel.historyIndex] || HOME_TARGET;
-                loadTarget(current, false);
+                loadTarget(current, false, { allowTopLevelEscape: false });
                 persistSession();
             }
 
@@ -1491,7 +1491,7 @@
                             try {
                                 const currentSrc = String(activeFrame.getAttribute('src') || activeFrame.src || '');
                                 if (!currentSrc || currentSrc.includes('about:blank')) {
-                                    loadTarget(current, false);
+                                    loadTarget(current, false, { allowTopLevelEscape: false });
                                 } else {
                                     syncVisiblePanel();
                                     setLoading(false);
@@ -1501,7 +1501,7 @@
                                     if (consoleOpen) attachBrowserConsole();
                                 }
                             } catch {
-                                loadTarget(current, false);
+                                loadTarget(current, false, { allowTopLevelEscape: false });
                             }
                         } else {
                             syncVisiblePanel();
@@ -1561,20 +1561,20 @@
                 const panel = panels[activePanel];
                 if (panel.historyIndex <= 0) return;
                 panel.historyIndex -= 1;
-                loadTarget(panel.history[panel.historyIndex], false);
+                loadTarget(panel.history[panel.historyIndex], false, { allowTopLevelEscape: false });
             });
 
             forward.addEventListener('click', () => {
                 const panel = panels[activePanel];
                 if (panel.historyIndex >= panel.history.length - 1) return;
                 panel.historyIndex += 1;
-                loadTarget(panel.history[panel.historyIndex], false);
+                loadTarget(panel.history[panel.historyIndex], false, { allowTopLevelEscape: false });
             });
 
             reload.addEventListener('click', () => {
                 const panel = panels[activePanel];
                 if (panel.historyIndex < 0) return;
-                loadTarget(panel.history[panel.historyIndex], false);
+                loadTarget(panel.history[panel.historyIndex], false, { allowTopLevelEscape: false });
             });
 
             bookmark.addEventListener('click', () => {
@@ -1690,7 +1690,7 @@
                 const panel = panels[activePanel];
                 const current = panel.history[panel.historyIndex] || HOME_TARGET;
                 const shouldPush = current === HOME_TARGET && panel.historyIndex < 0;
-                loadTarget(current, shouldPush);
+                loadTarget(current, shouldPush, { allowTopLevelEscape: false });
             }
             renderPanelSwitcher();
             updateBookmarkToggleLabel();
@@ -1702,6 +1702,7 @@
 
 </body>
 </html>
+
 
 
 
