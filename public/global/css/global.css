@@ -3476,11 +3476,17 @@ body.accent-home {
   --rift-section-accent: #a8dbff;
 }
 
+body.browser-page .rift-context-rail,
+body.browser-page .rift-pinned-dock {
+  display: none !important;
+}
+
 body.browser-page .container.browser-container {
-  width: min(1480px, 98vw) !important;
-  height: calc(100vh - 96px) !important;
+  width: min(100vw - 10px, 100%) !important;
+  height: calc(100vh - 74px) !important;
   margin: 0 auto !important;
   padding: 0 !important;
+  max-width: none !important;
 }
 
 body.browser-page .browser-shell {

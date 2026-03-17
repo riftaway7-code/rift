@@ -274,12 +274,14 @@
             const MAX_BOOKMARKS = 120;
             const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug'];
             const BAREMUX_BOOT_KEY = `${modeKey}__browser-baremux-boot-v1`;
+            const PROXY_CHAIN = ['scramjet', 'tinyjet', 'ultraviolet', 'proxy'];
             const panels = [{ history: [], historyIndex: -1 }];
             let activePanel = 0;
             let browserHistory = [];
             let browserBookmarks = [];
             let consoleOpen = false;
             let consoleUrl = HOME_TARGET;
+            let navigationSequence = 0;
 
             function formatConsoleValue(value, depth = 0, seen = new WeakSet()) {
                 if (value === undefined) return 'undefined';
@@ -558,7 +560,14 @@
                 browserActiveLabel.textContent = titleForPanel(panel);
                 browserActiveSubtitle.textContent = subtitleForPanel(panel);
 
-                browserEnginePill.textContent = proxyMode === 'scramjet' ? 'scramjet' : 'proxy fallback';
+                browserEnginePill.textContent =
+                    proxyMode === 'scramjet'
+                        ? 'scramjet'
+                        : proxyMode === 'tinyjet'
+                            ? 'tinyjet'
+                            : proxyMode === 'ultraviolet'
+                                ? 'ultraviolet'
+                                : 'plain proxy';
                 browserEnginePill.dataset.mode = proxyMode;
 
                 if (bookmarkIcon) bookmarkIcon.textContent = isBookmarked ? 'bookmark' : 'bookmark_add';
@@ -570,6 +579,13 @@
                 if (consoleIcon) consoleIcon.textContent = consoleOpen ? 'terminal' : 'terminal';
                 consoleToggle.classList.toggle('active', consoleOpen);
                 consoleToggle.setAttribute('aria-pressed', consoleOpen ? 'true' : 'false');
+            }
+
+            function labelForEngine(mode) {
+                if (mode === 'scramjet') return 'scramjet';
+                if (mode === 'tinyjet') return 'tinyjet';
+                if (mode === 'ultraviolet') return 'ultraviolet';
+                return 'plain proxy';
             }
 
             function loadBookmarks() {
@@ -836,22 +852,20 @@
             }
 
             async function ensureScramjetReady() {
-                if (proxyMode !== 'scramjet') return;
                 try {
                     if (typeof registerSW === 'function') await registerSW();
                     await ensureTransport();
                     let wispAvailable = await testWispSocket();
                     if (!wispAvailable) wispAvailable = await testWispHttp();
-                    if (!wispAvailable) proxyMode = 'proxy';
                     if (wispAvailable && !sessionStorage.getItem(BAREMUX_BOOT_KEY)) {
                         sessionStorage.setItem(BAREMUX_BOOT_KEY, '1');
                         window.location.reload();
                         await new Promise(() => {});
                     }
+                    return !!wispAvailable;
                 } catch {
-                    proxyMode = 'proxy';
+                    return false;
                 }
-                updateChrome();
             }
 
             function encodeTarget(targetUrl) {
@@ -878,85 +892,110 @@
                 }
             }
 
-            function shouldOpenDirect(targetUrl, options = {}) {
-                if (options.forceProxy) {
-                    return false;
+            function shouldOpenDirect() {
+                return false;
+            }
+
+            function normalizeKnownMirrorTarget(targetUrl) {
+                return targetUrl;
+            }
+
+            function buildProxyUrlForMode(targetUrl, mode) {
+                if (mode === 'scramjet') {
+                    const encoded = encodeTarget(targetUrl);
+                    return encoded || null;
                 }
+                if (mode === 'tinyjet') {
+                    return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
+                }
+                if (mode === 'ultraviolet') {
+                    return `/uv/index.html?url=${encodeURIComponent(targetUrl)}`;
+                }
+                return `/proxy?url=${encodeURIComponent(targetUrl)}`;
+            }
+
+            async function probeRoute(routeUrl) {
                 try {
-                    const u = new URL(targetUrl, window.location.origin);
-                    const host = (u.hostname || '').toLowerCase();
-                    return (
-                        host === 'now.gg' ||
-                        host.endsWith('.now.gg') ||
-                        host === 'websitesball.com' ||
-                        host.endsWith('.websitesball.com')
-                    );
+                    const response = await fetch(routeUrl, {
+                        method: 'GET',
+                        cache: 'no-store',
+                        redirect: 'follow',
+                        headers: {
+                            accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+                            'x-rift-probe': '1',
+                        },
+                    });
+                    if (!response.ok) {
+                        return false;
+                    }
+                    const body = (await response.text()).slice(0, 6000).toLowerCase();
+                    if (
+                        body.includes('there are no bare clients') ||
+                        body.includes('cannot get /scramjet/') ||
+                        body.includes('error processing your request') ||
+                        body.includes('failed to load https://') ||
+                        body.includes('internal server error')
+                    ) {
+                        return false;
+                    }
+                    return true;
                 } catch {
                     return false;
                 }
             }
 
-            function normalizeKnownMirrorTarget(targetUrl) {
-                try {
-                    const u = new URL(targetUrl, window.location.origin);
-                    const host = (u.hostname || '').toLowerCase();
-                    const path = (u.pathname || '').toLowerCase();
-                    if ((host === 'now.gg' || host.endsWith('.now.gg')) && path === '/apps/a/19900/b.html') {
-                        u.hostname = 'websitesball.com';
-                        return u.toString();
+            async function resolveProxyRoute(targetUrl) {
+                const forcePlain = shouldForcePlainProxy(targetUrl);
+                const chain = forcePlain ? ['proxy'] : PROXY_CHAIN;
+
+                for (const mode of chain) {
+                    if (mode === 'scramjet') {
+                        const ready = await ensureScramjetReady();
+                        if (!ready) continue;
                     }
-                } catch {}
-                return targetUrl;
-            }
-
-            function buildProxyUrl(targetUrl) {
-                try {
-                    const u = new URL(targetUrl, window.location.origin);
-                } catch {}
-
-                if (shouldForcePlainProxy(targetUrl)) {
-                    return `/proxy?url=${encodeURIComponent(targetUrl)}`;
+                    const routeUrl = buildProxyUrlForMode(targetUrl, mode);
+                    if (!routeUrl) continue;
+                    if (mode === 'proxy') {
+                        return { mode, routeUrl };
+                    }
+                    const works = await probeRoute(routeUrl);
+                    if (works) {
+                        return { mode, routeUrl };
+                    }
                 }
 
-                if (proxyMode === 'scramjet') {
-                    const encoded = encodeTarget(targetUrl);
-                    if (encoded) return encoded;
-                }
-                return `/proxy?url=${encodeURIComponent(targetUrl)}`;
+                return {
+                    mode: 'proxy',
+                    routeUrl: buildProxyUrlForMode(targetUrl, 'proxy'),
+                };
             }
 
-            function loadTarget(targetUrl, pushHistory = true, options = {}) {
+            async function loadTarget(targetUrl, pushHistory = true, options = {}) {
                 if (!targetUrl) {
                     return;
                 }
                 const resolvedTarget = normalizeKnownMirrorTarget(targetUrl);
                 const panel = panels[activePanel];
+                const navigationId = ++navigationSequence;
 
                 const isBlank = resolvedTarget === 'about:blank';
                 if (isBlank) {
+                    proxyMode = 'scramjet';
                     frame.src = 'about:blank';
                     input.value = '';
                     setLoading(false);
                     browserHome.classList.add('active');
                     setConsoleStatus('open a page first, then the console can attach.', 'neutral');
                 } else {
-                    if (shouldOpenDirect(resolvedTarget, options)) {
-                        const popup = window.open(resolvedTarget, '_blank', 'noopener,noreferrer');
-                        if (!popup) {
-                            window.location.assign(resolvedTarget);
-                        }
-                        frame.src = 'about:blank';
-                        input.value = resolvedTarget;
-                        setLoading(false);
-                        browserHome.classList.add('active');
-                        setConsoleStatus('direct-open pages cannot be inspected in the embedded console.', 'warn');
-                    } else {
-                        frame.src = buildProxyUrl(resolvedTarget);
-                        input.value = resolvedTarget;
-                        setLoading(true);
-                        browserHome.classList.remove('active');
-                        setConsoleStatus(`connecting to ${labelForUrl(resolvedTarget)}...`, 'neutral');
-                    }
+                    input.value = resolvedTarget;
+                    setLoading(true);
+                    browserHome.classList.remove('active');
+                    setConsoleStatus(`connecting to ${labelForUrl(resolvedTarget)}...`, 'neutral');
+                    const resolvedRoute = await resolveProxyRoute(resolvedTarget, options);
+                    if (navigationId !== navigationSequence) return;
+                    proxyMode = resolvedRoute.mode;
+                    frame.src = resolvedRoute.routeUrl;
+                    setConsoleStatus(`loading via ${labelForEngine(resolvedRoute.mode)}...`, 'neutral');
                 }
 
                 if (pushHistory) {
@@ -1054,12 +1093,7 @@
             form.addEventListener('submit', (event) => {
                 event.preventDefault();
                 const target = toTarget(input.value);
-                (async () => {
-                    if (target && !shouldForcePlainProxy(target) && !shouldOpenDirect(target)) {
-                        await ensureScramjetReady();
-                    }
-                    loadTarget(target, true);
-                })();
+                loadTarget(target, true);
             });
 
             back.addEventListener('click', () => {
@@ -1144,22 +1178,26 @@
             popout.addEventListener('click', () => {
                 const panel = panels[activePanel];
                 const target = panel.history[panel.historyIndex] || HOME_TARGET;
-                const routed = target === HOME_TARGET ? '' : buildProxyUrl(target);
-                const proxyUrl = target === HOME_TARGET
-                    ? 'about:blank'
-                    : (routed.startsWith('http://') || routed.startsWith('https://') ? routed : `${window.location.origin}${routed}`);
-                const popup = window.open('about:blank', '_blank');
-                if (!popup) return;
+                (async () => {
+                    const popup = window.open('about:blank', '_blank');
+                    if (!popup) return;
 
-                if (proxyUrl === 'about:blank') {
-                    popup.document.write('<!doctype html><title>Rift Browser</title><style>html,body{margin:0;height:100%;background:#0a0a0a;color:#fff;display:grid;place-items:center;font-family:Arial,sans-serif}</style><div>Open a page first, then use Pop out.</div>');
-                    popup.document.close();
+                    if (target === HOME_TARGET) {
+                        popup.document.write('<!doctype html><title>Rift Browser</title><style>html,body{margin:0;height:100%;background:#0a0a0a;color:#fff;display:grid;place-items:center;font-family:Arial,sans-serif}</style><div>Open a page first, then use Pop out.</div>');
+                        popup.document.close();
+                        closeMoreMenu();
+                        return;
+                    }
+
+                    const resolvedRoute = await resolveProxyRoute(target);
+                    proxyMode = resolvedRoute.mode;
+                    updateChrome();
+                    const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
+                        ? resolvedRoute.routeUrl
+                        : `${window.location.origin}${resolvedRoute.routeUrl}`;
+                    popup.location.replace(proxyUrl);
                     closeMoreMenu();
-                    return;
-                }
-
-                popup.location.replace(proxyUrl);
-                closeMoreMenu();
+                })();
             });
 
             document.addEventListener('click', (event) => {
@@ -1190,12 +1228,12 @@
             const initialTarget = initialUrlParam ? mergeTargetUrl(toTarget(initialUrlParam), initialNowggTarget) : null;
             const forceProxy = query.get('forceProxy') === '1';
             const autoPopout = query.get('popout') === '1';
-            if (initialTarget && !shouldForcePlainProxy(initialTarget) && !shouldOpenDirect(initialTarget, { forceProxy })) await ensureScramjetReady();
             if (autoPopout && initialTarget) {
-                const routed = buildProxyUrl(initialTarget);
-                const proxyUrl = routed.startsWith('http://') || routed.startsWith('https://')
-                    ? routed
-                    : `${window.location.origin}${routed}`;
+                const resolvedRoute = await resolveProxyRoute(initialTarget);
+                proxyMode = resolvedRoute.mode;
+                const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
+                    ? resolvedRoute.routeUrl
+                    : `${window.location.origin}${resolvedRoute.routeUrl}`;
                 window.location.replace(proxyUrl);
                 return;
             }
