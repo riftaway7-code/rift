@@ -163,7 +163,7 @@
     const statQueue = document.getElementById('cloudStatQueue');
     const statProtocol = document.getElementById('cloudStatProtocol');
 
-    if (!grid || !search || !filterHost || !title || !sub || !copy || !tags || !stats || !requestSessionBtn || !endSessionBtn || !refreshStatusBtn || !playerStatus || !sessionEmpty || !sessionView || !sessionPills || !sessionSummary || !connectionSummary || !sessionLinks || !instructionList || !hostList || !statHosts || !statQueue || !statProtocol) {
+    if (!grid || !title || !sub || !copy || !tags || !stats || !requestSessionBtn || !endSessionBtn || !refreshStatusBtn || !playerStatus || !sessionEmpty || !sessionView || !sessionPills || !sessionSummary || !connectionSummary || !sessionLinks || !instructionList || !hostList) {
         return;
     }
 
@@ -223,6 +223,7 @@
     }
 
     function renderFilters() {
+        if (!filterHost) return;
         filterHost.innerHTML = filters.map((filter) => `
             <button type="button" class="cloud-filter-btn ${filter.id === state.filter ? 'active' : ''}" data-cloud-filter="${filter.id}">${filter.label}</button>
         `).join('');
@@ -276,9 +277,9 @@
     }
 
     function renderSummaryStrip() {
-        statHosts.textContent = `${catalog.length} games ready`;
-        statQueue.textContent = 'scramjet shell';
-        statProtocol.textContent = 'scramjet / wisp';
+        if (statHosts) statHosts.textContent = `${catalog.length} games ready`;
+        if (statQueue) statQueue.textContent = 'scramjet shell';
+        if (statProtocol) statProtocol.textContent = 'scramjet / wisp';
     }
 
     function renderLaunchPanel() {
@@ -367,18 +368,22 @@
     }
 
     function bindEvents() {
-        search.addEventListener('input', () => {
-            state.query = search.value || '';
-            renderGrid();
-        });
+        if (search) {
+            search.addEventListener('input', () => {
+                state.query = search.value || '';
+                renderGrid();
+            });
+        }
 
-        filterHost.addEventListener('click', (event) => {
-            const button = event.target.closest('[data-cloud-filter]');
-            if (!button) return;
-            state.filter = button.dataset.cloudFilter || 'all';
-            renderFilters();
-            renderGrid();
-        });
+        if (filterHost) {
+            filterHost.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-cloud-filter]');
+                if (!button) return;
+                state.filter = button.dataset.cloudFilter || 'all';
+                renderFilters();
+                renderGrid();
+            });
+        }
 
         grid.addEventListener('click', (event) => {
             const card = event.target.closest('[data-cloud-id]');
