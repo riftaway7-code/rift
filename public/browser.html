@@ -414,8 +414,8 @@
                 '/wisp/';
             const ensureTransport = async () => {
                 if (!connection) throw new Error('BareMux is unavailable.');
-                await connection.setTransport('/uv/rift-epoxy.mjs', [
-                    { wisp: getWispUrl() },
+                await connection.setTransport('/libcurl/index.mjs', [
+                    { websocket: getWispUrl() },
                 ]);
             };
 
