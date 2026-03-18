@@ -18,8 +18,8 @@ async function ensureTransport() {
         location.host +
         "/wisp/";
 
-    await connection.setTransport("/libcurl/index.mjs", [
-        { websocket: wispUrl },
+    await connection.setTransport("/uv/rift-epoxy.mjs", [
+        { wisp: wispUrl },
     ]);
 }
 
