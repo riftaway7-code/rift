@@ -393,10 +393,9 @@
     <script src="/components/components.js"></script>
     <script src="/components/404.js"></script>
     <script src="/register-sw.js"></script>
-    <script src="/baremux/index.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v5';
+            const resetKey = 'rift__scramjet-idb-reset-v6';
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
@@ -492,9 +491,6 @@
             const consoleClose = document.getElementById('browser-console-close');
             const HOME_TARGET = 'about:blank';
             let proxyMode = 'scramjet';
-            const connection = window.BareMux?.BareMuxConnection
-                ? new BareMux.BareMuxConnection('/baremux/worker.js')
-                : null;
 
             if (!form || !input || !frame || !back || !forward || !reload || !bookmark || !consoleToggle || !more || !moreMenu || !popout || !panelSwitcher || !browserShell || !browserMain || !browserView || !browserHome || !browserHomeBookmarks || !browserHomeHistory || !browserHomeRestore || !browserHomeBookmarksBtn || !browserHomeHistoryBtn || !browserHomeShortcut || !browserBookmarksShortcut || !browserHistoryShortcut || !browserEnginePill || !browserActiveLabel || !browserActiveSubtitle || !consolePanel || !consoleStatus || !consoleOutput || !consoleInput || !consoleRun || !consoleClear || !consoleClose) return;
 
@@ -507,7 +503,6 @@
             const MAX_GLOBAL_HISTORY = 160;
             const MAX_BOOKMARKS = 120;
             const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug'];
-            const BAREMUX_BOOT_KEY = `${modeKey}__browser-baremux-boot-v1`;
             const PROXY_CHAIN = ['scramjet'];
             const panels = [{ history: [], historyIndex: -1 }];
             const panelFrames = new WeakMap();
@@ -1140,17 +1135,6 @@
                 loading.classList.toggle('active', !!active);
             }
 
-            async function ensureTransport() {
-                if (!connection) return;
-                const wispUrl =
-                    (location.protocol === 'https:' ? 'wss' : 'ws') +
-                    '://' +
-                    location.host +
-                    '/wisp/';
-                await connection.setTransport('/uv/rift-epoxy.mjs', [{ wisp: wispUrl }]);
-                await new Promise((resolve) => setTimeout(resolve, 150));
-            }
-
             async function testWispSocket(timeoutMs = 8000) {
                 const wispUrl =
                     (location.protocol === 'https:' ? 'wss' : 'ws') +
@@ -1191,14 +1175,8 @@
             async function ensureScramjetReady() {
                 try {
                     if (typeof registerSW === 'function') await registerSW();
-                    await ensureTransport();
                     let wispAvailable = await testWispSocket();
                     if (!wispAvailable) wispAvailable = await testWispHttp();
-                    if (wispAvailable && !sessionStorage.getItem(BAREMUX_BOOT_KEY)) {
-                        sessionStorage.setItem(BAREMUX_BOOT_KEY, '1');
-                        window.location.reload();
-                        await new Promise(() => {});
-                    }
                     return !!wispAvailable;
                 } catch {
                     return false;

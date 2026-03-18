@@ -1,6 +1,12 @@
 (function () {
+    function getWispUrl() {
+        const protocol = self.location.protocol === "https:" ? "wss:" : "ws:";
+        return `${protocol}//${self.location.host}/wisp/`;
+    }
+
     function createRiftScramjetConfig() {
         return {
+            wisp: getWispUrl(),
             prefix: "/sj2/",
             globals: {
                 wrapfn: "$scramjet$wrap",

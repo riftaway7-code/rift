@@ -19,6 +19,17 @@ let scramjetWorkerPromise = null;
 
 function ensureHealthyScramjetDatabase() {
     return new Promise((resolve) => {
+        const deleteScramjetDatabase = () => {
+            try {
+                const deleteRequest = indexedDB.deleteDatabase("$scramjet");
+                deleteRequest.onsuccess = () => resolve();
+                deleteRequest.onerror = () => resolve();
+                deleteRequest.onblocked = () => resolve();
+            } catch {
+                resolve();
+            }
+        };
+
         try {
             const request = indexedDB.open("$scramjet");
             request.onupgradeneeded = () => {
@@ -39,16 +50,34 @@ function ensureHealthyScramjetDatabase() {
                 ];
                 const missingStore = requiredStores.some((name) => !db.objectStoreNames.contains(name));
                 if (!missingStore) {
-                    db.close();
-                    resolve();
+                    try {
+                        const tx = db.transaction("config", "readonly");
+                        const store = tx.objectStore("config");
+                        const configRequest = store.get("config");
+                        configRequest.onsuccess = () => {
+                            const storedConfig = configRequest.result;
+                            const wisp = String(storedConfig?.wisp || "");
+                            const hasAbsoluteWisp = /^wss?:\/\//i.test(wisp);
+                            db.close();
+                            if (hasAbsoluteWisp) {
+                                resolve();
+                                return;
+                            }
+                            deleteScramjetDatabase();
+                        };
+                        configRequest.onerror = () => {
+                            db.close();
+                            deleteScramjetDatabase();
+                        };
+                    } catch {
+                        db.close();
+                        deleteScramjetDatabase();
+                    }
                     return;
                 }
 
                 db.close();
-                const deleteRequest = indexedDB.deleteDatabase("$scramjet");
-                deleteRequest.onsuccess = () => resolve();
-                deleteRequest.onerror = () => resolve();
-                deleteRequest.onblocked = () => resolve();
+                deleteScramjetDatabase();
             };
             request.onerror = () => resolve();
         } catch {
