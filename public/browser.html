@@ -550,7 +550,6 @@
             let consoleOpen = false;
             let consoleUrl = HOME_TARGET;
             let navigationSequence = 0;
-            let popoutHotkeyArmedAt = 0;
 
             function formatConsoleValue(value, depth = 0, seen = new WeakSet()) {
                 if (value === undefined) return 'undefined';
@@ -1584,20 +1583,8 @@
                     || (target instanceof HTMLElement && target.isContentEditable);
                 if (isEditable) return;
 
-                if (event.ctrlKey && event.shiftKey && event.altKey && event.key === 'Tab') {
-                    popoutHotkeyArmedAt = Date.now();
-                    return;
-                }
-
-                if (
-                    event.ctrlKey &&
-                    event.shiftKey &&
-                    event.altKey &&
-                    event.key === 'Backspace' &&
-                    Date.now() - popoutHotkeyArmedAt <= 1500
-                ) {
+                if (event.key === '`') {
                     event.preventDefault();
-                    popoutHotkeyArmedAt = 0;
                     popoutCurrentTab();
                 }
             });
