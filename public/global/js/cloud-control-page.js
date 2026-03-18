@@ -6,8 +6,6 @@
             genre: 'sandbox',
             tags: ['social', 'mobile', 'touch'],
             quality: 'balanced',
-            fit: 'best first test for the frog-style flow',
-            summary: 'Loads the generic nowgg Roblox launcher into Rift\'s UV iframe shell so the page can keep its own session flow on the Rift domain.',
             url: 'https://nowgg.fun/apps/a/19900/b.html',
         },
         {
@@ -186,7 +184,7 @@
         const query = state.query.trim().toLowerCase();
         return catalog.filter((entry) => {
             const matchesFilter = state.filter === 'all' || entry.tags.includes(state.filter) || entry.genre.includes(state.filter);
-            const haystack = `${entry.title} ${entry.genre} ${entry.tags.join(' ')} ${entry.quality} ${entry.fit}`.toLowerCase();
+            const haystack = `${entry.title} ${entry.genre} ${entry.tags.join(' ')} ${entry.quality}`.toLowerCase();
             return matchesFilter && (!query || haystack.includes(query));
         });
     }
@@ -246,10 +244,8 @@
                         <div class="cloud-card-title">${entry.title}</div>
                         <div class="cloud-card-meta">${entry.genre} · ${entry.quality}</div>
                     </div>
-                    <span class="cloud-chip">${entry.fit}</span>
                 </div>
                 <div class="cloud-tags">${entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('')}</div>
-                <div class="cloud-card-copy">${entry.summary}</div>
                 <div class="cloud-card-actions">
                     <button class="cloud-action primary" type="button" data-cloud-launch="${entry.id}">play in rift</button>
                     <button class="cloud-action" type="button" data-cloud-select="${entry.id}">details</button>
@@ -263,15 +259,14 @@
         if (!entry) return;
 
         title.textContent = entry.title;
-        sub.textContent = `${entry.genre} · ${entry.quality} · ${entry.fit}`;
-        copy.textContent = entry.summary;
+        sub.textContent = `${entry.genre} · ${entry.quality}`;
+        copy.textContent = 'Pick how you want to launch it.';
         tags.innerHTML = entry.tags.map((tag) => `<span class="cloud-chip">${tag}</span>`).join('');
 
         stats.innerHTML = [
-            ['launch mode', 'scramjet shell'],
-            ['proxy route', 'scramjet / wisp'],
-            ['source', 'proxied launcher'],
-            ['best fit', entry.fit],
+            ['genre', entry.genre],
+            ['quality', entry.quality],
+            ['tags', entry.tags.join(', ')],
         ].map((row) => `
             <div class="cloud-side-stat">
                 <span>${row[0]}</span>
@@ -302,10 +297,6 @@
             return;
         }
 
-        const lastLaunchTime = state.lastLaunch?.at
-            ? new Date(state.lastLaunch.at).toLocaleString()
-            : 'not launched yet';
-
         playerStatus.textContent = state.loading
             ? `preparing ${entry.title} inside rift...`
             : state.lastError
@@ -314,23 +305,16 @@
 
         sessionPills.innerHTML = [
             ['status', state.loading ? 'preparing' : 'ready'],
-            ['mode', 'in-rift'],
-            ['route', 'uv'],
+            ['launch', 'in-rift'],
         ].map((row) => `<div class="cloud-chip">${row[0]} · ${row[1]}</div>`).join('');
 
         sessionSummary.innerHTML = [
             ['game', entry.title],
-            ['source', 'proxied launcher'],
-            ['last launch', lastLaunchTime],
-            ['active route', 'scramjet browser + wisp'],
+            ['genre', entry.genre],
+            ['quality', entry.quality],
         ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${row[1]}</strong></div>`).join('');
 
-        connectionSummary.innerHTML = [
-            ['target', entry.url.replace(/^https?:\/\//i, '')],
-            ['embed model', 'browser shell'],
-            ['session load', 'proxied inside shell'],
-            ['fallback', 'open direct'],
-        ].map((row) => `<div class="cloud-session-row"><span>${row[0]}</span><strong>${escapeHtml(row[1])}</strong></div>`).join('');
+        connectionSummary.innerHTML = '';
 
         sessionLinks.innerHTML = `
             <button class="cloud-action primary" type="button" data-cloud-launch="${entry.id}">
@@ -341,33 +325,10 @@
                 <span class="material-icons">open_in_new</span>
                 <span>open direct</span>
             </button>
-            <button class="cloud-action" type="button" data-cloud-copy="${escapeHtml(entry.url)}">
-                <span class="material-icons">content_copy</span>
-                <span>copy source url</span>
-            </button>
         `;
 
-        instructionList.innerHTML = [
-            'Rift now hands cloud titles off to the existing Scramjet browser shell instead of trying to make the cloud dashboard be the player too.',
-            'That shell stays on Rift and loads the remote page through Scramjet over the current Wisp-backed BareMux transport.',
-            'This matches the chatroom pattern you described: proxy the target page inside a controlled shell instead of relying on raw iframes to the upstream origin.',
-            'If a game still rejects the proxied launch, use the direct button and report the exact launcher url that worked or failed.',
-        ].map((line) => `<li>${line}</li>`).join('');
-
-        hostList.innerHTML = `
-            <div class="cloud-host-pill"><span class="material-icons">language</span><strong>${escapeHtml(window.location.host)}</strong></div>
-            <div class="cloud-host-pill"><span class="material-icons">sports_esports</span><strong>${entry.title}</strong></div>
-            <div class="cloud-host-pill"><span class="material-icons">shield</span><strong>scramjet route</strong></div>
-        `;
-    }
-
-    async function copyText(value) {
-        try {
-            await navigator.clipboard.writeText(String(value || ''));
-            playerStatus.textContent = 'source url copied';
-        } catch {
-            playerStatus.textContent = 'could not copy source url';
-        }
+        instructionList.innerHTML = '';
+        hostList.innerHTML = '';
     }
 
     async function launchSelected({ direct = false } = {}) {
@@ -460,11 +421,6 @@
                 return;
             }
 
-            const copyButton = event.target.closest('[data-cloud-copy]');
-            if (copyButton) {
-                event.preventDefault();
-                copyText(copyButton.dataset.cloudCopy || '');
-            }
         });
 
         requestSessionBtn.addEventListener('click', () => {
