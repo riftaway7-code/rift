@@ -14,17 +14,25 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="/global/css/global.css">
     <style>
+        body.cloud-page {
+            overflow-x: hidden;
+        }
+
         body.cloud-page .container {
-            width: min(98vw, 1380px);
-            max-width: 1380px;
+            width: min(100%, 1180px);
+            max-width: 1180px;
             margin-left: auto;
             margin-right: auto;
+            padding-left: 12px;
+            padding-right: 12px;
+            box-sizing: border-box;
         }
         .cloud-shell {
             display: grid;
             gap: 14px;
-            width: min(96vw, 1320px);
+            width: 100%;
             margin: 0 auto;
+            box-sizing: border-box;
         }
         .cloud-banner,
         .cloud-panel,
@@ -137,7 +145,7 @@
         }
         .cloud-layout {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
             gap: 14px;
             min-height: min(72vh, 820px);
         }
@@ -147,7 +155,7 @@
         }
         .cloud-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 10px;
             align-content: start;
             max-height: min(72vh, 820px);
@@ -365,6 +373,14 @@
             color: rgba(229,236,246,.76);
             font-size: 11px;
             line-height: 1.55;
+        }
+        @media (max-width: 1120px) {
+            .cloud-layout {
+                grid-template-columns: 1fr;
+            }
+            .cloud-grid {
+                max-height: none;
+            }
         }
         @media (max-width: 980px) {
             .cloud-toolbar,
