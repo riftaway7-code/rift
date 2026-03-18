@@ -1,29 +1,12 @@
 window._CONFIG = window._CONFIG || {};
 
 (function () {
-    const host = String(window.location.hostname || "").toLowerCase();
-
-    const zoneByHost = {
-        "iptest.rift.polden.com": "5603882",
-        "rift-bftc.onrender.com": "5601969",
-        "riftcname.chickenkiller.com": "5601977",
-        "riftedproxies.vercel.app": "5600263",
-        "rift.polden.com": "5602000",
-        "rift.theprojectplateau.space": "5601948"
-    };
-
-    let zoneId = zoneByHost[host];
-    if (!zoneId && host.endsWith(".rift.polden.com")) {
-        zoneId = "5602000";
-    }
-
-    if (!zoneId) zoneId = "5602000";
-
     window._CONFIG.ads = {
         enabled: true,
         provider: "adsterra",
+        cooldownMs: 2 * 60 * 1000,
         scripts: [
-            `https://www.highperformanceformat.com/${zoneId}/invoke.js`
+            "https://laptopchoose.com/09/96/f1/0996f1fd6e5014f3da662d494fbfe224.js"
         ]
     };
 })();

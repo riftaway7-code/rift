@@ -207,7 +207,25 @@
         return targetUrl;
     }
 
+    function usesTinyjetRoute(targetUrl) {
+        try {
+            const parsed = new URL(targetUrl, window.location.origin);
+            const host = (parsed.hostname || '').toLowerCase();
+            return host === 'nowgg.fun'
+                || host.endsWith('.nowgg.fun')
+                || host === 'nowgg.lol'
+                || host.endsWith('.nowgg.lol')
+                || host === 'now.gg'
+                || host.endsWith('.now.gg');
+        } catch {
+            return false;
+        }
+    }
+
     function buildEmbedUrl(targetUrl) {
+        if (usesTinyjetRoute(targetUrl)) {
+            return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
+        }
         return `/browser?url=${encodeURIComponent(targetUrl)}&forceProxy=1`;
     }
 
@@ -381,6 +399,9 @@
             }
 
             const launchTarget = await resolveLaunchTarget(entry.url);
+            if (!direct) {
+                state.proxyMode = usesTinyjetRoute(launchTarget) ? 'tinyjet' : 'scramjet';
+            }
             const nextUrl = direct ? launchTarget : buildEmbedUrl(launchTarget);
             state.lastLaunch = {
                 id: entry.id,

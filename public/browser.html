@@ -786,11 +786,13 @@
                 browserActiveSubtitle.textContent = subtitleForPanel(panel);
 
                 browserEnginePill.textContent =
-                    proxyMode === 'scramjet'
-                        ? 'scramjet'
-                        : proxyMode === 'ultraviolet'
-                            ? 'ultraviolet'
-                            : 'plain proxy';
+                    proxyMode === 'tinyjet'
+                        ? 'tinyjet'
+                        : proxyMode === 'scramjet'
+                            ? 'scramjet'
+                            : proxyMode === 'ultraviolet'
+                                ? 'ultraviolet'
+                                : 'plain proxy';
                 browserEnginePill.dataset.mode = proxyMode;
 
                 if (bookmarkIcon) bookmarkIcon.textContent = isBookmarked ? 'bookmark' : 'bookmark_add';
@@ -805,6 +807,7 @@
             }
 
             function labelForEngine(mode) {
+                if (mode === 'tinyjet') return 'tinyjet';
                 if (mode === 'scramjet') return 'scramjet';
                 if (mode === 'ultraviolet') return 'ultraviolet';
                 return 'plain proxy';
@@ -855,6 +858,21 @@
                 browserHistory.unshift({ url: safeUrl, at: Date.now() });
                 if (browserHistory.length > MAX_GLOBAL_HISTORY) browserHistory = browserHistory.slice(0, MAX_GLOBAL_HISTORY);
                 saveGlobalHistory();
+            }
+
+            function usesTinyjetRuntime(targetUrl) {
+                try {
+                    const u = new URL(targetUrl, window.location.origin);
+                    const host = (u.hostname || '').toLowerCase();
+                    return host === 'nowgg.fun'
+                        || host.endsWith('.nowgg.fun')
+                        || host === 'nowgg.lol'
+                        || host.endsWith('.nowgg.lol')
+                        || host === 'now.gg'
+                        || host.endsWith('.now.gg');
+                } catch {
+                    return false;
+                }
             }
 
             function saveCurrentBookmark() {
@@ -1247,12 +1265,7 @@
                     const host = (u.hostname || '').toLowerCase();
                     return host === 'roblox.com'
                         || host.endsWith('.roblox.com')
-                        || host === 'nowgg.fun'
-                        || host.endsWith('.nowgg.fun')
-                        || host === 'nowgg.lol'
-                        || host.endsWith('.nowgg.lol')
-                        || host === 'now.gg'
-                        || host.endsWith('.now.gg');
+                        || usesTinyjetRuntime(targetUrl);
                 } catch {
                     return false;
                 }
@@ -1263,6 +1276,9 @@
             }
 
             function buildProxyUrlForMode(targetUrl, mode) {
+                if (mode === 'tinyjet') {
+                    return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
+                }
                 if (mode === 'scramjet') {
                     const encoded = encodeTarget(targetUrl);
                     return encoded || null;
@@ -1331,16 +1347,13 @@
                     if (requiresRewriteAwareProxy(targetUrl)) {
                         return ['ultraviolet', 'scramjet'];
                     }
+                    if (usesTinyjetRuntime(targetUrl)) {
+                        return ['tinyjet', 'ultraviolet', 'proxy'];
+                    }
                     if (
                         host === 'roblox.com' ||
                         host.endsWith('.roblox.com') ||
-                        host === 'www.roblox.com' ||
-                        host === 'nowgg.fun' ||
-                        host.endsWith('.nowgg.fun') ||
-                        host === 'nowgg.lol' ||
-                        host.endsWith('.nowgg.lol') ||
-                        host === 'now.gg' ||
-                        host.endsWith('.now.gg')
+                        host === 'www.roblox.com'
                     ) {
                         return ['ultraviolet', 'proxy'];
                     }
@@ -1363,7 +1376,7 @@
                     }
                     const routeUrl = buildProxyUrlForMode(targetUrl, mode);
                     if (!routeUrl) continue;
-                    if (mode === 'proxy') {
+                    if (mode === 'proxy' || mode === 'tinyjet') {
                         return { mode, routeUrl };
                     }
                     const works = await probeRoute(routeUrl);
@@ -1699,9 +1712,9 @@
 
     <script src="/config.js"></script>
     <script src="/global/js/ads.js"></script>
-    <script src="https://laptopchoose.com/09/96/f1/0996f1fd6e5014f3da662d494fbfe224.js"></script>
 </body>
 </html>
+
 
 
 

@@ -3,7 +3,60 @@
 (function () {
     const AD_HINT_RE = /(adsterra|advert|banner|sponsor|promo|popunder|popup|highperformanceformat|laptopchoose|invoke\.js)/i;
     const BLOCKED_SANDBOX_FLAGS = new Set(["allow-popups", "allow-popups-to-escape-sandbox"]);
+    const STORAGE_KEY = "rift_ads_last_popup_at";
     const nativeOpen = typeof window.open === "function" ? window.open.bind(window) : null;
+    const path = String(window.location.pathname || "/").toLowerCase();
+    const query = new URLSearchParams(window.location.search || "");
+    const allowedPaths = new Set([
+        "/",
+        "/index.html",
+        "/account",
+        "/account.html",
+        "/apps",
+        "/apps.html",
+        "/browser",
+        "/browser.html",
+        "/chat",
+        "/chat.html",
+        "/cloud",
+        "/cloud.html",
+        "/credits",
+        "/credits.html",
+        "/music",
+        "/music.html",
+        "/settings",
+        "/settings.html",
+        "/social-media-&-partners",
+        "/social-media-&-partners.html",
+        "/soundboard",
+        "/soundboard.html",
+        "/rift_media",
+        "/rift_media.html",
+        "/os",
+        "/os/",
+        "/os/index.html",
+        "/os/account",
+        "/os/account.html",
+        "/os/account/index.html",
+        "/os/apps",
+        "/os/apps.html",
+        "/os/apps/index.html",
+        "/os/browser",
+        "/os/browser.html",
+        "/os/browser/index.html",
+        "/os/chat",
+        "/os/chat.html",
+        "/os/chat/index.html",
+        "/os/media",
+        "/os/media.html",
+        "/os/media/index.html",
+        "/os/music",
+        "/os/music.html",
+        "/os/music/index.html",
+        "/os/settings",
+        "/os/settings.html",
+        "/os/settings/index.html",
+    ]);
 
     const shouldAutoClosePopup = (value) => {
         const raw = String(value || "").trim();
@@ -17,8 +70,44 @@
         }
     };
 
-    const schedulePopupClose = (popup) => {
+    const isEligiblePage = () => {
+        if (!allowedPaths.has(path)) return false;
+        if (path === "/games" || path === "/games.html") return false;
+        if (path === "/os/games" || path === "/os/games.html" || path === "/os/games/index.html") return false;
+        if (path === "/embed" || path === "/embed.html") return false;
+        if (query.has("url") || query.has("game") || query.get("view") === "games-only") return false;
+        return true;
+    };
+
+    const getCooldownMs = () => {
+        const value = Number(window._CONFIG?.ads?.cooldownMs || 0);
+        return Number.isFinite(value) && value > 0 ? value : 2 * 60 * 1000;
+    };
+
+    const getLastPopupAt = () => {
+        try {
+            const value = Number(localStorage.getItem(STORAGE_KEY) || 0);
+            return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch {
+            return 0;
+        }
+    };
+
+    const setLastPopupAt = (value) => {
+        try {
+            localStorage.setItem(STORAGE_KEY, String(value));
+        } catch {}
+    };
+
+    const isCooldownReady = () => {
+        return Date.now() - getLastPopupAt() >= getCooldownMs();
+    };
+
+    const schedulePopupClose = (popup, markShown) => {
         if (!popup) return;
+        if (markShown) {
+            setLastPopupAt(Date.now());
+        }
         window.setTimeout(() => {
             try {
                 if (!popup.closed) popup.close();
@@ -53,8 +142,7 @@
     const isLikelyAdNode = (node) => {
         if (!node || !(node instanceof Element)) return false;
         if (node.dataset.riftAdNode === "1") return true;
-        if (AD_HINT_RE.test(readNodeText(node))) return true;
-        return false;
+        return AD_HINT_RE.test(readNodeText(node));
     };
 
     const markAdTree = (root) => {
@@ -125,7 +213,8 @@
                 if (openTarget && openTarget !== "_blank") return;
 
                 event.preventDefault();
-                schedulePopupClose(nativeOpen(href, "_blank", "noopener,noreferrer"));
+                if (!isEligiblePage() || !isCooldownReady()) return;
+                schedulePopupClose(nativeOpen(href, "_blank", "noopener,noreferrer"), true);
             },
             true
         );
@@ -181,10 +270,15 @@
         window.__riftAdsPopupHooked = true;
 
         window.open = function (...args) {
-            const popup = nativeOpen(...args);
-            if (popup && shouldAutoClosePopup(args[0])) {
-                schedulePopupClose(popup);
+            const targetUrl = args[0];
+            if (!shouldAutoClosePopup(targetUrl)) {
+                return nativeOpen(...args);
             }
+            if (!isEligiblePage() || !isCooldownReady()) {
+                return null;
+            }
+            const popup = nativeOpen(...args);
+            schedulePopupClose(popup, true);
             return popup;
         };
     };
@@ -196,13 +290,14 @@
     const cfg = window._CONFIG?.ads;
     if (!cfg || !cfg.enabled) return;
     if (cfg.provider !== "adsterra") return;
+    if (!isEligiblePage()) return;
 
     const scriptUrls = Array.isArray(cfg.scripts)
-        ? cfg.scripts.map((u) => String(u || "").trim()).filter(Boolean)
+        ? cfg.scripts.map((value) => String(value || "").trim()).filter(Boolean)
         : [];
 
     if (!scriptUrls.length) {
-        console.warn("[rift-ads] No Adsterra scripts configured in /config.js");
+        console.warn("[rift-ads] no ad scripts configured in /config.js");
         return;
     }
 
@@ -221,12 +316,11 @@
         script.dataset.riftAdNode = "1";
         script.referrerPolicy = "strict-origin-when-cross-origin";
         script.addEventListener("load", () => {
-            console.log("[rift-ads] Loaded:", url);
+            console.log("[rift-ads] loaded:", url);
         });
         script.addEventListener("error", () => {
-            console.error("[rift-ads] Failed:", url);
+            console.error("[rift-ads] failed:", url);
         });
         document.head.appendChild(script);
     }
 })();
-
