@@ -37,11 +37,11 @@
             },
             siteFlags: {},
             codec: {
-                encode(url) {
+                encode: (url) => {
                     if (!url) return url;
                     return encodeURIComponent(url);
                 },
-                decode(url) {
+                decode: (url) => {
                     if (!url) return url;
                     return decodeURIComponent(url);
                 },

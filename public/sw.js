@@ -14,8 +14,59 @@ const RIFT_SCRAMJET_CONFIG = typeof self.__createRiftScramjetConfig === "functio
     : null;
 const RIFT_SCRAMJET_PREFIX = String(RIFT_SCRAMJET_CONFIG?.prefix || "/sj2/");
 const { ScramjetServiceWorker } = self.$scramjetLoadWorker();
-const scramjet = new ScramjetServiceWorker();
 const uvClientDocumentSources = new Map();
+let scramjetWorkerPromise = null;
+
+function ensureHealthyScramjetDatabase() {
+    return new Promise((resolve) => {
+        try {
+            const request = indexedDB.open("$scramjet");
+            request.onupgradeneeded = () => {
+                try {
+                    request.result.close();
+                } catch {
+                }
+                resolve();
+            };
+            request.onsuccess = () => {
+                const db = request.result;
+                const requiredStores = [
+                    "config",
+                    "cookies",
+                    "redirectTrackers",
+                    "referrerPolicies",
+                    "publicSuffixList",
+                ];
+                const missingStore = requiredStores.some((name) => !db.objectStoreNames.contains(name));
+                if (!missingStore) {
+                    db.close();
+                    resolve();
+                    return;
+                }
+
+                db.close();
+                const deleteRequest = indexedDB.deleteDatabase("$scramjet");
+                deleteRequest.onsuccess = () => resolve();
+                deleteRequest.onerror = () => resolve();
+                deleteRequest.onblocked = () => resolve();
+            };
+            request.onerror = () => resolve();
+        } catch {
+            resolve();
+        }
+    });
+}
+
+async function getScramjetWorker() {
+    if (!scramjetWorkerPromise) {
+        scramjetWorkerPromise = (async () => {
+            await ensureHealthyScramjetDatabase();
+            return new ScramjetServiceWorker();
+        })();
+    }
+
+    return await scramjetWorkerPromise;
+}
 
 function rewriteScramjetTarget(requestUrl) {
     try {
@@ -278,6 +329,7 @@ async function handleRequest(event) {
 
         if (url.origin === self.location.origin && url.pathname.startsWith(RIFT_SCRAMJET_PREFIX)) {
             try {
+                const scramjet = await getScramjetWorker();
                 const rewrittenTarget = rewriteScramjetTarget(request.url);
                 if (rewrittenTarget && rewrittenTarget !== request.url) {
                     const proxiedRequest = buildReroutedRequest(rewrittenTarget, request);
