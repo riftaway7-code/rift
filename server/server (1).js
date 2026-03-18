@@ -4488,7 +4488,7 @@ app.get(['/tinyjet', '/tinyjet/'], (_req, res) => {
 });
 
 app.get(['/roblox', '/roblox/'], (_req, res) => {
-    return res.sendFile(path.join(PUBLIC_DIR, 'roblox.html'));
+    return res.sendFile(path.join(PUBLIC_DIR, 'browser.html'));
 });
 
 app.use(express.static(PUBLIC_DIR, { redirect: false }));
