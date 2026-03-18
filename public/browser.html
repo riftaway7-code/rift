@@ -55,6 +55,8 @@
             gap: 3px 8px;
             padding: 4px 10px 8px;
             min-height: 0;
+            position: relative;
+            z-index: 50;
         }
 
         body.browser-page .browser-tabs-row {
@@ -133,6 +135,20 @@
             gap: 6px;
             padding: 0;
             border: none;
+        }
+
+        body.browser-page .browser-more-menu {
+            position: absolute;
+            top: calc(100% - 2px);
+            right: 10px;
+            min-width: 220px;
+            padding: 8px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(13, 16, 20, 0.98);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.42);
+            backdrop-filter: blur(16px);
+            z-index: 250;
         }
 
         body.browser-page .browser-toolbar-btn,
