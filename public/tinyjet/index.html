@@ -48,7 +48,7 @@
       await loadScript("./tinyjet/scramjet.all.js");
     })();
   </script>
-    <script type="module" defer>
+  <script type="module" defer>
     await (window.__riftTinyjetScramjetReady || Promise.resolve());
     import * as BareMux from "/baremux/index.mjs";
     const tinyjetConfig = {
@@ -59,12 +59,20 @@
         sync: "/tinyjet/tinyjet/scramjet.sync.js"
       }
     };
-    const swReloadKey = "rift__tinyjet-sw-controlled-v4";
+    window.__scramjet$config = {
+      ...(window.__scramjet$config || {}),
+      ...tinyjetConfig,
+      files: {
+        ...((window.__scramjet$config && window.__scramjet$config.files) || {}),
+        ...tinyjetConfig.files
+      }
+    };
+    const swReloadKey = "rift__tinyjet-sw-controlled-v5";
     const { ScramjetController } = $scramjetLoadController();
     const scramjet = new ScramjetController(tinyjetConfig);
     async function ensureTinyjetControl() {
       if (!("serviceWorker" in navigator)) return;
-      await navigator.serviceWorker.register("/tinyjet/sw.js?v=2.3.41", { scope: "/tinyjet/", updateViaCache: "none" });
+      await navigator.serviceWorker.register("/tinyjet/sw.js?v=2.3.42", { scope: "/tinyjet/", updateViaCache: "none" });
       await navigator.serviceWorker.ready;
       if (!navigator.serviceWorker.controller && !sessionStorage.getItem(swReloadKey)) {
         sessionStorage.setItem(swReloadKey, "1");
@@ -78,7 +86,6 @@
     try {
       await ensureTinyjetControl();
       await scramjet.init();
-      await scramjet.modifyConfig(tinyjetConfig);
     } catch (e) { console.error("scramjet failed to initialize;", e); }
     const connection = new BareMux.BareMuxConnection("/tinyjet/bareworker.js");
     const websocketInput = document.getElementById("websocket");

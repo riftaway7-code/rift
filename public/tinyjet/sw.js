@@ -1,6 +1,22 @@
 importScripts("/tinyjet/tinyjet/scramjet.all.js");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
-const scramjet = new ScramjetServiceWorker();
+const tinyjetConfig = {
+  prefix: "/tinyjet/scramjet/",
+  files: {
+    wasm: "/tinyjet/tinyjet/wasm.wasm",
+    all: "/tinyjet/tinyjet/scramjet.all.js",
+    sync: "/tinyjet/tinyjet/scramjet.sync.js"
+  }
+};
+self.__scramjet$config = {
+  ...(self.__scramjet$config || {}),
+  ...tinyjetConfig,
+  files: {
+    ...((self.__scramjet$config && self.__scramjet$config.files) || {}),
+    ...tinyjetConfig.files
+  }
+};
+const scramjet = new ScramjetServiceWorker(self.__scramjet$config);
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -39,7 +55,6 @@ async function handleRequest(event) {
   if (!scramjet.route(event)) {
     return await fetch(event.request);
   }
-  await scramjet.loadConfig();
   const response = await scramjet.fetch(event);
   return await normalizeHtmlResponse(event.request, response);
 }
