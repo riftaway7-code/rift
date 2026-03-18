@@ -429,10 +429,8 @@
     <script src="/baremux/index.js"></script>
     <script>
         (() => {
-            const search = new URLSearchParams(window.location.search);
             const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
-            const isMinimal = normalizedPath === '/roblox' || search.get('minimal') === '1';
-            if (isMinimal) {
+            if (normalizedPath === '/roblox') {
                 document.body.classList.add('browser-minimal');
             }
         })();
@@ -519,10 +517,8 @@
     <script>
         (async () => {
             await (window.__riftScramjetReady || Promise.resolve());
-            const query = new URLSearchParams(window.location.search);
             const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
             const isRobloxShell = normalizedPath === '/roblox';
-            const isMinimalShell = isRobloxShell || query.get('minimal') === '1';
             const DEFAULT_ROBLOX_TARGET = 'https://nowgg.fun/apps/a/19900/b.html';
             const form = document.getElementById('browser-form');
             const input = document.getElementById('browser-input');
@@ -1606,11 +1602,12 @@
             });
             getFrameForPanel(0);
 
+            const query = new URLSearchParams(window.location.search);
             const initialUrlParam = query.get('url');
             const initialNowggTarget = query.get('target');
             const initialTarget = initialUrlParam
                 ? mergeTargetUrl(toTarget(initialUrlParam), initialNowggTarget)
-                : ((isRobloxShell || isMinimalShell) ? DEFAULT_ROBLOX_TARGET : null);
+                : (isRobloxShell ? DEFAULT_ROBLOX_TARGET : null);
             const forceProxy = query.get('forceProxy') === '1';
             const autoPopout = query.get('popout') === '1';
             if (autoPopout && initialTarget) {
