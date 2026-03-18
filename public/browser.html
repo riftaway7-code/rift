@@ -436,14 +436,17 @@
                 await registerSW();
             }
 
+            await loadScript('/scramjet/scramjet.codecs.js');
             await loadScript('/global/js/official-scramjet-config.js');
-            await loadScript('/scramjet/scramjet.all.js');
 
             const configFactory = self.__createRiftScramjetConfig;
             const config = typeof configFactory === 'function' ? configFactory() : null;
             if (!config) {
                 throw new Error('official scramjet config is missing');
             }
+
+            self.__scramjet$config = config;
+            await loadScript('/scramjet/scramjet.bundle.js');
 
             const { ScramjetController } = self.$scramjetLoadController();
             const controller = new ScramjetController(config);

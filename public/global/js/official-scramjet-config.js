@@ -8,25 +8,21 @@
         return {
             wisp: getWispUrl(),
             prefix: "/sj2/",
-            globals: {
-                wrapfn: "$scramjet$wrap",
-                wrappropertybase: "$scramjet__",
-                wrappropertyfn: "$scramjet$prop",
-                cleanrestfn: "$scramjet$clean",
-                importfn: "$scramjet$import",
-                rewritefn: "$scramjet$rewrite",
-                metafn: "$scramjet$meta",
-                setrealmfn: "$scramjet$setrealm",
-                pushsourcemapfn: "$scramjet$pushsourcemap",
-                trysetfn: "$scramjet$tryset",
-                templocid: "$scramjet$temploc",
-                tempunusedid: "$scramjet$tempunused",
+            codec: self.__scramjet$codecs?.plain || {
+                encode: (url) => {
+                    if (!url) return url;
+                    return encodeURIComponent(url);
+                },
+                decode: (url) => {
+                    if (!url) return url;
+                    return decodeURIComponent(url);
+                },
             },
-            files: {
-                wasm: "/scramjet/scramjet.wasm.wasm",
-                all: "/scramjet/scramjet.all.js",
-                sync: "/scramjet/scramjet.sync.js",
-            },
+            config: "/scramjet/scramjet.config.js",
+            bundle: "/scramjet/scramjet.bundle.js",
+            worker: "/scramjet/scramjet.worker.js",
+            client: "/scramjet/scramjet.client.js",
+            codecs: "/scramjet/scramjet.codecs.js",
             flags: {
                 serviceworkers: false,
                 syncxhr: false,
@@ -42,18 +38,9 @@
                 allowFailedIntercepts: true,
             },
             siteFlags: {},
-            codec: {
-                encode: (url) => {
-                    if (!url) return url;
-                    return encodeURIComponent(url);
-                },
-                decode: (url) => {
-                    if (!url) return url;
-                    return decodeURIComponent(url);
-                },
-            },
         };
     }
 
     self.__createRiftScramjetConfig = createRiftScramjetConfig;
+    self.__scramjet$config = createRiftScramjetConfig();
 })();

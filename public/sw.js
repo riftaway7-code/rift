@@ -1,28 +1,17 @@
-importScripts("/global/js/official-scramjet-config.js");
+importScripts(
+    "/scramjet/scramjet.codecs.js",
+    "/global/js/official-scramjet-config.js",
+    "/scramjet/scramjet.bundle.js",
+    "/scramjet/scramjet.worker.js"
+);
 const RIFT_SCRAMJET_CONFIG = typeof self.__createRiftScramjetConfig === "function"
     ? self.__createRiftScramjetConfig()
     : null;
+if (RIFT_SCRAMJET_CONFIG) {
+    self.__scramjet$config = RIFT_SCRAMJET_CONFIG;
+}
 const RIFT_SCRAMJET_PREFIX = String(RIFT_SCRAMJET_CONFIG?.prefix || "/sj2/");
 let scramjetWorkerPromise = null;
-let scramjetRuntimePromise = null;
-
-async function ensureScramjetRuntimeLoaded() {
-    if (!scramjetRuntimePromise) {
-        scramjetRuntimePromise = (async () => {
-            importScripts("/scramjet/scramjet.all.js");
-            const workerFactory = typeof self.$scramjetLoadWorker === "function"
-                ? self.$scramjetLoadWorker()
-                : null;
-            const workerCtor = workerFactory?.ScramjetServiceWorker;
-            if (typeof workerCtor !== "function") {
-                throw new Error("Official scramjet worker runtime did not load.");
-            }
-            return workerCtor;
-        })();
-    }
-
-    return await scramjetRuntimePromise;
-}
 
 function ensureHealthyScramjetDatabase() {
     return new Promise((resolve) => {
@@ -97,8 +86,11 @@ async function getScramjetWorker() {
     if (!scramjetWorkerPromise) {
         scramjetWorkerPromise = (async () => {
             await ensureHealthyScramjetDatabase();
-            const ScramjetServiceWorker = await ensureScramjetRuntimeLoaded();
-            return new ScramjetServiceWorker();
+            const ScramjetServiceWorker = self.ScramjetServiceWorker;
+            if (typeof ScramjetServiceWorker !== "function") {
+                throw new Error("Official scramjet worker runtime did not load.");
+            }
+            return new ScramjetServiceWorker(RIFT_SCRAMJET_CONFIG || self.__scramjet$config);
         })();
     }
 
