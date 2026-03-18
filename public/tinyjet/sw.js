@@ -36,11 +36,11 @@ async function normalizeHtmlResponse(request, response) {
   }
 }
 async function handleRequest(event) {
-  await scramjet.loadConfig();
-  if (scramjet.route(event)) {
-    const response = await scramjet.fetch(event);
-    return await normalizeHtmlResponse(event.request, response);
+  if (!scramjet.route(event)) {
+    return await fetch(event.request);
   }
-  return await fetch(event.request)
+  await scramjet.loadConfig();
+  const response = await scramjet.fetch(event);
+  return await normalizeHtmlResponse(event.request, response);
 }
 self.addEventListener('fetch', (event) => {event.respondWith(handleRequest(event))})
