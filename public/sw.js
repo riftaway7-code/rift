@@ -1,18 +1,8 @@
-importScripts(
-    "/uv/uv.bundle.js",
-    "/uv/uv.config.js",
-    "/uv/uv.sw.js",
-    "/global/js/official-scramjet-config.js"
-);
-
-const uv = new UVServiceWorker(self.__uv$config);
-const uvContext = new Ultraviolet(self.__uv$config);
-uvContext.meta.origin = self.location.origin;
+importScripts("/global/js/official-scramjet-config.js");
 const RIFT_SCRAMJET_CONFIG = typeof self.__createRiftScramjetConfig === "function"
     ? self.__createRiftScramjetConfig()
     : null;
 const RIFT_SCRAMJET_PREFIX = String(RIFT_SCRAMJET_CONFIG?.prefix || "/sj2/");
-const uvClientDocumentSources = new Map();
 let scramjetWorkerPromise = null;
 let scramjetRuntimePromise = null;
 
@@ -228,81 +218,6 @@ async function maybePatchNowggDocument(response, requestUrl, destination) {
     });
 }
 
-async function getUvClientSource(event) {
-    const { request, clientId } = event;
-    let activeClientUrl = '';
-    const cachedSourceUrl = clientId ? String(uvClientDocumentSources.get(clientId) || '') : '';
-
-    if (clientId) {
-        try {
-            const client = await self.clients.get(clientId);
-            activeClientUrl = String(client?.url || '');
-        } catch {
-            activeClientUrl = '';
-        }
-    }
-
-    if (!activeClientUrl.startsWith(self.location.origin + self.__uv$config.prefix)) {
-        try {
-            const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-            const uvClients = clients.filter((client) =>
-                String(client?.url || "").startsWith(self.location.origin + self.__uv$config.prefix)
-            );
-            if (uvClients.length >= 1) {
-                activeClientUrl = String(uvClients[0].url || "");
-            }
-        } catch {
-            activeClientUrl = activeClientUrl || '';
-        }
-    }
-
-    try {
-        const referrer = activeClientUrl || String(request.referrer || '');
-        if (referrer.startsWith(self.location.origin + self.__uv$config.prefix)) {
-            return new URL(uvContext.sourceUrl(referrer));
-        }
-        if (cachedSourceUrl) {
-            return new URL(cachedSourceUrl);
-        }
-        return null;
-    } catch {
-        return null;
-    }
-}
-
-async function getEscapedUvTarget(event) {
-    const sourceReferrer = await getUvClientSource(event);
-    if (!sourceReferrer) return null;
-
-    try {
-        const requestUrl = new URL(event.request.url);
-        if (requestUrl.origin !== self.location.origin) {
-            return null;
-        }
-
-        return new URL(
-            `${requestUrl.pathname}${requestUrl.search}${requestUrl.hash}`,
-            sourceReferrer
-        ).toString();
-    } catch {
-        return null;
-    }
-}
-
-function rememberUvDocumentSource(clientId, requestUrl, request) {
-    if (!clientId) return;
-    if (request.mode !== "navigate" && !["document", "iframe"].includes(request.destination)) {
-        return;
-    }
-
-    try {
-        const decoded = uvContext.sourceUrl(requestUrl);
-        const sourceUrl = new URL(decoded).toString();
-        uvClientDocumentSources.set(clientId, sourceUrl);
-    } catch {
-    }
-}
-
 function buildReroutedRequest(targetUrl, request) {
     if (request.mode === "navigate") {
         return new Request(targetUrl, {
@@ -341,37 +256,11 @@ async function handleRequest(event) {
             url.pathname.startsWith("/baremux/") ||
             url.pathname.startsWith("/libcurl/") ||
             url.pathname.startsWith("/epoxy/") ||
-            (url.pathname.startsWith("/uv/") && !url.pathname.startsWith(self.__uv$config.prefix)) ||
+            url.pathname.startsWith("/uv/") ||
             url.pathname.startsWith("/wisp/")
         );
         if (isInternalRoute) {
             return await fetch(request);
-        }
-
-        if (uv.route({ request })) {
-            rememberUvDocumentSource(event.clientId, request.url, request);
-            return await uv.fetch({ request });
-        }
-
-        const uvSourceReferrer = await getUvClientSource(event);
-        if (uvSourceReferrer && url.origin !== self.location.origin) {
-            const proxiedRequest = buildReroutedRequest(
-                `${self.location.origin}${self.__uv$config.prefix}${self.__uv$config.encodeUrl(url.toString())}`,
-                request
-            );
-            return await uv.fetch({ request: proxiedRequest });
-        }
-
-        const escapedUvTarget = await getEscapedUvTarget(event);
-        if (escapedUvTarget) {
-            if (event.clientId && (request.mode === "navigate" || ["document", "iframe"].includes(request.destination))) {
-                uvClientDocumentSources.set(event.clientId, escapedUvTarget);
-            }
-            const proxiedRequest = buildReroutedRequest(
-                `${self.location.origin}${self.__uv$config.prefix}${self.__uv$config.encodeUrl(escapedUvTarget)}`,
-                request
-            );
-            return await uv.fetch({ request: proxiedRequest });
         }
 
         if (url.origin === self.location.origin && url.pathname.startsWith(RIFT_SCRAMJET_PREFIX)) {
