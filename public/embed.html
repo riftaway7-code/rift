@@ -183,10 +183,23 @@
             const reload = document.getElementById('embedReload');
             const retry = document.getElementById('embedRetry');
             const direct = document.getElementById('embedDirect');
+            const recoveryKey = 'rift__embed-baremux-recover-v1';
             const connection = window.BareMux?.BareMuxConnection
                 ? new BareMux.BareMuxConnection('/baremux/worker.js')
                 : null;
             let currentTarget = '';
+            const clearStoredBareMuxState = () => {
+                try {
+                    const keys = [];
+                    for (let index = 0; index < localStorage.length; index += 1) {
+                        const key = String(localStorage.key(index) || '');
+                        if (/bare-?mux|mercury/i.test(key)) keys.push(key);
+                    }
+                    for (const key of keys) localStorage.removeItem(key);
+                    localStorage.removeItem('bare-mux-path');
+                } catch {
+                }
+            };
 
             function getTarget() {
                 const fromHash = decodeURIComponent(String(window.location.hash || '').replace(/^#/, '')).trim();
@@ -210,8 +223,18 @@
             async function ensureTransport() {
                 if (!connection) throw new Error('BareMux is unavailable.');
                 const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';
+                clearStoredBareMuxState();
                 await connection.setTransport('/libcurl/index.mjs', [{ websocket: wispUrl }]);
             }
+
+            window.addEventListener('unhandledrejection', (event) => {
+                const reason = String(event?.reason?.message || event?.reason || '');
+                if (!/invalid MessagePort/i.test(reason)) return;
+                if (sessionStorage.getItem(recoveryKey)) return;
+                sessionStorage.setItem(recoveryKey, '1');
+                clearStoredBareMuxState();
+                location.reload();
+            });
 
             async function testWispSocket(timeoutMs = 8000) {
                 const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';

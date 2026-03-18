@@ -10,6 +10,20 @@ const frame = document.getElementById("sj-frame");
 let proxyMode = "scramjet";
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
+const recoveryKey = "rift__index-baremux-recover-v1";
+
+function clearStoredBareMuxState() {
+    try {
+        const keys = [];
+        for (let index = 0; index < localStorage.length; index += 1) {
+            const key = String(localStorage.key(index) || "");
+            if (/bare-?mux|mercury/i.test(key)) keys.push(key);
+        }
+        for (const key of keys) localStorage.removeItem(key);
+        localStorage.removeItem("bare-mux-path");
+    } catch {
+    }
+}
 
 async function ensureTransport() {
     const wispUrl =
@@ -18,10 +32,20 @@ async function ensureTransport() {
         location.host +
         "/wisp/";
 
+    clearStoredBareMuxState();
     await connection.setTransport("/libcurl/index.mjs", [
         { websocket: wispUrl },
     ]);
 }
+
+window.addEventListener("unhandledrejection", (event) => {
+    const reason = String(event?.reason?.message || event?.reason || "");
+    if (!/invalid MessagePort/i.test(reason)) return;
+    if (sessionStorage.getItem(recoveryKey)) return;
+    sessionStorage.setItem(recoveryKey, "1");
+    clearStoredBareMuxState();
+    location.reload();
+});
 
 async function testWispSocket(timeoutMs = 8000) {
     const wispUrl =

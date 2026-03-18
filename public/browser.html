@@ -412,7 +412,8 @@
     <script src="/baremux/index.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v7';
+            const resetKey = 'rift__scramjet-idb-reset-v8';
+            const recoveryKey = 'rift__baremux-recover-v1';
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
@@ -420,6 +421,18 @@
                 script.onerror = () => reject(new Error(`failed to load ${src}`));
                 document.head.appendChild(script);
             });
+            const clearStoredBareMuxState = () => {
+                try {
+                    const keys = [];
+                    for (let index = 0; index < localStorage.length; index += 1) {
+                        const key = String(localStorage.key(index) || '');
+                        if (/bare-?mux|mercury/i.test(key)) keys.push(key);
+                    }
+                    for (const key of keys) localStorage.removeItem(key);
+                    localStorage.removeItem('bare-mux-path');
+                } catch {
+                }
+            };
             const connection = window.BareMux?.BareMuxConnection
                 ? new BareMux.BareMuxConnection('/baremux/worker.js')
                 : null;
@@ -430,6 +443,7 @@
                 '/wisp/';
             const ensureTransport = async () => {
                 if (!connection) throw new Error('BareMux is unavailable.');
+                clearStoredBareMuxState();
                 await connection.setTransport('/libcurl/index.mjs', [
                     { websocket: getWispUrl() },
                 ]);
@@ -457,15 +471,21 @@
                             resolve();
                         }
                     })));
-                    try {
-                        localStorage.removeItem('bare-mux-path');
-                    } catch {
-                    }
+                    clearStoredBareMuxState();
                     sessionStorage.setItem(resetKey, '1');
                 }
             } catch (error) {
                 console.warn('[rift-browser] scramjet idb reset skipped', error);
             }
+
+            window.addEventListener('unhandledrejection', (event) => {
+                const reason = String(event?.reason?.message || event?.reason || '');
+                if (!/invalid MessagePort/i.test(reason)) return;
+                if (sessionStorage.getItem(recoveryKey)) return;
+                sessionStorage.setItem(recoveryKey, '1');
+                clearStoredBareMuxState();
+                location.reload();
+            });
 
             if (typeof registerSW === 'function') {
                 await registerSW();
