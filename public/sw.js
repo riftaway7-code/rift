@@ -2,8 +2,7 @@ importScripts(
     "/uv/uv.bundle.js",
     "/uv/uv.config.js",
     "/uv/uv.sw.js",
-    "/global/js/official-scramjet-config.js",
-    "/scramjet/scramjet.all.js"
+    "/global/js/official-scramjet-config.js"
 );
 
 const uv = new UVServiceWorker(self.__uv$config);
@@ -13,9 +12,27 @@ const RIFT_SCRAMJET_CONFIG = typeof self.__createRiftScramjetConfig === "functio
     ? self.__createRiftScramjetConfig()
     : null;
 const RIFT_SCRAMJET_PREFIX = String(RIFT_SCRAMJET_CONFIG?.prefix || "/sj2/");
-const { ScramjetServiceWorker } = self.$scramjetLoadWorker();
 const uvClientDocumentSources = new Map();
 let scramjetWorkerPromise = null;
+let scramjetRuntimePromise = null;
+
+async function ensureScramjetRuntimeLoaded() {
+    if (!scramjetRuntimePromise) {
+        scramjetRuntimePromise = (async () => {
+            importScripts("/scramjet/scramjet.all.js");
+            const workerFactory = typeof self.$scramjetLoadWorker === "function"
+                ? self.$scramjetLoadWorker()
+                : null;
+            const workerCtor = workerFactory?.ScramjetServiceWorker;
+            if (typeof workerCtor !== "function") {
+                throw new Error("Official scramjet worker runtime did not load.");
+            }
+            return workerCtor;
+        })();
+    }
+
+    return await scramjetRuntimePromise;
+}
 
 function ensureHealthyScramjetDatabase() {
     return new Promise((resolve) => {
@@ -90,6 +107,7 @@ async function getScramjetWorker() {
     if (!scramjetWorkerPromise) {
         scramjetWorkerPromise = (async () => {
             await ensureHealthyScramjetDatabase();
+            const ScramjetServiceWorker = await ensureScramjetRuntimeLoaded();
             return new ScramjetServiceWorker();
         })();
     }
