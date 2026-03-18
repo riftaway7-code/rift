@@ -2,28 +2,31 @@ importScripts(
     "/uv/uv.bundle.js",
     "/uv/uv.config.js",
     "/uv/uv.sw.js",
-    "/assets/scramjet/scramjet.codecs.js",
-    "/assets/scramjet/scramjet.config.js",
-    "/assets/scramjet/scramjet.bundle.js",
-    "/assets/scramjet/scramjet.worker.js"
+    "/global/js/official-scramjet-config.js",
+    "/scramjet/scramjet.all.js"
 );
 
 const uv = new UVServiceWorker(self.__uv$config);
 const uvContext = new Ultraviolet(self.__uv$config);
 uvContext.meta.origin = self.location.origin;
-const scramjet = new ScramjetServiceWorker(self.__scramjet$config);
+const RIFT_SCRAMJET_CONFIG = typeof self.__createRiftScramjetConfig === "function"
+    ? self.__createRiftScramjetConfig()
+    : null;
+const RIFT_SCRAMJET_PREFIX = String(RIFT_SCRAMJET_CONFIG?.prefix || "/sj2/");
+const { ScramjetServiceWorker } = self.$scramjetLoadWorker();
+const scramjet = new ScramjetServiceWorker();
 const uvClientDocumentSources = new Map();
 
 function rewriteScramjetTarget(requestUrl) {
     try {
         const routeUrl = new URL(requestUrl);
-        const prefix = `${self.location.origin}${self.__scramjet$config.prefix}`;
+        const prefix = `${self.location.origin}${RIFT_SCRAMJET_PREFIX}`;
         if (!routeUrl.href.startsWith(prefix)) {
             return null;
         }
 
         const encodedTarget = routeUrl.href.slice(prefix.length);
-        const decodedTarget = self.__scramjet$config.codec.decode(encodedTarget);
+        const decodedTarget = decodeURIComponent(encodedTarget);
         const upstream = new URL(decodedTarget);
         const match = upstream.hostname.match(/^(\d+)\.ip\.[^.]+\.onrender\.com$/i);
         if (!match || !/\.onrender\.com$/i.test(self.location.hostname)) {
@@ -31,7 +34,7 @@ function rewriteScramjetTarget(requestUrl) {
         }
 
         upstream.hostname = `${match[1]}.ip.nowgg.fun`;
-        return `${prefix}${self.__scramjet$config.codec.encode(upstream.toString())}`;
+        return `${prefix}${encodeURIComponent(upstream.toString())}`;
     } catch {
         return null;
     }
@@ -40,12 +43,12 @@ function rewriteScramjetTarget(requestUrl) {
 function decodeScramjetTarget(requestUrl) {
     try {
         const routeUrl = new URL(requestUrl);
-        const prefix = `${self.location.origin}${self.__scramjet$config.prefix}`;
+        const prefix = `${self.location.origin}${RIFT_SCRAMJET_PREFIX}`;
         if (!routeUrl.href.startsWith(prefix)) {
             return null;
         }
         const encodedTarget = routeUrl.href.slice(prefix.length);
-        return self.__scramjet$config.codec.decode(encodedTarget);
+        return decodeURIComponent(encodedTarget);
     } catch {
         return null;
     }
@@ -232,6 +235,7 @@ async function handleRequest(event) {
             url.pathname === "/proxy" ||
             url.pathname === "/embed.html" ||
             url.pathname.startsWith("/assets/") ||
+            url.pathname.startsWith("/scramjet/") ||
             url.pathname.startsWith("/tinyjet/") ||
             url.pathname.startsWith("/components/") ||
             url.pathname.startsWith("/global/") ||
@@ -272,7 +276,7 @@ async function handleRequest(event) {
             return await uv.fetch({ request: proxiedRequest });
         }
 
-        if (scramjet.route({ request })) {
+        if (url.origin === self.location.origin && url.pathname.startsWith(RIFT_SCRAMJET_PREFIX)) {
             try {
                 const rewrittenTarget = rewriteScramjetTarget(request.url);
                 if (rewrittenTarget && rewrittenTarget !== request.url) {
@@ -283,18 +287,6 @@ async function handleRequest(event) {
                 const response = await scramjet.fetch({ request });
                 return await maybePatchNowggDocument(response, request.url, request.destination);
             } catch (error) {
-                const decodedTarget = decodeScramjetTarget(request.url);
-                if (
-                    decodedTarget &&
-                    !isNowggTarget(decodedTarget) &&
-                    ["document", "iframe"].includes(request.destination) &&
-                    /there are no bare clients/i.test(String(error?.message || error || ""))
-                ) {
-                    return Response.redirect(
-                        `/proxy?url=${encodeURIComponent(decodedTarget)}`,
-                        302
-                    );
-                }
                 throw error;
             }
         }

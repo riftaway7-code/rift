@@ -394,11 +394,9 @@
     <script src="/components/404.js"></script>
     <script src="/register-sw.js"></script>
     <script src="/baremux/index.js"></script>
-    <script src="/uv/uv.bundle.js"></script>
-    <script src="/uv/uv.config.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v3';
+            const resetKey = 'rift__scramjet-idb-reset-v4';
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
@@ -435,9 +433,23 @@
                 console.warn('[rift-browser] scramjet idb reset skipped', error);
             }
 
-            await loadScript('/assets/scramjet/scramjet.codecs.js');
-            await loadScript('/assets/scramjet/scramjet.config.js');
-            await loadScript('/assets/scramjet/scramjet.bundle.js');
+            if (typeof registerSW === 'function') {
+                await registerSW();
+            }
+
+            await loadScript('/global/js/official-scramjet-config.js');
+            await loadScript('/scramjet/scramjet.all.js');
+
+            const configFactory = self.__createRiftScramjetConfig;
+            const config = typeof configFactory === 'function' ? configFactory() : null;
+            if (!config) {
+                throw new Error('official scramjet config is missing');
+            }
+
+            const { ScramjetController } = self.$scramjetLoadController();
+            const controller = new ScramjetController(config);
+            await controller.init();
+            self.__riftScramjetController = controller;
         })();
     </script>
     <script>
@@ -496,7 +508,7 @@
             const MAX_BOOKMARKS = 120;
             const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug'];
             const BAREMUX_BOOT_KEY = `${modeKey}__browser-baremux-boot-v1`;
-            const PROXY_CHAIN = ['scramjet', 'ultraviolet', 'proxy'];
+            const PROXY_CHAIN = ['scramjet'];
             const panels = [{ history: [], historyIndex: -1 }];
             const panelFrames = new WeakMap();
             let activePanel = 0;
@@ -785,14 +797,7 @@
                 browserActiveLabel.textContent = titleForPanel(panel);
                 browserActiveSubtitle.textContent = subtitleForPanel(panel);
 
-                browserEnginePill.textContent =
-                    proxyMode === 'tinyjet'
-                        ? 'tinyjet'
-                        : proxyMode === 'scramjet'
-                            ? 'scramjet'
-                            : proxyMode === 'ultraviolet'
-                                ? 'ultraviolet'
-                                : 'plain proxy';
+                browserEnginePill.textContent = 'scramjet';
                 browserEnginePill.dataset.mode = proxyMode;
 
                 if (bookmarkIcon) bookmarkIcon.textContent = isBookmarked ? 'bookmark' : 'bookmark_add';
@@ -807,10 +812,8 @@
             }
 
             function labelForEngine(mode) {
-                if (mode === 'tinyjet') return 'tinyjet';
-                if (mode === 'scramjet') return 'scramjet';
-                if (mode === 'ultraviolet') return 'ultraviolet';
-                return 'plain proxy';
+                void mode;
+                return 'scramjet';
             }
 
             function loadBookmarks() {
@@ -858,21 +861,6 @@
                 browserHistory.unshift({ url: safeUrl, at: Date.now() });
                 if (browserHistory.length > MAX_GLOBAL_HISTORY) browserHistory = browserHistory.slice(0, MAX_GLOBAL_HISTORY);
                 saveGlobalHistory();
-            }
-
-            function usesTinyjetRuntime(targetUrl) {
-                try {
-                    const u = new URL(targetUrl, window.location.origin);
-                    const host = (u.hostname || '').toLowerCase();
-                    return host === 'nowgg.fun'
-                        || host.endsWith('.nowgg.fun')
-                        || host === 'nowgg.lol'
-                        || host.endsWith('.nowgg.lol')
-                        || host === 'now.gg'
-                        || host.endsWith('.now.gg');
-                } catch {
-                    return false;
-                }
             }
 
             function saveCurrentBookmark() {
@@ -1218,27 +1206,12 @@
             }
 
             function encodeTarget(targetUrl) {
-                const encoder = self.__scramjet$bundle?.rewriters?.url?.encodeUrl;
-                if (!encoder) return null;
-                const base = window.location.origin;
+                const controller = self.__riftScramjetController;
+                if (!controller || typeof controller.encodeUrl !== 'function') return null;
                 try {
-                    return encoder(targetUrl, base);
+                    return controller.encodeUrl(targetUrl);
                 } catch {
                     return null;
-                }
-            }
-
-            function shouldForcePlainProxy(targetUrl) {
-                try {
-                    const u = new URL(targetUrl, window.location.origin);
-                    const host = (u.hostname || '').toLowerCase();
-                    const path = (u.pathname || '').toLowerCase();
-                    if (host === 'websitesball.com' || host.endsWith('.websitesball.com')) return true;
-                    if (host === 'duckduckgo.com' || host.endsWith('.duckduckgo.com')) return true;
-                    if (host === 'cdn.jsdelivr.net' && path.startsWith('/gh/gn-math/')) return true;
-                    return false;
-                } catch {
-                    return false;
                 }
             }
 
@@ -1264,8 +1237,7 @@
                     const u = new URL(targetUrl, window.location.origin);
                     const host = (u.hostname || '').toLowerCase();
                     return host === 'roblox.com'
-                        || host.endsWith('.roblox.com')
-                        || usesTinyjetRuntime(targetUrl);
+                        || host.endsWith('.roblox.com');
                 } catch {
                     return false;
                 }
@@ -1276,23 +1248,11 @@
             }
 
             function buildProxyUrlForMode(targetUrl, mode) {
-                if (mode === 'tinyjet') {
-                    return `/tinyjet/?url=${encodeURIComponent(targetUrl)}`;
-                }
                 if (mode === 'scramjet') {
                     const encoded = encodeTarget(targetUrl);
                     return encoded || null;
                 }
-                if (mode === 'ultraviolet') {
-                    const encoder = self.__uv$config?.encodeUrl;
-                    if (typeof encoder !== 'function') return null;
-                    try {
-                        return `${self.__uv$config.prefix}${encoder(targetUrl)}`;
-                    } catch {
-                        return null;
-                    }
-                }
-                return `/proxy?url=${encodeURIComponent(targetUrl)}`;
+                return null;
             }
 
             function toAbsoluteRouteUrl(routeUrl) {
@@ -1302,114 +1262,25 @@
                     : `${window.location.origin}${routeUrl}`;
             }
 
-            async function probeRoute(routeUrl) {
-                try {
-                    const response = await fetch(routeUrl, {
-                        method: 'GET',
-                        cache: 'no-store',
-                        redirect: 'follow',
-                        headers: {
-                            accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
-                            'x-rift-probe': '1',
-                        },
-                    });
-                    if (!response.ok) {
-                        return false;
-                    }
-                    const body = (await response.text()).slice(0, 6000).toLowerCase();
-                    if (
-                        body.includes('there are no bare clients') ||
-                        body.includes('cannot get /scramjet/') ||
-                        body.includes('error processing your request') ||
-                        body.includes('failed to load https://') ||
-                        body.includes('internal server error')
-                    ) {
-                        return false;
-                    }
-                    return true;
-                } catch {
-                    return false;
-                }
-            }
-
-            function requiresRewriteAwareProxy(targetUrl) {
-                try {
-                    const u = new URL(targetUrl, window.location.origin);
-                    const host = (u.hostname || '').toLowerCase();
-                    return host === 'youtube.com'
-                        || host.endsWith('.youtube.com')
-                        || host === 'youtu.be'
-                        || host.endsWith('.youtu.be')
-                        || host === 'google.com'
-                        || host.endsWith('.google.com');
-                } catch {
-                    return false;
-                }
-            }
-
             function getPreferredProxyChain(targetUrl) {
-                try {
-                    const u = new URL(targetUrl, window.location.origin);
-                    const host = (u.hostname || '').toLowerCase();
-                    if (requiresRewriteAwareProxy(targetUrl)) {
-                        return ['ultraviolet', 'scramjet'];
-                    }
-                    if (usesTinyjetRuntime(targetUrl)) {
-                        return ['tinyjet', 'ultraviolet', 'proxy'];
-                    }
-                    if (
-                        host === 'roblox.com' ||
-                        host.endsWith('.roblox.com') ||
-                        host === 'www.roblox.com'
-                    ) {
-                        return ['ultraviolet', 'proxy'];
-                    }
-                } catch {
-                }
-
+                void targetUrl;
                 return PROXY_CHAIN;
             }
 
             async function resolveProxyRoute(targetUrl, options = {}) {
-                const forcePlain = shouldForcePlainProxy(targetUrl);
-                const disallowPlain = requiresRewriteAwareProxy(targetUrl);
                 const skippedModes = new Set(Array.isArray(options?.skipModes) ? options.skipModes : []);
-                const chain = (forcePlain ? ['proxy'] : getPreferredProxyChain(targetUrl)).filter((mode) => !skippedModes.has(mode) && (!disallowPlain || mode !== 'proxy'));
+                const chain = getPreferredProxyChain(targetUrl).filter((mode) => !skippedModes.has(mode));
 
                 for (const mode of chain) {
                     if (mode === 'scramjet') {
-                        const ready = await ensureScramjetReady();
-                        if (!ready) continue;
+                        await ensureScramjetReady();
                     }
                     const routeUrl = buildProxyUrlForMode(targetUrl, mode);
                     if (!routeUrl) continue;
-                    if (mode === 'proxy' || mode === 'tinyjet') {
-                        return { mode, routeUrl };
-                    }
-                    const works = await probeRoute(routeUrl);
-                    if (works) {
-                        return { mode, routeUrl };
-                    }
+                    return { mode, routeUrl };
                 }
 
-                if (disallowPlain) {
-                    for (const mode of ['ultraviolet', 'scramjet']) {
-                        if (skippedModes.has(mode)) continue;
-                        if (mode === 'scramjet') {
-                            const ready = await ensureScramjetReady();
-                            if (!ready) continue;
-                        }
-                        const routeUrl = buildProxyUrlForMode(targetUrl, mode);
-                        if (routeUrl) {
-                            return { mode, routeUrl };
-                        }
-                    }
-                }
-
-                return {
-                    mode: 'proxy',
-                    routeUrl: buildProxyUrlForMode(targetUrl, 'proxy'),
-                };
+                throw new Error('official scramjet route could not be built');
             }
 
             async function loadTarget(targetUrl, pushHistory = true, options = {}) {
@@ -1441,15 +1312,6 @@
                     }
                     const resolvedRoute = await resolveProxyRoute(resolvedTarget, options);
                     if (navigationId !== navigationSequence) return;
-                    if (resolvedRoute.mode === 'tinyjet') {
-                        proxyMode = resolvedRoute.mode;
-                        updateChrome();
-                        const proxyUrl = toAbsoluteRouteUrl(resolvedRoute.routeUrl);
-                        if (proxyUrl) {
-                            window.location.assign(proxyUrl);
-                            return;
-                        }
-                    }
                     if (requiresTopLevelContext(resolvedTarget) && options?.allowTopLevelEscape !== false) {
                         const proxyUrl = toAbsoluteRouteUrl(resolvedRoute.routeUrl);
                         window.location.assign(proxyUrl);
