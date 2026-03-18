@@ -550,6 +550,7 @@
             let consoleOpen = false;
             let consoleUrl = HOME_TARGET;
             let navigationSequence = 0;
+            let popoutHotkeyArmedAt = 0;
 
             function formatConsoleValue(value, depth = 0, seen = new WeakSet()) {
                 if (value === undefined) return 'undefined';
@@ -1541,35 +1542,63 @@
                 moreMenu.hidden = !moreMenu.hidden;
             });
 
-            popout.addEventListener('click', () => {
+            async function popoutCurrentTab() {
                 const panel = panels[activePanel];
                 const target = panel.history[panel.historyIndex] || HOME_TARGET;
-                (async () => {
-                    const popup = window.open('about:blank', '_blank');
-                    if (!popup) return;
+                const popup = window.open('about:blank', '_blank');
+                if (!popup) return;
 
-                    if (target === HOME_TARGET) {
-                        popup.document.write('<!doctype html><title>Rift Browser</title><style>html,body{margin:0;height:100%;background:#0a0a0a;color:#fff;display:grid;place-items:center;font-family:Arial,sans-serif}</style><div>Open a page first, then use Pop out.</div>');
-                        popup.document.close();
-                        closeMoreMenu();
-                        return;
-                    }
-
-                    const resolvedRoute = await resolveProxyRoute(target);
-                    proxyMode = resolvedRoute.mode;
-                    updateChrome();
-                    const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
-                        ? resolvedRoute.routeUrl
-                        : `${window.location.origin}${resolvedRoute.routeUrl}`;
-                    popup.location.replace(proxyUrl);
+                if (target === HOME_TARGET) {
+                    popup.document.write('<!doctype html><title>Rift Browser</title><style>html,body{margin:0;height:100%;background:#0a0a0a;color:#fff;display:grid;place-items:center;font-family:Arial,sans-serif}</style><div>Open a page first, then use Pop out.</div>');
+                    popup.document.close();
                     closeMoreMenu();
-                })();
+                    return;
+                }
+
+                const resolvedRoute = await resolveProxyRoute(target);
+                proxyMode = resolvedRoute.mode;
+                updateChrome();
+                const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
+                    ? resolvedRoute.routeUrl
+                    : `${window.location.origin}${resolvedRoute.routeUrl}`;
+                popup.location.replace(proxyUrl);
+                closeMoreMenu();
+            }
+
+            popout.addEventListener('click', () => {
+                popoutCurrentTab();
             });
 
             document.addEventListener('click', (event) => {
                 if (moreMenu.hidden) return;
                 if (!moreMenu.contains(event.target) && event.target !== more && !more.contains(event.target)) {
                     closeMoreMenu();
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                const target = event.target;
+                const isEditable = target instanceof HTMLInputElement
+                    || target instanceof HTMLTextAreaElement
+                    || target instanceof HTMLSelectElement
+                    || (target instanceof HTMLElement && target.isContentEditable);
+                if (isEditable) return;
+
+                if (event.ctrlKey && event.shiftKey && event.altKey && event.key === 'Tab') {
+                    popoutHotkeyArmedAt = Date.now();
+                    return;
+                }
+
+                if (
+                    event.ctrlKey &&
+                    event.shiftKey &&
+                    event.altKey &&
+                    event.key === 'Backspace' &&
+                    Date.now() - popoutHotkeyArmedAt <= 1500
+                ) {
+                    event.preventDefault();
+                    popoutHotkeyArmedAt = 0;
+                    popoutCurrentTab();
                 }
             });
             getFrameForPanel(0);
