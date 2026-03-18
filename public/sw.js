@@ -1,9 +1,4 @@
-importScripts(
-    "/scramjet/scramjet.codecs.js",
-    "/global/js/official-scramjet-config.js",
-    "/scramjet/scramjet.bundle.js",
-    "/scramjet/scramjet.worker.js"
-);
+importScripts("/global/js/official-scramjet-config.js", "/scramjet/scramjet.all.js");
 const RIFT_SCRAMJET_CONFIG = typeof self.__createRiftScramjetConfig === "function"
     ? self.__createRiftScramjetConfig()
     : null;
@@ -86,11 +81,14 @@ async function getScramjetWorker() {
     if (!scramjetWorkerPromise) {
         scramjetWorkerPromise = (async () => {
             await ensureHealthyScramjetDatabase();
-            const ScramjetServiceWorker = self.ScramjetServiceWorker;
+            const workerFactory = typeof self.$scramjetLoadWorker === "function"
+                ? self.$scramjetLoadWorker()
+                : null;
+            const ScramjetServiceWorker = workerFactory?.ScramjetServiceWorker;
             if (typeof ScramjetServiceWorker !== "function") {
                 throw new Error("Official scramjet worker runtime did not load.");
             }
-            return new ScramjetServiceWorker(RIFT_SCRAMJET_CONFIG || self.__scramjet$config);
+            return new ScramjetServiceWorker();
         })();
     }
 

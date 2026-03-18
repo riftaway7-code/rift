@@ -436,9 +436,7 @@
                 await registerSW();
             }
 
-            await loadScript('/scramjet/scramjet.codecs.js');
             await loadScript('/global/js/official-scramjet-config.js');
-
             const configFactory = self.__createRiftScramjetConfig;
             const config = typeof configFactory === 'function' ? configFactory() : null;
             if (!config) {
@@ -446,7 +444,7 @@
             }
 
             self.__scramjet$config = config;
-            await loadScript('/scramjet/scramjet.bundle.js');
+            await loadScript('/scramjet/scramjet.all.js');
 
             const { ScramjetController } = self.$scramjetLoadController();
             const controller = new ScramjetController(config);
