@@ -194,39 +194,6 @@
                 width: 100%;
             }
         }
-
-        body.browser-page.browser-minimal {
-            padding: 0;
-            background: #000;
-        }
-
-        body.browser-page.browser-minimal .container.browser-container {
-            height: 100vh;
-        }
-
-        body.browser-page.browser-minimal .browser-shell {
-            background: #000;
-        }
-
-        body.browser-page.browser-minimal .browser-chrome,
-        body.browser-page.browser-minimal .bottom-nav,
-        body.browser-page.browser-minimal #browser-home,
-        body.browser-page.browser-minimal #browser-console {
-            display: none !important;
-        }
-
-        body.browser-page.browser-minimal .browser-main {
-            grid-template-rows: minmax(0, 1fr);
-        }
-
-        body.browser-page.browser-minimal .browser-view {
-            background: #000;
-        }
-
-        body.browser-page.browser-minimal #browser-frame,
-        body.browser-page.browser-minimal .browser-frame-panel {
-            background: #000;
-        }
     </style>
 </head>
 <body class="browser-page">
@@ -428,14 +395,6 @@
     <script src="/register-sw.js"></script>
     <script src="/baremux/index.js"></script>
     <script>
-        (() => {
-            const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
-            if (normalizedPath === '/roblox') {
-                document.body.classList.add('browser-minimal');
-            }
-        })();
-    </script>
-    <script>
         window.__riftScramjetReady = (async () => {
             const resetKey = 'rift__scramjet-idb-reset-v7';
             const loadScript = (src) => new Promise((resolve, reject) => {
@@ -517,9 +476,6 @@
     <script>
         (async () => {
             await (window.__riftScramjetReady || Promise.resolve());
-            const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
-            const isRobloxShell = normalizedPath === '/roblox';
-            const DEFAULT_ROBLOX_TARGET = 'https://nowgg.fun/apps/a/19900/b.html';
             const form = document.getElementById('browser-form');
             const input = document.getElementById('browser-input');
             const frame = document.getElementById('browser-frame');
@@ -1605,9 +1561,7 @@
             const query = new URLSearchParams(window.location.search);
             const initialUrlParam = query.get('url');
             const initialNowggTarget = query.get('target');
-            const initialTarget = initialUrlParam
-                ? mergeTargetUrl(toTarget(initialUrlParam), initialNowggTarget)
-                : (isRobloxShell ? DEFAULT_ROBLOX_TARGET : null);
+            const initialTarget = initialUrlParam ? mergeTargetUrl(toTarget(initialUrlParam), initialNowggTarget) : null;
             const forceProxy = query.get('forceProxy') === '1';
             const autoPopout = query.get('popout') === '1';
             if (autoPopout && initialTarget) {
