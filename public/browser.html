@@ -1295,6 +1295,13 @@
                 return `/proxy?url=${encodeURIComponent(targetUrl)}`;
             }
 
+            function toAbsoluteRouteUrl(routeUrl) {
+                if (!routeUrl) return null;
+                return routeUrl.startsWith('http://') || routeUrl.startsWith('https://')
+                    ? routeUrl
+                    : `${window.location.origin}${routeUrl}`;
+            }
+
             async function probeRoute(routeUrl) {
                 try {
                     const response = await fetch(routeUrl, {
@@ -1434,10 +1441,17 @@
                     }
                     const resolvedRoute = await resolveProxyRoute(resolvedTarget, options);
                     if (navigationId !== navigationSequence) return;
+                    if (resolvedRoute.mode === 'tinyjet') {
+                        proxyMode = resolvedRoute.mode;
+                        updateChrome();
+                        const proxyUrl = toAbsoluteRouteUrl(resolvedRoute.routeUrl);
+                        if (proxyUrl) {
+                            window.location.assign(proxyUrl);
+                            return;
+                        }
+                    }
                     if (requiresTopLevelContext(resolvedTarget) && options?.allowTopLevelEscape !== false) {
-                        const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
-                            ? resolvedRoute.routeUrl
-                            : `${window.location.origin}${resolvedRoute.routeUrl}`;
+                        const proxyUrl = toAbsoluteRouteUrl(resolvedRoute.routeUrl);
                         window.location.assign(proxyUrl);
                         return;
                     }
@@ -1688,9 +1702,7 @@
             if (autoPopout && initialTarget) {
                 const resolvedRoute = await resolveProxyRoute(initialTarget);
                 proxyMode = resolvedRoute.mode;
-                const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
-                    ? resolvedRoute.routeUrl
-                    : `${window.location.origin}${resolvedRoute.routeUrl}`;
+                const proxyUrl = toAbsoluteRouteUrl(resolvedRoute.routeUrl);
                 window.location.replace(proxyUrl);
                 return;
             }
