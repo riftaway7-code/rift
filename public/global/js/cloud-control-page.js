@@ -138,6 +138,7 @@
         lastLaunch: null,
         lastError: '',
     };
+    let transportReadyPromise = null;
 
     const grid = document.getElementById('cloudGrid');
     const search = document.getElementById('cloudSearch');
@@ -199,6 +200,44 @@
 
     async function prepareProxyMode() {
         state.proxyMode = 'scramjet';
+        if (transportReadyPromise) {
+            await transportReadyPromise;
+            return;
+        }
+
+        transportReadyPromise = (async () => {
+            if (typeof registerSW === 'function') {
+                await registerSW();
+            }
+
+            if (!window.BareMux?.BareMuxConnection) {
+                throw new Error('BareMux is unavailable.');
+            }
+
+            const connection = new BareMux.BareMuxConnection('/baremux/worker.js');
+            const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';
+
+            try {
+                localStorage['bare-mux-path'] = '/baremux/worker.js';
+            } catch {
+            }
+
+            await connection.setTransport('/libcurl/index.mjs', [
+                { websocket: wispUrl },
+            ]);
+
+            try {
+                localStorage['bare-mux-path'] = '/baremux/worker.js';
+            } catch {
+            }
+        })();
+
+        try {
+            await transportReadyPromise;
+        } catch (error) {
+            transportReadyPromise = null;
+            throw error;
+        }
     }
 
     async function resolveLaunchTarget(targetUrl) {
