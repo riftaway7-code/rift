@@ -4487,8 +4487,20 @@ app.get(['/tinyjet', '/tinyjet/'], (_req, res) => {
     return res.sendFile(path.join(PUBLIC_DIR, 'tinyjet', 'index.html'));
 });
 
-app.get(['/roblox', '/roblox/'], (_req, res) => {
-    return res.sendFile(path.join(PUBLIC_DIR, 'browser.html'));
+app.get(['/roblox', '/roblox/'], (req, res) => {
+    const search = new URLSearchParams();
+    search.set('minimal', '1');
+    search.set('forceProxy', '1');
+
+    if (typeof req.query?.url === 'string' && req.query.url.trim()) {
+        search.set('url', req.query.url.trim());
+    }
+
+    if (typeof req.query?.target === 'string' && req.query.target.trim()) {
+        search.set('target', req.query.target.trim());
+    }
+
+    return res.redirect(`/browser?${search.toString()}`);
 });
 
 app.use(express.static(PUBLIC_DIR, { redirect: false }));
