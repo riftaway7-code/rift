@@ -35,7 +35,7 @@
                 captureErrors: true,
                 cleanErrors: false,
                 scramitize: false,
-                sourcemaps: true,
+                sourcemaps: false,
                 destructureRewrites: false,
                 interceptDownloads: false,
                 allowInvalidJs: true,

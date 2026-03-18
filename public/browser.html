@@ -412,7 +412,7 @@
     <script src="/baremux/index.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v8';
+            const resetKey = 'rift__scramjet-idb-reset-v9';
             const recoveryKey = 'rift__baremux-recover-v1';
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
@@ -428,8 +428,11 @@
                         const key = String(localStorage.key(index) || '');
                         if (/bare-?mux|mercury/i.test(key)) keys.push(key);
                     }
-                    for (const key of keys) localStorage.removeItem(key);
-                    localStorage.removeItem('bare-mux-path');
+                    for (const key of keys) {
+                        if (key === 'bare-mux-path') continue;
+                        localStorage.removeItem(key);
+                    }
+                    localStorage['bare-mux-path'] = '/baremux/worker.js';
                 } catch {
                 }
             };
@@ -444,9 +447,11 @@
             const ensureTransport = async () => {
                 if (!connection) throw new Error('BareMux is unavailable.');
                 clearStoredBareMuxState();
+                localStorage['bare-mux-path'] = '/baremux/worker.js';
                 await connection.setTransport('/libcurl/index.mjs', [
                     { websocket: getWispUrl() },
                 ]);
+                localStorage['bare-mux-path'] = '/baremux/worker.js';
             };
 
             try {

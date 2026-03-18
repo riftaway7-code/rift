@@ -19,8 +19,11 @@ function clearStoredBareMuxState() {
             const key = String(localStorage.key(index) || "");
             if (/bare-?mux|mercury/i.test(key)) keys.push(key);
         }
-        for (const key of keys) localStorage.removeItem(key);
-        localStorage.removeItem("bare-mux-path");
+        for (const key of keys) {
+            if (key === "bare-mux-path") continue;
+            localStorage.removeItem(key);
+        }
+        localStorage["bare-mux-path"] = "/baremux/worker.js";
     } catch {
     }
 }
@@ -33,9 +36,11 @@ async function ensureTransport() {
         "/wisp/";
 
     clearStoredBareMuxState();
+    localStorage["bare-mux-path"] = "/baremux/worker.js";
     await connection.setTransport("/libcurl/index.mjs", [
         { websocket: wispUrl },
     ]);
+    localStorage["bare-mux-path"] = "/baremux/worker.js";
 }
 
 window.addEventListener("unhandledrejection", (event) => {
