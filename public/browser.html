@@ -1762,8 +1762,13 @@
                     return;
                 }
 
-                const shellUrl = `${window.location.origin}/browser?url=${encodeURIComponent(target)}&forceProxy=1&popout=1`;
-                popup.location.replace(shellUrl);
+                const resolvedRoute = await resolveProxyRoute(target);
+                proxyMode = resolvedRoute.mode;
+                updateChrome();
+                const proxyUrl = resolvedRoute.routeUrl.startsWith('http://') || resolvedRoute.routeUrl.startsWith('https://')
+                    ? resolvedRoute.routeUrl
+                    : `${window.location.origin}${resolvedRoute.routeUrl}`;
+                popup.location.replace(proxyUrl);
                 closeMoreMenu();
             }
 
