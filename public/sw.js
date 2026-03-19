@@ -7,20 +7,48 @@ if (RIFT_SCRAMJET_CONFIG) {
 }
 const RIFT_SCRAMJET_PREFIX = String(RIFT_SCRAMJET_CONFIG?.prefix || "/sj2/");
 let scramjetWorkerPromise = null;
+let scramjetIdbRecoveryPromise = null;
+
+function listScramjetDatabaseNames() {
+    const names = new Set([
+        "$scramjet",
+        "scramjet",
+        `${self.location.origin}@$scramjet`,
+        `${self.location.origin}@scramjet`,
+    ]);
+
+    return Promise.resolve(typeof indexedDB.databases === "function" ? indexedDB.databases() : [])
+        .then((databases) => {
+            for (const row of databases || []) {
+                const name = String(row?.name || "").trim();
+                if (!name) continue;
+                if (/scramjet|bare-?mux|mercury/i.test(name)) names.add(name);
+            }
+            return Array.from(names);
+        })
+        .catch(() => Array.from(names));
+}
+
+function deleteDatabase(name) {
+    return new Promise((resolve) => {
+        try {
+            const deleteRequest = indexedDB.deleteDatabase(name);
+            deleteRequest.onsuccess = () => resolve();
+            deleteRequest.onerror = () => resolve();
+            deleteRequest.onblocked = () => resolve();
+        } catch {
+            resolve();
+        }
+    });
+}
+
+async function deleteScramjetDatabases() {
+    const names = await listScramjetDatabaseNames();
+    await Promise.all(names.map((name) => deleteDatabase(name)));
+}
 
 function ensureHealthyScramjetDatabase() {
     return new Promise((resolve) => {
-        const deleteScramjetDatabase = () => {
-            try {
-                const deleteRequest = indexedDB.deleteDatabase("$scramjet");
-                deleteRequest.onsuccess = () => resolve();
-                deleteRequest.onerror = () => resolve();
-                deleteRequest.onblocked = () => resolve();
-            } catch {
-                resolve();
-            }
-        };
-
         try {
             const request = indexedDB.open("$scramjet");
             request.onupgradeneeded = () => {
@@ -54,27 +82,38 @@ function ensureHealthyScramjetDatabase() {
                                 resolve();
                                 return;
                             }
-                            deleteScramjetDatabase();
+                            deleteScramjetDatabases().then(resolve);
                         };
                         configRequest.onerror = () => {
                             db.close();
-                            deleteScramjetDatabase();
+                            deleteScramjetDatabases().then(resolve);
                         };
                     } catch {
                         db.close();
-                        deleteScramjetDatabase();
+                        deleteScramjetDatabases().then(resolve);
                     }
                     return;
                 }
 
                 db.close();
-                deleteScramjetDatabase();
+                deleteScramjetDatabases().then(resolve);
             };
             request.onerror = () => resolve();
         } catch {
             resolve();
         }
     });
+}
+
+async function recoverScramjetDatabaseOnce() {
+    if (!scramjetIdbRecoveryPromise) {
+        scramjetIdbRecoveryPromise = (async () => {
+            scramjetWorkerPromise = null;
+            await deleteScramjetDatabases();
+        })();
+    }
+
+    await scramjetIdbRecoveryPromise;
 }
 
 async function getScramjetWorker() {
@@ -226,7 +265,7 @@ function buildReroutedRequest(targetUrl, request) {
     return new Request(targetUrl, request);
 }
 
-async function handleRequest(event) {
+async function handleRequest(event, hasRetriedScramjetIdb = false) {
     const { request } = event;
     try {
         const url = new URL(request.url);
@@ -265,6 +304,12 @@ async function handleRequest(event) {
                 const response = await scramjet.fetch({ request });
                 return await maybePatchNowggDocument(response, request.url, request.destination);
             } catch (error) {
+                const message = String(error?.message || error || "");
+                const isIdbStoreError = error?.name === "NotFoundError" || /object stores? was not found|Failed to execute 'transaction' on 'IDBDatabase'/i.test(message);
+                if (isIdbStoreError && !hasRetriedScramjetIdb) {
+                    await recoverScramjetDatabaseOnce();
+                    return await handleRequest(event, true);
+                }
                 throw error;
             }
         }
