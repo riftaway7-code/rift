@@ -412,7 +412,7 @@
     <script src="/baremux/index.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v10';
+            const resetKey = 'rift__scramjet-idb-reset-v11';
             const recoveryKey = 'rift__baremux-recover-v1';
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
@@ -436,19 +436,18 @@
                 } catch {
                 }
             };
+            const deleteDatabase = (name) => new Promise((resolve) => {
+                try {
+                    const request = indexedDB.deleteDatabase(name);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => resolve();
+                    request.onblocked = () => resolve();
+                } catch {
+                    resolve();
+                }
+            });
             const ensureHealthyScramjetDatabase = async () => {
                 if (typeof indexedDB === 'undefined') return;
-
-                const deleteScramjetDatabase = () => new Promise((resolve) => {
-                    try {
-                        const request = indexedDB.deleteDatabase('$scramjet');
-                        request.onsuccess = () => resolve();
-                        request.onerror = () => resolve();
-                        request.onblocked = () => resolve();
-                    } catch {
-                        resolve();
-                    }
-                });
 
                 await new Promise((resolve) => {
                     try {
@@ -484,23 +483,23 @@
                                             resolve();
                                             return;
                                         }
-                                        await deleteScramjetDatabase();
+                                        await deleteDatabase('$scramjet');
                                         resolve();
                                     };
                                     configRequest.onerror = async () => {
                                         db.close();
-                                        await deleteScramjetDatabase();
+                                        await deleteDatabase('$scramjet');
                                         resolve();
                                     };
                                 } catch {
                                     db.close();
-                                    deleteScramjetDatabase().then(resolve);
+                                    deleteDatabase('$scramjet').then(resolve);
                                 }
                                 return;
                             }
 
                             db.close();
-                            deleteScramjetDatabase().then(resolve);
+                            deleteDatabase('$scramjet').then(resolve);
                         };
                         request.onerror = () => resolve();
                     } catch {
@@ -538,16 +537,8 @@
                         }
                     }
 
-                    await Promise.all(Array.from(names).map((name) => new Promise((resolve) => {
-                        try {
-                            const request = indexedDB.deleteDatabase(name);
-                            request.onsuccess = () => resolve();
-                            request.onerror = () => resolve();
-                            request.onblocked = () => resolve();
-                        } catch {
-                            resolve();
-                        }
-                    })));
+                    await Promise.all(Array.from(names).map((name) => deleteDatabase(name)));
+                    await deleteDatabase('$scramjet');
                     clearStoredBareMuxState();
                     sessionStorage.setItem(resetKey, '1');
                 }
