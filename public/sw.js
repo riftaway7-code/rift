@@ -8,6 +8,13 @@ if (RIFT_SCRAMJET_CONFIG) {
 const RIFT_SCRAMJET_PREFIX = String(RIFT_SCRAMJET_CONFIG?.prefix || "/sj2/");
 let scramjetWorkerPromise = null;
 let scramjetIdbRecoveryPromise = null;
+const REQUIRED_SCRAMJET_STORES = [
+    "config",
+    "cookies",
+    "redirectTrackers",
+    "referrerPolicies",
+    "publicSuffixList",
+];
 
 function listScramjetDatabaseNames() {
     const names = new Set([
@@ -47,27 +54,76 @@ async function deleteScramjetDatabases() {
     await Promise.all(names.map((name) => deleteDatabase(name)));
 }
 
+function createScramjetDatabase(configValue) {
+    return new Promise((resolve, reject) => {
+        try {
+            const request = indexedDB.open("$scramjet", 1);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                for (const storeName of REQUIRED_SCRAMJET_STORES) {
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        db.createObjectStore(storeName);
+                    }
+                }
+            };
+            request.onsuccess = () => {
+                const db = request.result;
+                try {
+                    if (configValue) {
+                        const tx = db.transaction("config", "readwrite");
+                        tx.objectStore("config").put(configValue, "config");
+                        tx.oncomplete = () => {
+                            db.close();
+                            resolve();
+                        };
+                        tx.onerror = () => {
+                            db.close();
+                            reject(tx.error || new Error("failed to write scramjet config"));
+                        };
+                        tx.onabort = () => {
+                            db.close();
+                            reject(tx.error || new Error("failed to initialize scramjet database"));
+                        };
+                        return;
+                    }
+                    db.close();
+                    resolve();
+                } catch (error) {
+                    db.close();
+                    reject(error);
+                }
+            };
+            request.onerror = () => reject(request.error || new Error("failed to create scramjet database"));
+            request.onblocked = () => reject(new Error("scramjet database reset was blocked"));
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+async function resetScramjetDatabase() {
+    await deleteScramjetDatabases();
+    await createScramjetDatabase(RIFT_SCRAMJET_CONFIG);
+}
+
 function ensureHealthyScramjetDatabase() {
     return new Promise((resolve) => {
         try {
             const request = indexedDB.open("$scramjet");
             request.onupgradeneeded = () => {
                 try {
-                    request.result.close();
+                    const db = request.result;
+                    for (const storeName of REQUIRED_SCRAMJET_STORES) {
+                        if (!db.objectStoreNames.contains(storeName)) {
+                            db.createObjectStore(storeName);
+                        }
+                    }
                 } catch {
                 }
-                resolve();
             };
             request.onsuccess = () => {
                 const db = request.result;
-                const requiredStores = [
-                    "config",
-                    "cookies",
-                    "redirectTrackers",
-                    "referrerPolicies",
-                    "publicSuffixList",
-                ];
-                const missingStore = requiredStores.some((name) => !db.objectStoreNames.contains(name));
+                const missingStore = REQUIRED_SCRAMJET_STORES.some((name) => !db.objectStoreNames.contains(name));
                 if (!missingStore) {
                     try {
                         const tx = db.transaction("config", "readonly");
@@ -82,21 +138,21 @@ function ensureHealthyScramjetDatabase() {
                                 resolve();
                                 return;
                             }
-                            deleteScramjetDatabases().then(resolve);
+                            resetScramjetDatabase().then(resolve);
                         };
                         configRequest.onerror = () => {
                             db.close();
-                            deleteScramjetDatabases().then(resolve);
+                            resetScramjetDatabase().then(resolve);
                         };
                     } catch {
                         db.close();
-                        deleteScramjetDatabases().then(resolve);
+                        resetScramjetDatabase().then(resolve);
                     }
                     return;
                 }
 
                 db.close();
-                deleteScramjetDatabases().then(resolve);
+                resetScramjetDatabase().then(resolve);
             };
             request.onerror = () => resolve();
         } catch {
@@ -109,7 +165,7 @@ async function recoverScramjetDatabaseOnce() {
     if (!scramjetIdbRecoveryPromise) {
         scramjetIdbRecoveryPromise = (async () => {
             scramjetWorkerPromise = null;
-            await deleteScramjetDatabases();
+            await resetScramjetDatabase();
         })();
     }
 
@@ -127,7 +183,9 @@ async function getScramjetWorker() {
             if (typeof ScramjetServiceWorker !== "function") {
                 throw new Error("Official scramjet worker runtime did not load.");
             }
-            return new ScramjetServiceWorker();
+            const worker = new ScramjetServiceWorker();
+            worker.config = RIFT_SCRAMJET_CONFIG;
+            return worker;
         })();
     }
 

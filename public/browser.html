@@ -412,9 +412,16 @@
     <script src="/baremux/index.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v12';
+            const resetKey = 'rift__scramjet-idb-reset-v13';
             const recoveryKey = 'rift__baremux-recover-v1';
             const idbRecoveryKey = 'rift__scramjet-idb-recover-v1';
+            const requiredScramjetStores = [
+                'config',
+                'cookies',
+                'redirectTrackers',
+                'referrerPolicies',
+                'publicSuffixList',
+            ];
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
@@ -468,7 +475,55 @@
                 const names = await getScramjetDatabaseNames();
                 await Promise.all(names.map((name) => deleteDatabase(name)));
             };
-            const ensureHealthyScramjetDatabase = async () => {
+            const createScramjetDatabase = (configValue) => new Promise((resolve, reject) => {
+                try {
+                    const request = indexedDB.open('$scramjet', 1);
+                    request.onupgradeneeded = () => {
+                        const db = request.result;
+                        for (const storeName of requiredScramjetStores) {
+                            if (!db.objectStoreNames.contains(storeName)) {
+                                db.createObjectStore(storeName);
+                            }
+                        }
+                    };
+                    request.onsuccess = () => {
+                        const db = request.result;
+                        try {
+                            if (configValue) {
+                                const tx = db.transaction('config', 'readwrite');
+                                tx.objectStore('config').put(configValue, 'config');
+                                tx.oncomplete = () => {
+                                    db.close();
+                                    resolve();
+                                };
+                                tx.onerror = () => {
+                                    db.close();
+                                    reject(tx.error || new Error('failed to write scramjet config'));
+                                };
+                                tx.onabort = () => {
+                                    db.close();
+                                    reject(tx.error || new Error('failed to initialize scramjet database'));
+                                };
+                                return;
+                            }
+                            db.close();
+                            resolve();
+                        } catch (error) {
+                            db.close();
+                            reject(error);
+                        }
+                    };
+                    request.onerror = () => reject(request.error || new Error('failed to create scramjet database'));
+                    request.onblocked = () => reject(new Error('scramjet database reset was blocked'));
+                } catch (error) {
+                    reject(error);
+                }
+            });
+            const resetScramjetDatabase = async (configValue) => {
+                await deleteScramjetDatabases();
+                await createScramjetDatabase(configValue);
+            };
+            const ensureHealthyScramjetDatabase = async (configValue) => {
                 if (typeof indexedDB === 'undefined') return;
 
                 await new Promise((resolve) => {
@@ -476,21 +531,18 @@
                         const request = indexedDB.open('$scramjet');
                         request.onupgradeneeded = () => {
                             try {
-                                request.result.close();
+                                const db = request.result;
+                                for (const storeName of requiredScramjetStores) {
+                                    if (!db.objectStoreNames.contains(storeName)) {
+                                        db.createObjectStore(storeName);
+                                    }
+                                }
                             } catch {
                             }
-                            resolve();
                         };
                         request.onsuccess = () => {
                             const db = request.result;
-                            const requiredStores = [
-                                'config',
-                                'cookies',
-                                'redirectTrackers',
-                                'referrerPolicies',
-                                'publicSuffixList',
-                            ];
-                            const missingStore = requiredStores.some((name) => !db.objectStoreNames.contains(name));
+                            const missingStore = requiredScramjetStores.some((name) => !db.objectStoreNames.contains(name));
                             if (!missingStore) {
                                 try {
                                     const tx = db.transaction('config', 'readonly');
@@ -505,23 +557,23 @@
                                             resolve();
                                             return;
                                         }
-                                        await deleteScramjetDatabases();
+                                        await resetScramjetDatabase(configValue);
                                         resolve();
                                     };
                                     configRequest.onerror = async () => {
                                         db.close();
-                                        await deleteScramjetDatabases();
+                                        await resetScramjetDatabase(configValue);
                                         resolve();
                                     };
                                 } catch {
                                     db.close();
-                                    deleteScramjetDatabases().then(resolve);
+                                    resetScramjetDatabase(configValue).then(resolve);
                                 }
                                 return;
                             }
 
                             db.close();
-                            deleteScramjetDatabases().then(resolve);
+                            resetScramjetDatabase(configValue).then(resolve);
                         };
                         request.onerror = () => resolve();
                     } catch {
@@ -546,16 +598,6 @@
                 ]);
                 localStorage['bare-mux-path'] = '/baremux/worker.js';
             };
-
-            try {
-                if (!sessionStorage.getItem(resetKey) && typeof indexedDB !== 'undefined') {
-                    await deleteScramjetDatabases();
-                    clearStoredBareMuxState();
-                    sessionStorage.setItem(resetKey, '1');
-                }
-            } catch (error) {
-                console.warn('[rift-browser] scramjet idb reset skipped', error);
-            }
 
             window.addEventListener('unhandledrejection', (event) => {
                 const reason = String(event?.reason?.message || event?.reason || '');
@@ -584,10 +626,20 @@
 
             self.__scramjet$config = config;
             await loadScript('/scramjet/scramjet.all.js');
-            await ensureHealthyScramjetDatabase();
+            try {
+                if (!sessionStorage.getItem(resetKey) && typeof indexedDB !== 'undefined') {
+                    await resetScramjetDatabase(config);
+                    clearStoredBareMuxState();
+                    sessionStorage.setItem(resetKey, '1');
+                } else {
+                    await ensureHealthyScramjetDatabase(config);
+                }
+            } catch (error) {
+                console.warn('[rift-browser] scramjet idb reset skipped', error);
+            }
 
             const { ScramjetController } = self.$scramjetLoadController();
-            const controller = new ScramjetController(config);
+            let controller = new ScramjetController(config);
             try {
                 await controller.init();
             } catch (error) {
@@ -597,10 +649,10 @@
                     throw error;
                 }
                 sessionStorage.setItem(idbRecoveryKey, '1');
-                await deleteScramjetDatabases();
+                await resetScramjetDatabase(config);
                 clearStoredBareMuxState();
-                location.reload();
-                await new Promise(() => {});
+                controller = new ScramjetController(config);
+                await controller.init();
             }
             self.__riftScramjetController = controller;
         })();
