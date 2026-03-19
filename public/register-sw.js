@@ -1,6 +1,7 @@
 "use strict";
 const stockSW = "/sw.js";
 const swReloadKey = "rift__root-sw-reload-v1";
+const swReloadRetryKey = "rift__root-sw-reload-v2";
 
 /**
  * List of hostnames that are allowed to run serviceworkers on http://
@@ -70,18 +71,28 @@ async function registerSW() {
           await new Promise(() => {});
      }
 
-     await new Promise((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error("Root service worker did not take control in time.")), 20000);
-          navigator.serviceWorker.addEventListener(
-               "controllerchange",
-               () => {
-                    clearTimeout(timer);
-                    sessionStorage.removeItem(swReloadKey);
-                    resolve();
-               },
-               { once: true }
-          );
-     });
+     try {
+          await new Promise((resolve, reject) => {
+               const timer = setTimeout(() => reject(new Error("Root service worker did not take control in time.")), 35000);
+               navigator.serviceWorker.addEventListener(
+                    "controllerchange",
+                    () => {
+                         clearTimeout(timer);
+                         sessionStorage.removeItem(swReloadKey);
+                         sessionStorage.removeItem(swReloadRetryKey);
+                         resolve();
+                    },
+                    { once: true }
+               );
+          });
+     } catch (error) {
+          if (registration.active && !sessionStorage.getItem(swReloadRetryKey)) {
+               sessionStorage.setItem(swReloadRetryKey, "1");
+               location.reload();
+               await new Promise(() => {});
+          }
+          throw error;
+     }
 
      return registration;
 }
