@@ -222,8 +222,8 @@
             } catch {
             }
 
-            await connection.setTransport('/libcurl/index.mjs', [
-                { websocket: wispUrl },
+            await connection.setTransport('/uv/rift-epoxy.mjs', [
+                { wisp: wispUrl },
             ]);
 
             try {
@@ -374,6 +374,8 @@
     async function launchSelected({ direct = false } = {}) {
         const entry = getSelectedGame();
         if (!entry) return;
+        const shouldKeepLauncherOpen = !direct && entry.id === 'roblox';
+        const popup = shouldKeepLauncherOpen ? window.open('about:blank', '_blank') : null;
 
         state.lastError = '';
         setBusy(true, direct ? `opening ${entry.title} directly...` : `preparing ${entry.title} inside rift...`);
@@ -397,8 +399,20 @@
             try {
                 localStorage.setItem('rift__cloud-last-game', entry.id);
             } catch {}
+            if (popup) {
+                popup.location.replace(nextUrl);
+                setBusy(false, `${entry.title} opened in a new tab`);
+                renderLaunchPanel();
+                return;
+            }
             window.location.assign(nextUrl);
         } catch (error) {
+            if (popup) {
+                try {
+                    popup.close();
+                } catch {
+                }
+            }
             state.lastError = error?.message || 'rift could not start this cloud session';
             setBusy(false, state.lastError);
             renderSummaryStrip();
