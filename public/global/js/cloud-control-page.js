@@ -248,10 +248,6 @@
     }
 
     function buildEmbedUrl(targetUrl) {
-        const entry = getSelectedGame();
-        if (entry?.id === 'roblox') {
-            return `/sj2/${encodeURIComponent(targetUrl)}`;
-        }
         return `/browser?url=${encodeURIComponent(targetUrl)}&forceProxy=1`;
     }
 
