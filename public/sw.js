@@ -183,9 +183,7 @@ async function getScramjetWorker() {
             if (typeof ScramjetServiceWorker !== "function") {
                 throw new Error("Official scramjet worker runtime did not load.");
             }
-            const worker = new ScramjetServiceWorker();
-            worker.config = RIFT_SCRAMJET_CONFIG;
-            return worker;
+            return new ScramjetServiceWorker();
         })();
     }
 
