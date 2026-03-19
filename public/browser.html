@@ -412,7 +412,7 @@
     <script src="/baremux/index.js"></script>
     <script>
         window.__riftScramjetReady = (async () => {
-            const resetKey = 'rift__scramjet-idb-reset-v9';
+            const resetKey = 'rift__scramjet-idb-reset-v10';
             const recoveryKey = 'rift__baremux-recover-v1';
             const loadScript = (src) => new Promise((resolve, reject) => {
                 const script = document.createElement('script');
@@ -435,6 +435,78 @@
                     localStorage['bare-mux-path'] = '/baremux/worker.js';
                 } catch {
                 }
+            };
+            const ensureHealthyScramjetDatabase = async () => {
+                if (typeof indexedDB === 'undefined') return;
+
+                const deleteScramjetDatabase = () => new Promise((resolve) => {
+                    try {
+                        const request = indexedDB.deleteDatabase('$scramjet');
+                        request.onsuccess = () => resolve();
+                        request.onerror = () => resolve();
+                        request.onblocked = () => resolve();
+                    } catch {
+                        resolve();
+                    }
+                });
+
+                await new Promise((resolve) => {
+                    try {
+                        const request = indexedDB.open('$scramjet');
+                        request.onupgradeneeded = () => {
+                            try {
+                                request.result.close();
+                            } catch {
+                            }
+                            resolve();
+                        };
+                        request.onsuccess = () => {
+                            const db = request.result;
+                            const requiredStores = [
+                                'config',
+                                'cookies',
+                                'redirectTrackers',
+                                'referrerPolicies',
+                                'publicSuffixList',
+                            ];
+                            const missingStore = requiredStores.some((name) => !db.objectStoreNames.contains(name));
+                            if (!missingStore) {
+                                try {
+                                    const tx = db.transaction('config', 'readonly');
+                                    const store = tx.objectStore('config');
+                                    const configRequest = store.get('config');
+                                    configRequest.onsuccess = async () => {
+                                        const storedConfig = configRequest.result;
+                                        const wisp = String(storedConfig?.wisp || '');
+                                        const hasAbsoluteWisp = /^wss?:\/\//i.test(wisp);
+                                        db.close();
+                                        if (hasAbsoluteWisp) {
+                                            resolve();
+                                            return;
+                                        }
+                                        await deleteScramjetDatabase();
+                                        resolve();
+                                    };
+                                    configRequest.onerror = async () => {
+                                        db.close();
+                                        await deleteScramjetDatabase();
+                                        resolve();
+                                    };
+                                } catch {
+                                    db.close();
+                                    deleteScramjetDatabase().then(resolve);
+                                }
+                                return;
+                            }
+
+                            db.close();
+                            deleteScramjetDatabase().then(resolve);
+                        };
+                        request.onerror = () => resolve();
+                    } catch {
+                        resolve();
+                    }
+                });
             };
             const connection = window.BareMux?.BareMuxConnection
                 ? new BareMux.BareMuxConnection('/baremux/worker.js')
@@ -510,6 +582,7 @@
 
             self.__scramjet$config = config;
             await loadScript('/scramjet/scramjet.all.js');
+            await ensureHealthyScramjetDatabase();
 
             const { ScramjetController } = self.$scramjetLoadController();
             const controller = new ScramjetController(config);
