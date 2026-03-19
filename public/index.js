@@ -10,7 +10,8 @@ const frame = document.getElementById("sj-frame");
 let proxyMode = "scramjet";
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
-const recoveryKey = "rift__index-baremux-recover-v1";
+const recoveryKey = "rift__index-baremux-recover-v2";
+const transportKey = "rift__baremux-transport-v1";
 
 if (typeof ensureBareMuxPortBridge === "function") {
     ensureBareMuxPortBridge("/baremux/worker.js");
@@ -38,20 +39,57 @@ async function ensureTransport() {
         "://" +
         location.host +
         "/wisp/";
+    const transportOptions = {
+        libcurl: {
+            path: "/libcurl/index.mjs",
+            payload: () => [{ websocket: wispUrl }],
+        },
+        epoxy: {
+            path: "/uv/rift-epoxy.mjs",
+            payload: () => [{ wisp: wispUrl }],
+        },
+    };
+    const setPreferredTransport = (name) => {
+        try {
+            localStorage.setItem(transportKey, name);
+        } catch {
+        }
+    };
+    const getTransportOrder = () => {
+        let preferred = "libcurl";
+        try {
+            preferred = String(localStorage.getItem(transportKey) || "libcurl");
+        } catch {
+        }
+        if (!(preferred in transportOptions)) preferred = "libcurl";
+        return preferred === "epoxy" ? ["epoxy", "libcurl"] : ["libcurl", "epoxy"];
+    };
 
-    clearStoredBareMuxState();
-    localStorage["bare-mux-path"] = "/baremux/worker.js";
-    await connection.setTransport("/libcurl/index.mjs", [
-        { websocket: wispUrl },
-    ]);
-    localStorage["bare-mux-path"] = "/baremux/worker.js";
+    let lastError = null;
+    for (const mode of getTransportOrder()) {
+        try {
+            clearStoredBareMuxState();
+            localStorage["bare-mux-path"] = "/baremux/worker.js";
+            await connection.setTransport(transportOptions[mode].path, transportOptions[mode].payload());
+            localStorage["bare-mux-path"] = "/baremux/worker.js";
+            setPreferredTransport(mode);
+            return;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError || new Error("failed to initialize bare transport");
 }
 
 window.addEventListener("unhandledrejection", (event) => {
     const reason = String(event?.reason?.message || event?.reason || "");
-    if (!/invalid MessagePort/i.test(reason)) return;
+    if (!/invalid MessagePort|there are no bare clients|SSL connect error|Failed to get a ping response/i.test(reason)) return;
     if (sessionStorage.getItem(recoveryKey)) return;
     sessionStorage.setItem(recoveryKey, "1");
+    try {
+        localStorage.setItem(transportKey, "epoxy");
+    } catch {
+    }
     clearStoredBareMuxState();
     location.reload();
 });

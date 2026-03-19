@@ -413,8 +413,9 @@
     <script>
         window.__riftScramjetReady = (async () => {
             const resetKey = 'rift__scramjet-idb-reset-v13';
-            const recoveryKey = 'rift__baremux-recover-v1';
+            const recoveryKey = 'rift__baremux-recover-v2';
             const idbRecoveryKey = 'rift__scramjet-idb-recover-v1';
+            const transportKey = 'rift__baremux-transport-v1';
             const requiredScramjetStores = [
                 'config',
                 'cookies',
@@ -589,21 +590,60 @@
                 '://' +
                 location.host +
                 '/wisp/';
-            const ensureTransport = async () => {
-                if (!connection) throw new Error('BareMux is unavailable.');
+            const transportOptions = {
+                libcurl: {
+                    path: '/libcurl/index.mjs',
+                    payload: () => [{ websocket: getWispUrl() }],
+                },
+                epoxy: {
+                    path: '/uv/rift-epoxy.mjs',
+                    payload: () => [{ wisp: getWispUrl() }],
+                },
+            };
+            const setPreferredTransport = (name) => {
+                try {
+                    localStorage.setItem(transportKey, name);
+                } catch {
+                }
+            };
+            const getTransportOrder = () => {
+                let preferred = 'libcurl';
+                try {
+                    preferred = String(localStorage.getItem(transportKey) || 'libcurl');
+                } catch {
+                }
+                if (!(preferred in transportOptions)) preferred = 'libcurl';
+                return preferred === 'epoxy' ? ['epoxy', 'libcurl'] : ['libcurl', 'epoxy'];
+            };
+            const setTransportWithMode = async (mode) => {
+                const option = transportOptions[mode];
+                if (!option) throw new Error(`unknown transport mode: ${mode}`);
                 clearStoredBareMuxState();
                 localStorage['bare-mux-path'] = '/baremux/worker.js';
-                await connection.setTransport('/libcurl/index.mjs', [
-                    { websocket: getWispUrl() },
-                ]);
+                await connection.setTransport(option.path, option.payload());
                 localStorage['bare-mux-path'] = '/baremux/worker.js';
+                setPreferredTransport(mode);
+            };
+            const ensureTransport = async () => {
+                if (!connection) throw new Error('BareMux is unavailable.');
+                let lastError = null;
+                for (const mode of getTransportOrder()) {
+                    try {
+                        await setTransportWithMode(mode);
+                        return;
+                    } catch (error) {
+                        lastError = error;
+                    }
+                }
+                throw lastError || new Error('failed to initialize bare transport');
             };
 
             window.addEventListener('unhandledrejection', (event) => {
                 const reason = String(event?.reason?.message || event?.reason || '');
-                if (!/invalid MessagePort/i.test(reason)) return;
+                if (!/invalid MessagePort|there are no bare clients|SSL connect error|Failed to get a ping response/i.test(reason)) return;
                 if (sessionStorage.getItem(recoveryKey)) return;
                 sessionStorage.setItem(recoveryKey, '1');
+                setPreferredTransport('epoxy');
                 clearStoredBareMuxState();
                 location.reload();
             });
