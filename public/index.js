@@ -12,6 +12,10 @@ let proxyMode = "scramjet";
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 const recoveryKey = "rift__index-baremux-recover-v1";
 
+if (typeof ensureBareMuxPortBridge === "function") {
+    ensureBareMuxPortBridge("/baremux/worker.js");
+}
+
 function clearStoredBareMuxState() {
     try {
         const keys = [];

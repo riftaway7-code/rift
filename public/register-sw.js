@@ -7,6 +7,33 @@ const swReloadKey = "rift__root-sw-reload-v1";
  */
 const swAllowedHostnames = ["localhost", "127.0.0.1"];
 
+function ensureBareMuxPortBridge(workerPath = "/baremux/worker.js") {
+     if (window.__riftBareMuxPortBridgeReady) {
+          return;
+     }
+
+     window.__riftBareMuxPortBridgeReady = true;
+
+     if (!navigator.serviceWorker?.addEventListener || typeof SharedWorker === "undefined") {
+          return;
+     }
+
+     navigator.serviceWorker.addEventListener("message", (event) => {
+          if (event?.data?.type !== "getPort" || !event.data.port) {
+               return;
+          }
+
+          try {
+               const worker = new SharedWorker(workerPath, "bare-mux-worker");
+               event.data.port.postMessage(worker.port, [worker.port]);
+          } catch (error) {
+               console.warn("[rift-baremux] failed to supply SharedWorker port", error);
+          }
+     });
+}
+
+window.ensureBareMuxPortBridge = ensureBareMuxPortBridge;
+
 /**
  * Global util
  * Used in 404.html and index.html

@@ -314,6 +314,10 @@
                 }
             }
 
+            if (typeof ensureBareMuxPortBridge === 'function') {
+                ensureBareMuxPortBridge('/baremux/worker.js');
+            }
+
             reload.addEventListener('click', () => {
                 if (frame && !frame.hidden) {
                     try {

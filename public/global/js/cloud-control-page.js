@@ -207,6 +207,9 @@
 
         transportReadyPromise = (async () => {
             if (typeof registerSW === 'function') {
+                if (typeof ensureBareMuxPortBridge === 'function') {
+                    ensureBareMuxPortBridge('/baremux/worker.js');
+                }
                 await registerSW();
             }
 
