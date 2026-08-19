@@ -1,0 +1,164 @@
+<body>
+  <form id="search"><input id="url" type="text" class="search-input search" placeholder="Search the web or enter URL"></form>
+  <form id="wisp"><input id="websocket" type="text" class="search-input search"></form>
+  <iframe id="iframe" width="100%" height="100%"></iframe>
+  <script>
+    window.__riftTinyjetScramjetReady = (async () => {
+      const resetKey = "rift__tinyjet-scramjet-idb-reset-v4";
+      const loadScript = (src) => new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`failed to load ${src}`));
+        document.head.appendChild(script);
+      });
+
+      try {
+        if (!sessionStorage.getItem(resetKey) && typeof indexedDB !== "undefined") {
+          const names = new Set(["$scramjet", "scramjet", "$bare-mux", "bare-mux", "baremux"]);
+          if (typeof indexedDB.databases === "function") {
+            const databases = await indexedDB.databases();
+            for (const row of databases || []) {
+              const name = String(row?.name || "").trim();
+              if (!name) continue;
+              if (/scramjet|bare-?mux|mercury/i.test(name)) names.add(name);
+            }
+          }
+
+          try {
+            localStorage.removeItem("bare-mux-path");
+          } catch {}
+
+          await Promise.all(Array.from(names).map((name) => new Promise((resolve) => {
+            try {
+              const request = indexedDB.deleteDatabase(name);
+              request.onsuccess = () => resolve();
+              request.onerror = () => resolve();
+              request.onblocked = () => resolve();
+            } catch {
+              resolve();
+            }
+          })));
+          sessionStorage.setItem(resetKey, "1");
+        }
+      } catch (error) {
+        console.warn("[tinyjet] scramjet idb reset skipped", error);
+      }
+
+      await loadScript("./tinyjet/scramjet.all.js");
+    })();
+  </script>
+  <script type="module" defer>
+    await (window.__riftTinyjetScramjetReady || Promise.resolve());
+    import * as BareMux from "/baremux/index.mjs";
+    const tinyjetConfig = {
+      prefix: "/tinyjet/scramjet/",
+      files: {
+        wasm: "/tinyjet/tinyjet/wasm.wasm",
+        all: "/tinyjet/tinyjet/scramjet.all.js",
+        sync: "/tinyjet/tinyjet/scramjet.sync.js"
+      }
+    };
+    window.__scramjet$config = {
+      ...(window.__scramjet$config || {}),
+      ...tinyjetConfig,
+      files: {
+        ...((window.__scramjet$config && window.__scramjet$config.files) || {}),
+        ...tinyjetConfig.files
+      }
+    };
+    const swReloadKey = "rift__tinyjet-sw-controlled-v5";
+    const { ScramjetController } = $scramjetLoadController();
+    const scramjet = new ScramjetController(tinyjetConfig);
+    async function ensureTinyjetControl() {
+      if (!("serviceWorker" in navigator)) return;
+      await navigator.serviceWorker.register("/tinyjet/sw.js?v=2.3.42", { scope: "/tinyjet/", updateViaCache: "none" });
+      await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller && !sessionStorage.getItem(swReloadKey)) {
+        sessionStorage.setItem(swReloadKey, "1");
+        window.location.reload();
+        await new Promise(() => {});
+      }
+      if (navigator.serviceWorker.controller) {
+        sessionStorage.removeItem(swReloadKey);
+      }
+    }
+    try {
+      await ensureTinyjetControl();
+      await scramjet.init();
+    } catch (e) { console.error("scramjet failed to initialize;", e); }
+    const connection = new BareMux.BareMuxConnection("/tinyjet/bareworker.js");
+    const websocketInput = document.getElementById("websocket");
+    const fallbackWisp = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/wisp/`;
+    websocketInput.value = fallbackWisp;
+    websocketInput.placeholder = fallbackWisp;
+    function getWispUrl() {
+      const wisp = websocketInput.value.trim();
+      const defaultWisp = fallbackWisp;
+      return wisp || defaultWisp;
+    }
+    async function setTransport(transportsel) {
+      const wispUrl = getWispUrl();
+      switch (transportsel) {
+        case "libcurl":
+          await connection.setTransport("/uv/rift-epoxy.mjs", [{ wisp: wispUrl }]);
+          break;
+        default:
+          await connection.setTransport("/uv/rift-epoxy.mjs", [{ wisp: wispUrl }]);
+          break;
+      }
+    }
+    document.getElementById("wisp").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await setTransport("epoxy");
+    });
+    function search(input) {
+      let template = "https://search.brave.com/search?q=%s";
+
+      try {
+        return new URL(input).toString();
+      } catch (err) {}
+
+      try {
+        let url = new URL(`http://${input}`);
+        if (url.hostname.includes(".")) return url.toString();
+      } catch (err) {}
+
+      return template.replace("%s", input); 
+    }
+
+    function openTarget(rawInput) {
+      const fixedurl = search(String(rawInput || "").trim());
+      const src = scramjet.encodeUrl(fixedurl);
+      document.getElementById("iframe").src = src;
+    }
+
+    document.getElementById("search").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      openTarget(document.getElementById("url").value);
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const launchUrl = params.get("url");
+    const urlInput = document.getElementById("url");
+    if (launchUrl) {
+      urlInput.value = launchUrl;
+    }
+
+    let transportReady = false;
+    try {
+      await setTransport("epoxy");
+      transportReady = true;
+    } catch (error) {
+      console.error("[tinyjet] transport bootstrap failed", error);
+    }
+
+    if (launchUrl && transportReady) {
+      openTarget(launchUrl);
+    }
+  </script>
+    <script src="/config.js"></script>
+    <script src="/global/js/ads.js"></script>
+</body>
+
+

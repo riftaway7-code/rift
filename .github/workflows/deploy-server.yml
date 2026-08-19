@@ -1,0 +1,39 @@
+name: Deploy Rift Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Upload project files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "package.json,package-lock.json,pnpm-lock.yaml,server/**,public/**,components/**,assets/**,api/**,truffled.g.json,data/truffled-root-manifest.json,README.md,vercel.json"
+          target: /var/www/rift
+          overwrite: true
+
+      - name: Restart app on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -e
+            cd /var/www/rift
+            npm install --omit=dev
+            pm2 restart rift
+            pm2 status rift --no-color

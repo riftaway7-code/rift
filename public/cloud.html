@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-W1SEMRGLRR"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-W1SEMRGLRR');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rift Cloud</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="/global/css/global.css">
+    <style>
+        body.cloud-page {
+            overflow-x: hidden;
+        }
+
+        body.cloud-page .container {
+            width: min(100%, 1180px);
+            max-width: 1180px;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 12px;
+            padding-right: 12px;
+            box-sizing: border-box;
+        }
+        .cloud-shell {
+            display: grid;
+            gap: 14px;
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .cloud-banner,
+        .cloud-panel,
+        .cloud-side-card {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 18px;
+            background: rgba(255,255,255,.04);
+            backdrop-filter: blur(10px);
+        }
+        .cloud-banner {
+            padding: 18px;
+            display: grid;
+            gap: 14px;
+            background:
+                radial-gradient(circle at top right, rgba(159,214,255,.16), transparent 38%),
+                rgba(255,255,255,.04);
+        }
+        .cloud-banner-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .cloud-banner-copy {
+            display: grid;
+            gap: 8px;
+            max-width: 720px;
+        }
+        .cloud-kicker {
+            color: rgba(159,214,255,.84);
+            font-size: 10px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+        .cloud-hero {
+            color: #fff;
+            font-size: clamp(24px, 4vw, 40px);
+            line-height: 1.05;
+            text-transform: lowercase;
+        }
+        .cloud-copy {
+            color: rgba(226,235,246,.72);
+            font-size: 12px;
+            line-height: 1.6;
+            max-width: 58ch;
+        }
+        .cloud-stat-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cloud-stat {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.1);
+            background: rgba(255,255,255,.05);
+            color: rgba(243,248,255,.84);
+            font-size: 11px;
+            text-transform: lowercase;
+            letter-spacing: .05em;
+        }
+        .cloud-toolbar {
+            display: grid;
+            grid-template-columns: minmax(240px, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+        }
+        .cloud-search,
+        .cloud-filter {
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.16);
+            background: rgba(255,255,255,.05);
+            color: #fff;
+            padding: 11px 12px;
+            font-family: "Run", Arial, sans-serif;
+            font-size: 12px;
+            outline: none;
+        }
+        .cloud-filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cloud-filter-btn,
+        .cloud-action {
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.07);
+            color: #fff;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-family: "Run", Arial, sans-serif;
+            font-size: 11px;
+            text-transform: lowercase;
+            letter-spacing: .05em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .cloud-filter-btn.active,
+        .cloud-action.primary {
+            background: rgba(159,214,255,.16);
+            border-color: rgba(159,214,255,.28);
+        }
+        .cloud-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(260px, 320px);
+            gap: 14px;
+            align-items: start;
+        }
+        .cloud-panel {
+            padding: 14px;
+            min-height: 0;
+        }
+        .cloud-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            align-content: start;
+            max-height: min(72vh, 820px);
+            overflow: auto;
+        }
+        .cloud-card {
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 16px;
+            background: rgba(255,255,255,.04);
+            padding: 14px;
+            display: grid;
+            gap: 12px;
+            min-height: 176px;
+            cursor: pointer;
+            transition: transform .18s ease, border-color .18s ease, background .18s ease;
+        }
+        .cloud-card:hover,
+        .cloud-card.active {
+            transform: translateY(-2px);
+            border-color: rgba(159,214,255,.28);
+            background: rgba(255,255,255,.08);
+        }
+        .cloud-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .cloud-card-title {
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.35;
+            text-transform: lowercase;
+        }
+        .cloud-card-meta {
+            margin-top: 4px;
+            color: rgba(255,255,255,.58);
+            font-size: 10px;
+            letter-spacing: .05em;
+            text-transform: lowercase;
+        }
+        .cloud-chip {
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.06);
+            color: rgba(244,248,255,.8);
+            padding: 6px 8px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            white-space: nowrap;
+        }
+        .cloud-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .cloud-card-copy,
+        .cloud-side-copy,
+        .cloud-detail-note {
+            color: rgba(228,236,246,.72);
+            font-size: 11px;
+            line-height: 1.55;
+        }
+        .cloud-card-actions,
+        .cloud-side-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cloud-side {
+            display: grid;
+            gap: 12px;
+            min-height: 0;
+            align-content: start;
+        }
+        .cloud-side-card {
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+        .cloud-side-title {
+            color: #fff;
+            font-size: 16px;
+            line-height: 1.15;
+            text-transform: lowercase;
+        }
+        .cloud-side-sub {
+            color: rgba(255,255,255,.58);
+            font-size: 10px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .cloud-side-stats {
+            display: grid;
+            gap: 6px;
+        }
+        .cloud-side-stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+            color: rgba(244,248,255,.84);
+            font-size: 10px;
+            text-transform: lowercase;
+        }
+        .cloud-empty {
+            border: 1px dashed rgba(255,255,255,.16);
+            border-radius: 16px;
+            padding: 24px;
+            color: rgba(255,255,255,.62);
+            font-size: 12px;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+        .cloud-player {
+            display: grid;
+            gap: 10px;
+        }
+        .cloud-player-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .cloud-player-copy {
+            display: grid;
+            gap: 4px;
+        }
+        .cloud-player-title {
+            color: #fff;
+            font-size: 14px;
+            text-transform: lowercase;
+        }
+        .cloud-player-sub {
+            color: rgba(221,231,243,.62);
+            font-size: 10px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+        .cloud-player-frame-wrap {
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 16px;
+            overflow: hidden;
+            min-height: 0;
+            background: rgba(4,7,12,.72);
+        }
+        .cloud-player-empty {
+            padding: 16px;
+            color: rgba(226,235,246,.66);
+            font-size: 11px;
+            text-align: left;
+        }
+        .cloud-session-view {
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+        .cloud-session-links,
+        .cloud-host-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cloud-session-list {
+            display: grid;
+            gap: 6px;
+        }
+        .cloud-session-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.08);
+            background: rgba(255,255,255,.04);
+            color: rgba(244,248,255,.84);
+            font-size: 11px;
+            text-transform: lowercase;
+        }
+        .cloud-session-row strong,
+        .cloud-host-pill strong {
+            color: #fff;
+            font-weight: 600;
+        }
+        .cloud-host-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.08);
+            background: rgba(255,255,255,.04);
+            color: rgba(244,248,255,.84);
+            font-size: 11px;
+            text-transform: lowercase;
+        }
+        .cloud-instruction-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 8px;
+        }
+        .cloud-instruction-list li {
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+            color: rgba(229,236,246,.76);
+            font-size: 11px;
+            line-height: 1.55;
+        }
+        @media (max-width: 1120px) {
+            .cloud-layout {
+                grid-template-columns: 1fr;
+            }
+            .cloud-grid {
+                max-height: none;
+            }
+        }
+        @media (max-width: 980px) {
+            .cloud-toolbar,
+            .cloud-layout {
+                grid-template-columns: 1fr;
+            }
+            .cloud-grid {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body class="cloud-page">
+    <div class="container">
+        <header>
+            <h1>rift cloud</h1>
+        </header>
+
+        <section class="cloud-shell">
+            <div class="cloud-layout">
+                <article class="cloud-panel cloud-player">
+                    <div class="cloud-player-head">
+                        <div class="cloud-player-copy">
+                            <div class="cloud-player-title">session status</div>
+                            <div id="cloudPlayerStatus" class="cloud-player-sub">pick a game and press play in rift</div>
+                        </div>
+                        <div class="cloud-side-actions">
+                            <button id="cloudRefreshStatus" class="cloud-action" type="button">
+                                <span class="material-icons">refresh</span>
+                                <span>refresh route</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="cloud-player-frame-wrap">
+                            <div id="cloudPlayerEmpty" class="cloud-player-empty">Pick a cloud game and press <strong>play in rift</strong>.</div>
+                        <div id="cloudSessionView" class="cloud-session-view" hidden>
+                            <div id="cloudSessionPills" class="cloud-session-links"></div>
+                            <div id="cloudSessionSummary" class="cloud-session-list"></div>
+                            <div id="cloudConnectionSummary" class="cloud-session-list"></div>
+                            <div id="cloudSessionLinks" class="cloud-session-links"></div>
+                            <ul id="cloudInstructionList" class="cloud-instruction-list"></ul>
+                            <div id="cloudHostList" class="cloud-host-list"></div>
+                        </div>
+                    </div>
+                    <div id="cloudGrid" class="cloud-grid"></div>
+                </article>
+                <aside class="cloud-side">
+                    <section class="cloud-side-card">
+                        <div class="cloud-kicker">selected game</div>
+                        <div id="cloudDetailTitle" class="cloud-side-title">pick a cloud game</div>
+                        <div id="cloudDetailSub" class="cloud-side-sub">ready when you are</div>
+                        <div id="cloudDetailCopy" class="cloud-side-copy">Pick a game and launch it.</div>
+                        <div id="cloudDetailTags" class="cloud-tags"></div>
+                        <div class="cloud-side-actions">
+                            <button id="cloudRequestSession" class="cloud-action primary" type="button">
+                                <span class="material-icons">play_arrow</span>
+                                <span>play in rift</span>
+                            </button>
+                            <button id="cloudEndSession" class="cloud-action" type="button">
+                                <span class="material-icons">stop_circle</span>
+                                <span>open direct</span>
+                            </button>
+                        </div>
+                    </section>
+                    <section class="cloud-side-card">
+                        <div class="cloud-kicker">game info</div>
+                        <div id="cloudDetailStats" class="cloud-side-stats"></div>
+                    </section>
+                </aside>
+            </div>
+        </section>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-button" onclick="location.href='/'">
+            <span class="material-icons">home</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/games'">
+            <span class="material-icons">sports_esports</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/apps'">
+            <span class="material-icons">apps</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/music'">
+            <span class="material-icons">library_music</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/soundboard'">
+            <span class="material-icons">graphic_eq</span>
+        </button>
+        <button class="nav-button active" onclick="location.href='/cloud'">
+            <span class="material-icons">cloud</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/chat'">
+            <span class="material-icons">forum</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/browser'">
+            <span class="material-icons">language</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/account'">
+            <span class="material-icons">person</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/settings'">
+            <span class="material-icons">settings</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/social-media-&-partners'">
+            <span class="material-icons">connect_without_contact</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/rift_media'">
+            <span class="material-icons">movie</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/os'">
+            <span class="material-icons">desktop_windows</span>
+        </button>
+    </nav>
+
+    <script>
+        document.body.classList.add('nav-pos-' + (localStorage.getItem('rift__nav-position') || 'bottom'));
+    </script>
+    <script src="/global/js/global.js"></script>
+    <script src="/components/cloaker.js"></script>
+    <script src="/components/overlay.js"></script>
+    <script src="/components/components.js"></script>
+    <script src="/components/404.js"></script>
+    <script src="/register-sw.js"></script>
+    <script src="/baremux/index.js"></script>
+    <script src="/assets/scramjet/scramjet.codecs.js"></script>
+    <script src="/assets/scramjet/scramjet.config.js"></script>
+    <script src="/assets/scramjet/scramjet.bundle.js"></script>
+    <script src="/global/js/cloud-control-page.js"></script>
+    <script src="/config.js"></script>
+    <script src="/global/js/ads.js"></script>
+</body>
+</html>
+
+
+
+

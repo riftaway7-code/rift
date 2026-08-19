@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-W1SEMRGLRR"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-W1SEMRGLRR');
+    </script><title>Rift Proxy</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="/global/css/global.css">
+</head>
+<body class="games-page">
+    <!-- Game Viewer Overlay -->
+    <div id="viewer-backdrop">
+        <div id="game-viewer">
+            <div id="viewer-bar">
+                <div class="viewer-controls">
+                    <button class="dot close" title="Close"></button>
+                    <button class="dot min" title="Minimize"></button>
+                    <button class="dot max" title="Maximize"></button>
+                </div>
+                <div id="viewer-label"></div>
+            </div>
+            <div id="viewer-loading" class="viewer-loading" style="display:none;">
+                <div class="loader-ring"></div>
+                <div class="viewer-loading-text">loading game...</div>
+            </div>
+            <iframe id="viewer-frame"></iframe>
+        </div>
+    </div>
+
+    <div id="game-detail-backdrop" class="game-detail-backdrop" style="display:none;">
+        <div id="game-detail-card" class="game-detail-card">
+            <button id="game-detail-close" class="game-detail-close" title="Close">
+                <span class="material-icons">close</span>
+            </button>
+            <div class="game-detail-image-wrap">
+                <img id="game-detail-image" class="game-detail-image" alt="Game cover" />
+            </div>
+            <div id="game-detail-name" class="game-detail-name"></div>
+            <div id="game-detail-source" class="game-detail-source"></div>
+            <div class="game-detail-actions">
+                <button id="game-detail-favorite" class="game-detail-btn">
+                    <span class="material-icons">favorite_border</span> favorite
+                </button>
+                <button id="game-detail-save" class="game-detail-btn">
+                    <span class="material-icons">bookmark_border</span> save
+                </button>
+                <button id="game-detail-play" class="game-detail-btn primary">
+                    <span class="material-icons">play_arrow</span> play
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Rift</h1>
+        </header>
+    </div>
+
+    <div class="vault-controls">
+        <div class="search-wrap">
+            <input type="text" id="vault-search" placeholder="search games..." />
+            <button id="vault-clear" class="search-clear" style="display:none" title="Clear">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div class="vault-source-wrap">
+            <select id="vault-source-filter" aria-label="Game source">
+                <option value="all">all games</option>
+                <option value="gn-math">gn-math</option>
+                <option value="sdxp">sdxp</option>
+                <option value="duckmath">duckmath</option>
+                <option value="ccported">ccported</option>
+                <option value="ugs">ugs</option>
+                <option value="selenite">selenite</option>
+                <option value="radon">radon</option>
+                <option value="fyinx">fyinx</option>
+                <option value="elite">elite</option>
+                <option value="truffled">truffled</option>
+                <option value="totalscience">totally science</option>
+                <option value="petezah">petezah lite</option>
+                <option value="seraph">seraph</option>
+            </select>
+            <div id="truffled-launch-note" style="margin-top:6px;font-size:12px;opacity:.75;">
+                Truffled games use local wrapper html files.
+            </div>
+        </div>
+    </div>
+
+    <main id="vault-grid"></main>
+
+    <button id="viewer-restore">restore</button>
+
+            <nav class="bottom-nav">
+        <button class="nav-button" onclick="location.href='/'">
+            <span class="material-icons">home</span>
+        </button>
+        <button class="nav-button active" onclick="location.href='/games'">
+            <span class="material-icons">sports_esports</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/apps'">
+            <span class="material-icons">apps</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/music'">
+            <span class="material-icons">library_music</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/soundboard'">
+            <span class="material-icons">graphic_eq</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/cloud'">
+            <span class="material-icons">cloud</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/chat'">
+            <span class="material-icons">forum</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/browser'">
+            <span class="material-icons">language</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/account'">
+            <span class="material-icons">person</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/settings'">
+            <span class="material-icons">settings</span>
+        </button>
+<button class="nav-button" onclick="location.href='/social-media-&-partners'">
+            <span class="material-icons">connect_without_contact</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/rift_media'">
+            <span class="material-icons">movie</span>
+        </button>
+        <button class="nav-button" onclick="location.href='/os'">
+            <span class="material-icons">desktop_windows</span>
+        </button>
+    </nav>
+
+    <script src="/global/js/global.js"></script>
+    <script src="/components/cloaker.js"></script>
+    <script src="/components/overlay.js"></script>
+    <script src="/components/games.js"></script>
+    <script src="/components/components.js"></script>
+    <script src="/components/404.js"></script>
+<script>
+    const savedPosition = localStorage.getItem('rift__nav-position') || 'bottom';
+    document.body.classList.add('nav-pos-' + savedPosition);
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('view') === 'games-only') {
+        const nav = document.querySelector('.bottom-nav');
+        if (nav) nav.remove();
+        const navToggle = document.querySelector('.nav-toggle');
+        if (navToggle) navToggle.remove();
+    }
+</script>
+
+    <script src="/config.js"></script>
+    <script src="/global/js/ads.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

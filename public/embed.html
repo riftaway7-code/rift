@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rift Embed</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #030507;
+            font-family: Arial, sans-serif;
+        }
+        .embed-shell {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            background:
+                radial-gradient(circle at top, rgba(142, 203, 255, 0.12), transparent 36%),
+                #030507;
+        }
+        .embed-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            background: rgba(7, 10, 14, 0.88);
+            backdrop-filter: blur(10px);
+        }
+        .embed-bar-copy {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+        .embed-title {
+            color: rgba(247, 250, 255, 0.94);
+            font-size: 12px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .embed-status {
+            color: rgba(211, 223, 238, 0.66);
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 68vw;
+        }
+        .embed-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .embed-btn {
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.06);
+            color: rgba(245,248,252,.9);
+            border-radius: 10px;
+            min-width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .embed-btn:hover {
+            background: rgba(255,255,255,.1);
+            border-color: rgba(255,255,255,.2);
+        }
+        .embed-stage {
+            position: relative;
+            min-height: 0;
+            background: rgba(0,0,0,.28);
+        }
+        .embed-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+            background: #000;
+        }
+        .embed-empty,
+        .embed-error {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            text-align: center;
+            color: rgba(223, 232, 244, 0.74);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .embed-error[hidden],
+        .embed-empty[hidden],
+        .embed-frame[hidden] {
+            display: none !important;
+        }
+        .embed-error-box {
+            max-width: 560px;
+            display: grid;
+            gap: 12px;
+            padding: 18px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.1);
+            background: rgba(255,255,255,.05);
+        }
+        .embed-error-box strong {
+            color: #fff;
+            font-size: 14px;
+            text-transform: lowercase;
+        }
+        .embed-error-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .embed-error-actions a,
+        .embed-error-actions button {
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.08);
+            color: #fff;
+            border-radius: 12px;
+            padding: 10px 12px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="embed-shell">
+        <div class="embed-bar">
+            <div class="embed-bar-copy">
+                <div class="embed-title">rift embed</div>
+                <div id="embedStatus" class="embed-status">waiting for target</div>
+            </div>
+            <div class="embed-actions">
+                <button id="embedReload" type="button" class="embed-btn" aria-label="Reload"><span class="material-icons">refresh</span></button>
+                <a id="embedPopout" class="embed-btn" href="#" target="_blank" rel="noopener noreferrer" aria-label="Open in new tab"><span class="material-icons">open_in_new</span></a>
+            </div>
+        </div>
+        <div class="embed-stage">
+            <iframe id="embedFrame" class="embed-frame" title="Rift embedded content" hidden></iframe>
+            <div id="embedEmpty" class="embed-empty">No embed target was provided.</div>
+            <div id="embedError" class="embed-error" hidden>
+                <div class="embed-error-box">
+                    <strong>rift embed could not start this session</strong>
+                    <div id="embedErrorText">scramjet transport is unavailable on this deployment.</div>
+                    <div class="embed-error-actions">
+                        <button id="embedRetry" type="button">retry</button>
+                        <a id="embedDirect" href="#" target="_blank" rel="noopener noreferrer">open direct</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/register-sw.js"></script>
+    <script src="/baremux/index.js"></script>
+    <script src="/assets/scramjet/scramjet.codecs.js"></script>
+    <script src="/assets/scramjet/scramjet.config.js"></script>
+    <script src="/assets/scramjet/scramjet.bundle.js"></script>
+    <script>
+        (function () {
+            const frame = document.getElementById('embedFrame');
+            const empty = document.getElementById('embedEmpty');
+            const error = document.getElementById('embedError');
+            const errorText = document.getElementById('embedErrorText');
+            const status = document.getElementById('embedStatus');
+            const popout = document.getElementById('embedPopout');
+            const reload = document.getElementById('embedReload');
+            const retry = document.getElementById('embedRetry');
+            const direct = document.getElementById('embedDirect');
+            const recoveryKey = 'rift__embed-baremux-recover-v2';
+            const transportKey = 'rift__baremux-transport-v1';
+            const connection = window.BareMux?.BareMuxConnection
+                ? new BareMux.BareMuxConnection('/baremux/worker.js')
+                : null;
+            let currentTarget = '';
+            const clearStoredBareMuxState = () => {
+                try {
+                    const keys = [];
+                    for (let index = 0; index < localStorage.length; index += 1) {
+                        const key = String(localStorage.key(index) || '');
+                        if (/bare-?mux|mercury/i.test(key)) keys.push(key);
+                    }
+                    for (const key of keys) {
+                        if (key === 'bare-mux-path') continue;
+                        localStorage.removeItem(key);
+                    }
+                    localStorage['bare-mux-path'] = '/baremux/worker.js';
+                } catch {
+                }
+            };
+
+            function getTarget() {
+                const fromHash = decodeURIComponent(String(window.location.hash || '').replace(/^#/, '')).trim();
+                if (fromHash) return fromHash;
+                const params = new URLSearchParams(window.location.search);
+                return String(params.get('url') || '').trim();
+            }
+
+            function encodeTarget(input) {
+                const encoder = self.__scramjet$bundle?.rewriters?.url?.encodeUrl;
+                if (!encoder) return input;
+                const base = window.location.origin;
+                try {
+                    return encoder(input, base);
+                } catch {
+                    const fallback = new URL(input, window.location.origin).toString();
+                    return encoder(fallback, base);
+                }
+            }
+
+            async function ensureTransport() {
+                if (!connection) throw new Error('BareMux is unavailable.');
+                const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';
+                const transportOptions = {
+                    libcurl: {
+                        path: '/libcurl/index.mjs',
+                        payload: () => [{ websocket: wispUrl }],
+                    },
+                    epoxy: {
+                        path: '/uv/rift-epoxy.mjs',
+                        payload: () => [{ wisp: wispUrl }],
+                    },
+                };
+                const setPreferredTransport = (name) => {
+                    try {
+                        localStorage.setItem(transportKey, name);
+                    } catch {
+                    }
+                };
+                const getTransportOrder = () => {
+                    let preferred = 'libcurl';
+                    try {
+                        preferred = String(localStorage.getItem(transportKey) || 'libcurl');
+                    } catch {
+                    }
+                    if (!(preferred in transportOptions)) preferred = 'libcurl';
+                    return preferred === 'epoxy' ? ['epoxy', 'libcurl'] : ['libcurl', 'epoxy'];
+                };
+
+                let lastError = null;
+                for (const mode of getTransportOrder()) {
+                    try {
+                        clearStoredBareMuxState();
+                        localStorage['bare-mux-path'] = '/baremux/worker.js';
+                        await connection.setTransport(transportOptions[mode].path, transportOptions[mode].payload());
+                        localStorage['bare-mux-path'] = '/baremux/worker.js';
+                        setPreferredTransport(mode);
+                        return;
+                    } catch (error) {
+                        lastError = error;
+                    }
+                }
+                throw lastError || new Error('failed to initialize bare transport');
+            }
+
+            window.addEventListener('unhandledrejection', (event) => {
+                const reason = String(event?.reason?.message || event?.reason || '');
+                if (!/invalid MessagePort|there are no bare clients|SSL connect error|Failed to get a ping response/i.test(reason)) return;
+                if (sessionStorage.getItem(recoveryKey)) return;
+                sessionStorage.setItem(recoveryKey, '1');
+                try {
+                    localStorage.setItem(transportKey, 'epoxy');
+                } catch {
+                }
+                clearStoredBareMuxState();
+                location.reload();
+            });
+
+            async function testWispSocket(timeoutMs = 8000) {
+                const wispUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/wisp/';
+                return await new Promise((resolve) => {
+                    let settled = false;
+                    const socket = new WebSocket(wispUrl, 'wisp-v2');
+                    const finish = (ok) => {
+                        if (settled) return;
+                        settled = true;
+                        clearTimeout(timer);
+                        try { socket.close(); } catch {}
+                        resolve(ok);
+                    };
+                    const timer = setTimeout(() => finish(false), timeoutMs);
+                    socket.addEventListener('open', () => finish(true), { once: true });
+                    socket.addEventListener('error', () => finish(false), { once: true });
+                    socket.addEventListener('close', () => { if (!settled) finish(false); }, { once: true });
+                });
+            }
+
+            async function testWispHttp() {
+                try {
+                    const response = await fetch('/wisp/', {
+                        method: 'GET',
+                        cache: 'no-store',
+                        headers: { 'cache-control': 'no-cache' },
+                    });
+                    return response.status === 426;
+                } catch {
+                    return false;
+                }
+            }
+
+            function showError(message) {
+                if (errorText) errorText.textContent = message;
+                if (error) error.hidden = false;
+                if (frame) frame.hidden = true;
+                if (empty) empty.hidden = true;
+                status.textContent = 'embed failed';
+            }
+
+            function showFrame() {
+                if (frame) frame.hidden = false;
+                if (empty) empty.hidden = true;
+                if (error) error.hidden = true;
+            }
+
+            async function loadTarget() {
+                currentTarget = getTarget();
+                popout.href = currentTarget || '#';
+                direct.href = currentTarget || '#';
+                if (!currentTarget) {
+                    if (empty) empty.hidden = false;
+                    if (frame) frame.hidden = true;
+                    if (error) error.hidden = true;
+                    status.textContent = 'waiting for target';
+                    return;
+                }
+
+                status.textContent = currentTarget;
+                try {
+                    await registerSW();
+                    await ensureTransport();
+                    let ok = await testWispSocket();
+                    if (!ok) ok = await testWispHttp();
+                    if (!ok) throw new Error('Wisp websocket was not reachable on this deployment.');
+                    frame.src = encodeTarget(currentTarget);
+                    showFrame();
+                } catch (err) {
+                    console.error('Rift embed failed', err);
+                    showError(err?.message || 'Unknown embed error');
+                }
+            }
+
+            if (typeof ensureBareMuxPortBridge === 'function') {
+                ensureBareMuxPortBridge('/baremux/worker.js');
+            }
+
+            reload.addEventListener('click', () => {
+                if (frame && !frame.hidden) {
+                    try {
+                        frame.contentWindow?.location?.reload();
+                        return;
+                    } catch {}
+                }
+                loadTarget();
+            });
+            retry.addEventListener('click', loadTarget);
+            window.addEventListener('hashchange', loadTarget);
+            loadTarget();
+        })();
+    </script>
+    <script src="/config.js"></script>
+    <script src="/global/js/ads.js"></script>
+</body>
+</html>
+
+
